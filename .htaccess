@@ -1,0 +1,21 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Do not rewrite requests for the backend API
+  RewriteRule ^api/ - [L]
+
+  # If requested file or directory exists, serve it directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Fallback to index.html for Angular SPA routing
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Security: Prevent direct viewing of sensitive files
+<Files "db.php">
+  Order allow,deny
+  Deny from all
+</Files>
