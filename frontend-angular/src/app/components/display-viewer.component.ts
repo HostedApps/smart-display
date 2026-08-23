@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { interval, Subscription, switchMap } from 'rxjs';
 import { DisplayResponse, Widget, DisplayConfig, DisplayPage } from '../models/display.model';
 import { environment } from '../../environments/environment';
@@ -22,6 +23,31 @@ import { OfflineCacheService } from '../services/offline-cache.service';
         [style.filter]="'blur(' + (displayConfig?.background?.blur || 0) + 'px)'"
         [style.opacity]="(displayConfig?.background?.opacity !== undefined ? displayConfig?.background?.opacity : 1)"
       ></div>
+
+      <!-- Background Video Overlay if Configured -->
+      <video
+        *ngIf="displayConfig?.background?.type === 'video' && displayConfig?.background?.videoUrl"
+        class="bg-video-layer"
+        [src]="displayConfig?.background?.videoUrl"
+        autoplay
+        muted
+        loop
+        playsinline
+        [style.filter]="'blur(' + (displayConfig?.background?.blur || 0) + 'px)'"
+        [style.opacity]="(displayConfig?.background?.opacity !== undefined ? displayConfig?.background?.opacity : 1)"
+      ></video>
+
+      <!-- Background YouTube Embed if Configured -->
+      <iframe
+        *ngIf="displayConfig?.background?.type === 'youtube' && displayConfig?.background?.youtubeId"
+        class="bg-youtube-layer"
+        [src]="getSafeYoutubeUrl(displayConfig?.background?.youtubeId)"
+        frameborder="0"
+        allow="autoplay; encrypted-media"
+        allowfullscreen
+        [style.filter]="'blur(' + (displayConfig?.background?.blur || 0) + 'px)'"
+        [style.opacity]="(displayConfig?.background?.opacity !== undefined ? displayConfig?.background?.opacity : 1)"
+      ></iframe>
 
       <!-- Offline Pill -->
       <div class="offline-pill" *ngIf="!isOnline">
@@ -64,6 +90,8 @@ import { OfflineCacheService } from '../services/offline-cache.service';
           <app-sticky-note-widget *ngIf="widget.type === 'sticky_note'" [config]="widget.config"></app-sticky-note-widget>
           <app-countdown-widget *ngIf="widget.type === 'countdown'" [config]="widget.config"></app-countdown-widget>
           <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
+          <app-radar-widget *ngIf="widget.type === 'radar'" [config]="widget.config"></app-radar-widget>
+          <app-quote-widget *ngIf="widget.type === 'quote'" [config]="widget.config"></app-quote-widget>
         </div>
       </div>
 
@@ -93,6 +121,16 @@ import { OfflineCacheService } from '../services/offline-cache.service';
       inset: 0;
       background-size: cover;
       background-position: center;
+      z-index: 0;
+    }
+    .bg-video-layer, .bg-youtube-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: none;
+      pointer-events: none;
       z-index: 0;
     }
     .widgets-container {
@@ -206,8 +244,15 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute, 
     private http: HttpClient,
-    private offlineCache: OfflineCacheService
+    private offlineCache: OfflineCacheService,
+    private sanitizer: DomSanitizer
   ) {}
+
+  getSafeYoutubeUrl(id?: string): SafeResourceUrl {
+    const videoId = id || 'jfKfPfyJRdk';
+    const url = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
 
   get activeWidgets(): Widget[] {
     if (this.pages.length <= 1) {

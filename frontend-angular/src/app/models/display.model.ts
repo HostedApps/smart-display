@@ -148,10 +148,27 @@ export interface MealPlannerConfig {
   days?: MealPlanDay[];
 }
 
+export interface RadarConfig {
+  cityName?: string;
+  lat?: number;
+  lon?: number;
+  zoom?: number;
+  colorScheme?: number; // 0=Original, 1=Universal Blue, 2=TITAN, 3=TWC, 4=Meteored, 5=NEXRAD, 6=Rainbow
+  smooth?: boolean;
+  refreshMinutes?: number;
+}
+
+export interface QuoteConfig {
+  category?: 'inspirational' | 'wisdom' | 'history' | 'custom';
+  customQuote?: string;
+  customAuthor?: string;
+  refreshHours?: number;
+}
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner';
+  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote';
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
@@ -172,8 +189,10 @@ export interface SleepScheduleConfig {
 }
 
 export interface DisplayBackground {
-  type: 'theme' | 'color' | 'gradient' | 'image' | 'unsplash';
+  type: 'theme' | 'color' | 'gradient' | 'image' | 'unsplash' | 'video' | 'youtube';
   value: string;
+  videoUrl?: string;
+  youtubeId?: string;
   blur?: number;
   opacity?: number;
 }

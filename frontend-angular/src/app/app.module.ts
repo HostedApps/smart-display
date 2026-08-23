@@ -21,6 +21,8 @@ import { StockCryptoWidgetComponent } from './components/widgets/stock-crypto-wi
 import { StickyNoteWidgetComponent } from './components/widgets/sticky-note-widget.component';
 import { CountdownWidgetComponent } from './components/widgets/countdown-widget.component';
 import { MealPlannerWidgetComponent } from './components/widgets/meal-planner-widget.component';
+import { RadarWidgetComponent } from './components/widgets/radar-widget.component';
+import { QuoteWidgetComponent } from './components/widgets/quote-widget.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
 @NgModule({
@@ -40,7 +42,9 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     StockCryptoWidgetComponent,
     StickyNoteWidgetComponent,
     CountdownWidgetComponent,
-    MealPlannerWidgetComponent
+    MealPlannerWidgetComponent,
+    RadarWidgetComponent,
+    QuoteWidgetComponent
   ],
   imports: [
     BrowserModule,
