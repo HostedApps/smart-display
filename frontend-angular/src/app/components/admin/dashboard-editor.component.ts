@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { 
   Widget, 
   DisplayConfig, 
@@ -71,6 +72,8 @@ import { AuthService } from '../../services/auth.service';
             <button (click)="addWidget('sticky_note')" class="btn btn-secondary">+ Sticky Note</button>
             <button (click)="addWidget('countdown')" class="btn btn-secondary">+ Countdown</button>
             <button (click)="addWidget('meal_planner')" class="btn btn-secondary">+ Meal Plan</button>
+            <button (click)="addWidget('radar')" class="btn btn-secondary">+ Weather Radar</button>
+            <button (click)="addWidget('quote')" class="btn btn-secondary">+ Daily Quote</button>
           </div>
 
           <hr class="divider" />
@@ -316,6 +319,64 @@ import { AuthService } from '../../services/auth.service';
               </div>
             </ng-container>
 
+            <!-- Radar -->
+            <ng-container *ngIf="selectedWidget.type === 'radar'">
+              <div class="form-group">
+                <label>Location / City Label</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.cityName" placeholder="San Francisco Bay Area" class="input-control" />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Latitude</label>
+                  <input type="number" step="0.01" [(ngModel)]="selectedWidget.config.lat" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Longitude</label>
+                  <input type="number" step="0.01" [(ngModel)]="selectedWidget.config.lon" class="input-control" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Zoom Level (3-12)</label>
+                  <input type="number" min="3" max="12" [(ngModel)]="selectedWidget.config.zoom" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Color Palette</label>
+                  <select [(ngModel)]="selectedWidget.config.colorScheme" class="input-control">
+                    <option [value]="0">Original Black/White</option>
+                    <option [value]="1">Universal Blue</option>
+                    <option [value]="2">TITAN (Standard)</option>
+                    <option [value]="3">The Weather Channel</option>
+                    <option [value]="5">NEXRAD Level III</option>
+                    <option [value]="6">Rainbow</option>
+                  </select>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- Daily Quote -->
+            <ng-container *ngIf="selectedWidget.type === 'quote'">
+              <div class="form-group">
+                <label>Category</label>
+                <select [(ngModel)]="selectedWidget.config.category" class="input-control">
+                  <option value="inspirational">Inspirational Thoughts</option>
+                  <option value="wisdom">Stoic Philosophy & Wisdom</option>
+                  <option value="history">On This Day in History</option>
+                  <option value="custom">Custom Family Motto</option>
+                </select>
+              </div>
+              <div *ngIf="selectedWidget.config.category === 'custom'">
+                <div class="form-group">
+                  <label>Custom Quote Text</label>
+                  <textarea [(ngModel)]="selectedWidget.config.customQuote" placeholder="Family is not an important thing. It's everything." rows="2" class="input-control"></textarea>
+                </div>
+                <div class="form-group">
+                  <label>Author</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.customAuthor" placeholder="Michael J. Fox" class="input-control" />
+                </div>
+              </div>
+            </ng-container>
+
             <button (click)="removeSelectedWidget()" class="btn btn-danger">Delete Widget</button>
           </div>
         </div>
@@ -409,6 +470,8 @@ import { AuthService } from '../../services/auth.service';
               <option value="gradient">Gradient</option>
               <option value="image">Custom Image URL</option>
               <option value="unsplash">Curated Wallpaper</option>
+              <option value="video">Direct Video (.mp4)</option>
+              <option value="youtube">YouTube Ambient Stream</option>
             </select>
           </div>
 
@@ -417,7 +480,17 @@ import { AuthService } from '../../services/auth.service';
             <input type="text" [(ngModel)]="backgroundConfig.value" placeholder="https://... or #000000" class="input-control" />
           </div>
 
-          <div class="form-group" *ngIf="backgroundConfig.type === 'image' || backgroundConfig.type === 'unsplash'">
+          <div class="form-group" *ngIf="backgroundConfig.type === 'video'">
+            <label>Video URL (.mp4 / .webm)</label>
+            <input type="text" [(ngModel)]="backgroundConfig.videoUrl" placeholder="https://assets.mixkit.co/videos/preview/..." class="input-control" />
+          </div>
+
+          <div class="form-group" *ngIf="backgroundConfig.type === 'youtube'">
+            <label>YouTube Video / Stream ID</label>
+            <input type="text" [(ngModel)]="backgroundConfig.youtubeId" placeholder="jfKfPfyJRdk" class="input-control" />
+          </div>
+
+          <div class="form-group" *ngIf="backgroundConfig.type === 'image' || backgroundConfig.type === 'unsplash' || backgroundConfig.type === 'video' || backgroundConfig.type === 'youtube'">
             <label>Blur ({{ backgroundConfig.blur || 0 }}px)</label>
             <input type="range" min="0" max="20" step="1" [(ngModel)]="backgroundConfig.blur" class="slider-control" />
           </div>
@@ -447,6 +520,24 @@ import { AuthService } from '../../services/auth.service';
             [style.backgroundImage]="'url(' + getCanvasBackgroundImage() + ')'"
             [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
           ></div>
+
+          <!-- Background video layer -->
+          <video 
+            *ngIf="backgroundConfig.type === 'video' && backgroundConfig.videoUrl" 
+            class="editor-bg-video" 
+            [src]="backgroundConfig.videoUrl"
+            autoplay muted loop playsinline
+            [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
+          ></video>
+
+          <!-- Background youtube layer -->
+          <iframe 
+            *ngIf="backgroundConfig.type === 'youtube' && backgroundConfig.youtubeId" 
+            class="editor-bg-youtube" 
+            [src]="getSafeYoutubeUrl(backgroundConfig.youtubeId)"
+            frameborder="0"
+            [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
+          ></iframe>
 
           <div 
             *ngFor="let widget of pageWidgets; let i = index"
@@ -479,6 +570,8 @@ import { AuthService } from '../../services/auth.service';
               <app-sticky-note-widget *ngIf="widget.type === 'sticky_note'" [config]="widget.config"></app-sticky-note-widget>
               <app-countdown-widget *ngIf="widget.type === 'countdown'" [config]="widget.config"></app-countdown-widget>
               <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
+              <app-radar-widget *ngIf="widget.type === 'radar'" [config]="widget.config"></app-radar-widget>
+              <app-quote-widget *ngIf="widget.type === 'quote'" [config]="widget.config"></app-quote-widget>
             </div>
 
             <!-- 8-Point Visual Resize Handles -->
@@ -851,6 +944,16 @@ import { AuthService } from '../../services/auth.service';
       background-position: center;
       z-index: 0;
     }
+    .editor-bg-video, .editor-bg-youtube {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: none;
+      pointer-events: none;
+      z-index: 0;
+    }
 
     /* Grid Snapping Matrix Overlays */
     .grid-overlay-10 {
@@ -974,8 +1077,15 @@ export class DashboardEditorComponent implements OnInit {
   constructor(
     private route: ActivatedRoute, 
     private http: HttpClient,
-    private authService: AuthService
+    private authService: AuthService,
+    private sanitizer: DomSanitizer
   ) {}
+
+  getSafeYoutubeUrl(id?: string): SafeResourceUrl {
+    const videoId = id || 'jfKfPfyJRdk';
+    const url = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1`;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
 
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(user => this.currentUser = user);
@@ -1152,6 +1262,24 @@ export class DashboardEditorComponent implements OnInit {
           ]
         };
         initialSize = { width: 360, height: 340 };
+        break;
+      case 'radar':
+        initialConfig = {
+          cityName: 'San Francisco Bay Area',
+          lat: 37.7749,
+          lon: -122.4194,
+          zoom: 7,
+          colorScheme: 2,
+          smooth: true,
+          refreshMinutes: 10
+        };
+        initialSize = { width: 380, height: 300 };
+        break;
+      case 'quote':
+        initialConfig = {
+          category: 'inspirational'
+        };
+        initialSize = { width: 340, height: 180 };
         break;
     }
 
