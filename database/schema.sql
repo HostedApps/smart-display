@@ -4,8 +4,10 @@ USE `smart_display_db`;
 -- Users Table
 CREATE TABLE IF NOT EXISTS `users` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) DEFAULT 'Admin User',
     `email` VARCHAR(255) NOT NULL UNIQUE,
     `password_hash` VARCHAR(255) NOT NULL,
+    `auth_token` VARCHAR(255) NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -16,11 +18,11 @@ CREATE TABLE IF NOT EXISTS `displays` (
     `token` VARCHAR(64) NOT NULL UNIQUE,
     `name` VARCHAR(100) NOT NULL,
     `theme` VARCHAR(50) DEFAULT 'dark',
-    `orientation` VARCHAR(30) DEFAULT 'landscape_720p', -- 'landscape_720p', 'landscape_1080p', 'portrait_720p', 'portrait_1080p'
-    `refresh_interval` INT DEFAULT 60, -- in seconds
-    `background_json` JSON NULL,       -- { "type": "color|gradient|image", "value": "..." }
-    `sleep_schedule_json` JSON NULL,   -- { "enabled": true, "sleepTime": "23:00", "wakeTime": "06:30", "nightMode": true }
-    `pages_json` JSON NULL,            -- Multi-screen pages configuration
+    `orientation` VARCHAR(30) DEFAULT 'landscape_720p',
+    `refresh_interval` INT DEFAULT 60,
+    `background_json` JSON NULL,
+    `sleep_schedule_json` JSON NULL,
+    `pages_json` JSON NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
@@ -30,10 +32,16 @@ CREATE TABLE IF NOT EXISTS `widgets` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `display_id` INT NOT NULL,
     `page_id` VARCHAR(50) DEFAULT 'default',
-    `type` VARCHAR(50) NOT NULL, -- 'clock', 'weather', 'calendar', 'photo', 'rss', 'todo', 'homeassistant', 'spotify', 'stock_crypto'
-    `position_json` JSON NOT NULL, -- { "x": 0, "y": 0, "width": 320, "height": 200 }
-    `style_json` JSON NULL,        -- { "opacity": 1.0, "borderRadius": 12, "backdropBlur": true }
-    `config_json` JSON NOT NULL,   -- { "timezone": "...", "apiKey": "...", etc. }
+    `type` VARCHAR(50) NOT NULL,
+    `position_json` JSON NOT NULL,
+    `style_json` JSON NULL,
+    `config_json` JSON NOT NULL,
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (`display_id`) REFERENCES `displays`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Seed Default Admin User: admin@smartdisplay.local / password: adminpassword
+-- (Password hash generated using PASSWORD_BCRYPT)
+INSERT INTO `users` (`id`, `name`, `email`, `password_hash`) 
+VALUES (1, 'Admin', 'admin@smartdisplay.local', '$2y$10$O0N8yW9m6L/C3sB4H8qPee9gq6n2e6uQp2K6KxP8o0W8J6qL9P3aK')
+ON DUPLICATE KEY UPDATE `id`=`id`;

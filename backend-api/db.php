@@ -10,9 +10,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $host = 'localhost';
-$db   = 'smart_display_db';
-$user = 'YOUR_DB_USER';
-$pass = 'YOUR_DB_PASSWORD';
+$db   = 'u528878684_smart_display';
+$user = 'u528878684_smart_user';
+$pass = '***REMOVED***';
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

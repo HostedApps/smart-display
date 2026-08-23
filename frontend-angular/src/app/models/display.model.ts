@@ -1,3 +1,16 @@
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  token?: string;
+  user?: User;
+  error?: string;
+}
+
 export interface WidgetPosition {
   x: number;
   y: number;
