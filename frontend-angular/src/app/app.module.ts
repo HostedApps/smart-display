@@ -18,6 +18,9 @@ import { TodoWidgetComponent } from './components/widgets/todo-widget.component'
 import { HomeAssistantWidgetComponent } from './components/widgets/homeassistant-widget.component';
 import { SpotifyWidgetComponent } from './components/widgets/spotify-widget.component';
 import { StockCryptoWidgetComponent } from './components/widgets/stock-crypto-widget.component';
+import { StickyNoteWidgetComponent } from './components/widgets/sticky-note-widget.component';
+import { CountdownWidgetComponent } from './components/widgets/countdown-widget.component';
+import { MealPlannerWidgetComponent } from './components/widgets/meal-planner-widget.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
 @NgModule({
@@ -34,7 +37,10 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     TodoWidgetComponent,
     HomeAssistantWidgetComponent,
     SpotifyWidgetComponent,
-    StockCryptoWidgetComponent
+    StockCryptoWidgetComponent,
+    StickyNoteWidgetComponent,
+    CountdownWidgetComponent,
+    MealPlannerWidgetComponent
   ],
   imports: [
     BrowserModule,

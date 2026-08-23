@@ -20,4 +20,4 @@ chromium-browser \
   --check-for-update-interval=31536000 \
   --disable-pinch \
   --overscroll-history-navigation=0 \
-  "https://your-hostinger-domain.com/#/display/YOUR_UNIQUE_DISPLAY_TOKEN"
+  "https://palevioletred-ibex-451966.hostingersite.com/#/display/living-room-display"
