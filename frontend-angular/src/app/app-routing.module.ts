@@ -2,15 +2,24 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { DisplayViewerComponent } from './components/display-viewer.component';
 import { DashboardEditorComponent } from './components/admin/dashboard-editor.component';
+import { LoginComponent } from './components/auth/login.component';
+import { AuthGuard } from './guards/auth.guard';
 
 const routes: Routes = [
-  // Route loaded by the Raspberry Pi kiosk
+  // Public Kiosk route for Raspberry Pi
   { path: 'display/:token', component: DisplayViewerComponent },
+
+  // Admin Authentication
+  { path: 'admin/login', component: LoginComponent },
   
-  // Route used from your browser to configure widgets and layout
-  { path: 'admin/editor/:token', component: DashboardEditorComponent },
+  // Protected Admin Editor
+  { 
+    path: 'admin/editor/:token', 
+    component: DashboardEditorComponent,
+    canActivate: [AuthGuard]
+  },
   
-  { path: '', redirectTo: 'admin/editor/default-token', pathMatch: 'full' }
+  { path: '', redirectTo: 'admin/login', pathMatch: 'full' }
 ];
 
 @NgModule({

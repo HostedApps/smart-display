@@ -8,9 +8,11 @@ import {
   DisplayPage, 
   DisplayOrientation,
   SleepScheduleConfig,
-  DisplayBackground
+  DisplayBackground,
+  User
 } from '../../models/display.model';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-dashboard-editor',
@@ -18,6 +20,15 @@ import { environment } from '../../../environments/environment';
     <div class="admin-layout">
       <!-- Sidebar Control Panel -->
       <aside class="sidebar">
+        <!-- User Profile Bar -->
+        <div class="user-profile-bar">
+          <div class="user-info">
+            <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
+            <span class="user-email">{{ currentUser?.email || 'admin' }}</span>
+          </div>
+          <button (click)="logout()" class="btn-signout" title="Sign Out">Sign Out</button>
+        </div>
+
         <div class="sidebar-tabs">
           <button [class.active]="activeTab === 'layout'" (click)="activeTab = 'layout'">Layout & Widgets</button>
           <button [class.active]="activeTab === 'pages'" (click)="activeTab = 'pages'">Pages</button>
@@ -426,6 +437,55 @@ import { environment } from '../../../environments/environment';
       box-sizing: border-box;
       overflow-y: auto;
     }
+    .user-profile-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: #0b0f19;
+      border-bottom: 1px solid #334155;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .user-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #0284c7;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .user-email {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-signout {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-signout:hover {
+      background: rgba(239, 68, 68, 0.3);
+      color: #fff;
+    }
     .sidebar-tabs {
       display: flex;
       background: #0f172a;
@@ -760,10 +820,16 @@ export class DashboardEditorComponent implements OnInit {
   private resizeStartX: number = 0;
   private resizeStartY: number = 0;
   private initPos = { x: 0, y: 0, width: 0, height: 0 };
+  currentUser: User | null = null;
 
-  constructor(private route: ActivatedRoute, private http: HttpClient) {}
+  constructor(
+    private route: ActivatedRoute, 
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
+    this.authService.currentUser$.subscribe(user => this.currentUser = user);
     this.token = this.route.snapshot.paramMap.get('token') || '';
     if (this.token) {
       this.http.get<DisplayResponse>(`${environment.apiUrl}/get_display.php?token=${this.token}`)
@@ -1075,5 +1141,9 @@ export class DashboardEditorComponent implements OnInit {
           alert('Failed to save layout: ' + (err.error?.error || err.message));
         }
       });
+  }
+
+  logout(): void {
+    this.authService.logout();
   }
 }

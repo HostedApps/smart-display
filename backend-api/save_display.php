@@ -1,38 +1,74 @@
 <?php
 require_once 'db.php';
 
-$input = json_decode(file_get_contents('php://input'), true);
+// Verify Authentication Token
+$headers = getallheaders();
+$authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+$authToken = '';
 
-if (!$input || !isset($input['token'])) {
-    http_response_code(400);
-    echo json_encode(["error" => "Invalid payload"]);
+if (preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+    $authToken = $matches[1];
+}
+
+if (empty($authToken)) {
+    http_response_code(401);
+    echo json_encode(["error" => "Unauthorized. Please log in to edit and save displays."]);
     exit();
 }
 
-$token = $input['token'];
-$name = $input['name'] ?? 'Main Display';
-$theme = $input['theme'] ?? 'dark';
-$orientation = $input['orientation'] ?? 'landscape_720p';
-$refreshInterval = (int)($input['refresh_interval'] ?? 60);
-$background = isset($input['background']) ? json_encode($input['background']) : null;
-$sleepSchedule = isset($input['sleep_schedule']) ? json_encode($input['sleep_schedule']) : null;
-$pages = isset($input['pages']) ? json_encode($input['pages']) : null;
-$widgets = $input['widgets'] ?? [];
-
 try {
+    // Validate User Token
+    $userStmt = $pdo->prepare("SELECT id FROM users WHERE auth_token = ?");
+    $userStmt->execute([$authToken]);
+    $user = $userStmt->fetch();
+
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(["error" => "Session expired or invalid. Please log in again."]);
+        exit();
+    }
+
+    $userId = (int)$user['id'];
+
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if (!$input || !isset($input['token'])) {
+        http_response_code(400);
+        echo json_encode(["error" => "Invalid payload"]);
+        exit();
+    }
+
+    $token = $input['token'];
+    $name = $input['name'] ?? 'Main Display';
+    $theme = $input['theme'] ?? 'dark';
+    $orientation = $input['orientation'] ?? 'landscape_720p';
+    $refreshInterval = (int)($input['refresh_interval'] ?? 60);
+    $background = isset($input['background']) ? json_encode($input['background']) : null;
+    $sleepSchedule = isset($input['sleep_schedule']) ? json_encode($input['sleep_schedule']) : null;
+    $pages = isset($input['pages']) ? json_encode($input['pages']) : null;
+    $widgets = $input['widgets'] ?? [];
+
     $pdo->beginTransaction();
 
     // 1. Fetch Display ID or create if not exists
-    $stmt = $pdo->prepare("SELECT id FROM displays WHERE token = ?");
+    $stmt = $pdo->prepare("SELECT id, user_id FROM displays WHERE token = ?");
     $stmt->execute([$token]);
     $display = $stmt->fetch();
 
     if (!$display) {
-        // Auto-create display for this token if needed
-        $insertDisplay = $pdo->prepare("INSERT INTO displays (user_id, token, name, theme, orientation, refresh_interval, background_json, sleep_schedule_json, pages_json) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $insertDisplay->execute([$token, $name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages]);
+        // Create new display owned by authenticated user
+        $insertDisplay = $pdo->prepare("INSERT INTO displays (user_id, token, name, theme, orientation, refresh_interval, background_json, sleep_schedule_json, pages_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $insertDisplay->execute([$userId, $token, $name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages]);
         $displayId = (int)$pdo->lastInsertId();
     } else {
+        // Verify ownership
+        if ((int)$display['user_id'] !== $userId) {
+            $pdo->rollBack();
+            http_response_code(403);
+            echo json_encode(["error" => "Forbidden: You do not have permission to modify this display."]);
+            exit();
+        }
+
         $displayId = (int)$display['id'];
         $updateStmt = $pdo->prepare("UPDATE displays SET name = ?, theme = ?, orientation = ?, refresh_interval = ?, background_json = ?, sleep_schedule_json = ?, pages_json = ? WHERE id = ?");
         $updateStmt->execute([$name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages, $displayId]);
@@ -58,7 +94,7 @@ try {
     }
 
     $pdo->commit();
-    echo json_encode(["success" => true, "message" => "Display settings & layout saved successfully"]);
+    echo json_encode(["success" => true, "message" => "Display settings & layout saved securely"]);
 } catch (\Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
