@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Smart Display Kiosk
+Comment=Autostart Smart Display Fullscreen Kiosk on Boot
+Exec=/home/pi/start_dashboard.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
