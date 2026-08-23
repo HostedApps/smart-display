@@ -38,10 +38,18 @@ export interface WeatherConfig {
   showForecast?: boolean;
 }
 
+export interface CalendarFeed {
+  name: string;
+  url: string;
+  color: string;
+}
+
 export interface CalendarConfig {
+  feeds?: CalendarFeed[];
   icalUrl?: string;
   title?: string;
   maxEvents?: number;
+  viewMode?: 'agenda' | 'month_grid';
 }
 
 export interface PhotoConfig {
@@ -109,10 +117,41 @@ export interface StockCryptoConfig {
   refreshMinutes?: number;
 }
 
+export interface StickyNote {
+  id: string;
+  text: string;
+  author?: string;
+  color?: string; // e.g. '#fef08a' (yellow), '#fbcfe8' (pink), '#bae6fd' (blue), '#bbf7d0' (green), '#e9d5ff' (purple)
+  date?: string;
+}
+
+export interface StickyNoteConfig {
+  title?: string;
+  notes?: StickyNote[];
+}
+
+export interface CountdownConfig {
+  targetDate: string; // e.g. "2026-12-25"
+  title: string;      // e.g. "Christmas Vacation"
+  emoji?: string;     // e.g. "🌴", "🎄", "🎂", "🎓"
+  unit?: 'days' | 'detailed';
+}
+
+export interface MealPlanDay {
+  day: string; // 'Monday', 'Tuesday', ...
+  lunch?: string;
+  dinner?: string;
+}
+
+export interface MealPlannerConfig {
+  title?: string;
+  days?: MealPlanDay[];
+}
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto';
+  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner';
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;

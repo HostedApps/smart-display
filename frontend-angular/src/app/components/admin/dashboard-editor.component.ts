@@ -68,6 +68,9 @@ import { AuthService } from '../../services/auth.service';
             <button (click)="addWidget('homeassistant')" class="btn btn-secondary">+ Smart Home</button>
             <button (click)="addWidget('spotify')" class="btn btn-secondary">+ Spotify</button>
             <button (click)="addWidget('stock_crypto')" class="btn btn-secondary">+ Markets</button>
+            <button (click)="addWidget('sticky_note')" class="btn btn-secondary">+ Sticky Note</button>
+            <button (click)="addWidget('countdown')" class="btn btn-secondary">+ Countdown</button>
+            <button (click)="addWidget('meal_planner')" class="btn btn-secondary">+ Meal Plan</button>
           </div>
 
           <hr class="divider" />
@@ -150,12 +153,34 @@ import { AuthService } from '../../services/auth.service';
             <!-- Calendar -->
             <ng-container *ngIf="selectedWidget.type === 'calendar'">
               <div class="form-group">
-                <label>iCal Feed URL (.ics)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.icalUrl" class="input-control" />
+                <label>View Mode</label>
+                <select [(ngModel)]="selectedWidget.config.viewMode" class="input-control">
+                  <option value="agenda">Agenda List View</option>
+                  <option value="month_grid">Monthly Wall Calendar Grid</option>
+                </select>
               </div>
               <div class="form-group">
                 <label>Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Calendar" class="input-control" />
+              </div>
+              
+              <div class="form-group" *ngIf="!selectedWidget.config.feeds || selectedWidget.config.feeds.length === 0">
+                <label>Single iCal URL</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.icalUrl" placeholder="https://calendar.google.com/..." class="input-control" />
+              </div>
+
+              <!-- Multi-Calendar Feeds Manager -->
+              <div class="feeds-manager">
+                <div class="section-subhead">
+                  <label>Family Member Feeds</label>
+                  <button type="button" (click)="addCalendarFeed(selectedWidget)" class="btn-xs-action">+ Add Feed</button>
+                </div>
+                <div *ngFor="let feed of selectedWidget.config.feeds; let fi = index" class="feed-config-row">
+                  <input type="color" [(ngModel)]="feed.color" class="color-picker-mini" />
+                  <input type="text" [(ngModel)]="feed.name" placeholder="Name (e.g. Mom)" class="input-control feed-name-input" />
+                  <input type="text" [(ngModel)]="feed.url" placeholder="iCal URL (.ics)" class="input-control feed-url-input" />
+                  <button type="button" (click)="removeCalendarFeed(selectedWidget, fi)" class="btn-icon-danger">✕</button>
+                </div>
               </div>
             </ng-container>
 
@@ -165,7 +190,7 @@ import { AuthService } from '../../services/auth.service';
                 <label>Image URLs (one per line)</label>
                 <textarea 
                   [ngModel]="getPhotoImagesText(selectedWidget)" 
-                  (ngModelChange)="setPhotoImagesText(selectedWidget, $event)"
+                  (ngModelChange)="setPhotoImagesText(selectedWidget, $event)" 
                   rows="3" 
                   class="input-control"
                 ></textarea>
@@ -237,6 +262,57 @@ import { AuthService } from '../../services/auth.service';
               <div class="form-group">
                 <label>Crypto IDs (comma separated)</label>
                 <input type="text" [ngModel]="getCryptoIdsText(selectedWidget)" (ngModelChange)="setCryptoIdsText(selectedWidget, $event)" placeholder="bitcoin,ethereum,solana" class="input-control" />
+              </div>
+            </ng-container>
+
+            <!-- Sticky Notes -->
+            <ng-container *ngIf="selectedWidget.type === 'sticky_note'">
+              <div class="form-group">
+                <label>Board Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Notes" class="input-control" />
+              </div>
+              <div class="section-subhead">
+                <label>Notes</label>
+                <button type="button" (click)="addStickyNote(selectedWidget)" class="btn-xs-action">+ Add Note</button>
+              </div>
+              <div *ngFor="let note of selectedWidget.config.notes; let ni = index" class="note-config-item">
+                <div class="note-config-top">
+                  <input type="color" [(ngModel)]="note.color" class="color-picker-mini" />
+                  <input type="text" [(ngModel)]="note.author" placeholder="Author (e.g. Mom)" class="input-control note-author-input" />
+                  <button type="button" (click)="removeStickyNote(selectedWidget, ni)" class="btn-icon-danger">✕</button>
+                </div>
+                <textarea [(ngModel)]="note.text" placeholder="Note message..." rows="2" class="input-control"></textarea>
+              </div>
+            </ng-container>
+
+            <!-- Countdown -->
+            <ng-container *ngIf="selectedWidget.type === 'countdown'">
+              <div class="form-group">
+                <label>Event Name</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Hawaii Vacation" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Target Date</label>
+                <input type="date" [(ngModel)]="selectedWidget.config.targetDate" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Emoji Icon</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.emoji" placeholder="🌴" class="input-control" />
+              </div>
+            </ng-container>
+
+            <!-- Meal Planner -->
+            <ng-container *ngIf="selectedWidget.type === 'meal_planner'">
+              <div class="form-group">
+                <label>Widget Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Weekly Menu" class="input-control" />
+              </div>
+              <div class="meal-days-editor">
+                <div *ngFor="let day of selectedWidget.config.days" class="meal-day-config">
+                  <span class="day-label">{{ day.day }}</span>
+                  <input type="text" [(ngModel)]="day.lunch" placeholder="Lunch" class="input-control" />
+                  <input type="text" [(ngModel)]="day.dinner" placeholder="Dinner" class="input-control" />
+                </div>
               </div>
             </ng-container>
 
@@ -400,6 +476,9 @@ import { AuthService } from '../../services/auth.service';
               <app-homeassistant-widget *ngIf="widget.type === 'homeassistant'" [config]="widget.config"></app-homeassistant-widget>
               <app-spotify-widget *ngIf="widget.type === 'spotify'" [config]="widget.config"></app-spotify-widget>
               <app-stock-crypto-widget *ngIf="widget.type === 'stock_crypto'" [config]="widget.config"></app-stock-crypto-widget>
+              <app-sticky-note-widget *ngIf="widget.type === 'sticky_note'" [config]="widget.config"></app-sticky-note-widget>
+              <app-countdown-widget *ngIf="widget.type === 'countdown'" [config]="widget.config"></app-countdown-widget>
+              <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
             </div>
 
             <!-- 8-Point Visual Resize Handles -->
@@ -669,6 +748,76 @@ import { AuthService } from '../../services/auth.service';
       font-family: monospace;
     }
 
+    .section-subhead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 8px 0 4px 0;
+    }
+    .btn-xs-action {
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      cursor: pointer;
+    }
+    .btn-xs-action:hover { background: #0369a1; }
+
+    .feeds-manager, .meal-days-editor {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .feed-config-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .color-picker-mini {
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 4px;
+      padding: 0;
+      cursor: pointer;
+      background: none;
+    }
+    .feed-name-input { width: 80px; }
+    .feed-url-input { flex: 1; }
+
+    .note-config-item {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .note-config-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .note-author-input { flex: 1; }
+
+    .meal-day-config {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .day-label {
+      width: 70px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
     .actions {
       padding: 16px 20px;
       border-top: 1px solid #334155;
@@ -915,7 +1064,7 @@ export class DashboardEditorComponent implements OnInit {
     this.selectedWidget = widget;
   }
 
-  addWidget(type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto'): void {
+  addWidget(type: Widget['type']): void {
     let initialConfig: any = {};
     let initialSize = { width: 320, height: 200 };
 
@@ -929,8 +1078,16 @@ export class DashboardEditorComponent implements OnInit {
         initialSize = { width: 360, height: 220 };
         break;
       case 'calendar':
-        initialConfig = { title: 'Upcoming Events', icalUrl: '', maxEvents: 5 };
-        initialSize = { width: 360, height: 320 };
+        initialConfig = {
+          title: 'Family Calendar',
+          viewMode: 'agenda',
+          maxEvents: 6,
+          feeds: [
+            { name: 'Kids', url: '', color: '#ec4899' },
+            { name: 'Work', url: '', color: '#3b82f6' }
+          ]
+        };
+        initialSize = { width: 380, height: 340 };
         break;
       case 'photo':
         initialConfig = {
@@ -962,6 +1119,39 @@ export class DashboardEditorComponent implements OnInit {
       case 'stock_crypto':
         initialConfig = { cryptoIds: ['bitcoin', 'ethereum', 'solana'], currency: 'USD' };
         initialSize = { width: 360, height: 260 };
+        break;
+      case 'sticky_note':
+        initialConfig = {
+          title: 'Family Notes',
+          notes: [
+            { id: '1', text: 'Don\'t forget soccer practice at 5:00 PM! ⚽', author: 'Mom', color: '#fef08a', date: 'Today' },
+            { id: '2', text: 'Picked up groceries 🥖🍏', author: 'Dad', color: '#bbf7d0', date: 'Today' }
+          ]
+        };
+        initialSize = { width: 340, height: 260 };
+        break;
+      case 'countdown':
+        initialConfig = {
+          title: 'Hawaii Vacation',
+          targetDate: '2026-12-25',
+          emoji: '🌴'
+        };
+        initialSize = { width: 300, height: 220 };
+        break;
+      case 'meal_planner':
+        initialConfig = {
+          title: 'Weekly Menu',
+          days: [
+            { day: 'Monday', lunch: 'Salad Bowl', dinner: 'Pasta Primavera' },
+            { day: 'Tuesday', lunch: 'Turkey Wrap', dinner: 'Taco Tuesday 🌮' },
+            { day: 'Wednesday', lunch: 'Minestrone Soup', dinner: 'Baked Salmon' },
+            { day: 'Thursday', lunch: 'Buddha Bowl', dinner: 'Pizza Night 🍕' },
+            { day: 'Friday', lunch: 'BLT', dinner: 'Thai Green Curry' },
+            { day: 'Saturday', lunch: 'Cafe Lunch', dinner: 'BBQ Burgers 🍔' },
+            { day: 'Sunday', lunch: 'Roast', dinner: 'Charcuterie Board' }
+          ]
+        };
+        initialSize = { width: 360, height: 340 };
         break;
     }
 
@@ -1141,6 +1331,34 @@ export class DashboardEditorComponent implements OnInit {
           alert('Failed to save layout: ' + (err.error?.error || err.message));
         }
       });
+  }
+
+  addCalendarFeed(widget: Widget): void {
+    if (!widget.config.feeds) widget.config.feeds = [];
+    widget.config.feeds.push({ name: 'Family', url: '', color: '#ec4899' });
+  }
+
+  removeCalendarFeed(widget: Widget, index: number): void {
+    if (widget.config.feeds) {
+      widget.config.feeds.splice(index, 1);
+    }
+  }
+
+  addStickyNote(widget: Widget): void {
+    if (!widget.config.notes) widget.config.notes = [];
+    widget.config.notes.push({
+      id: Date.now().toString(),
+      text: 'New note...',
+      author: 'Family',
+      color: '#fef08a',
+      date: 'Today'
+    });
+  }
+
+  removeStickyNote(widget: Widget, index: number): void {
+    if (widget.config.notes) {
+      widget.config.notes.splice(index, 1);
+    }
   }
 
   logout(): void {
