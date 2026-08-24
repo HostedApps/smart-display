@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { DisplayFleetService } from '../../services/display-fleet.service';
+import { EmergencyService } from '../../services/emergency.service';
 import { AuthService } from '../../services/auth.service';
 import { DisplaySummary, Device, User } from '../../models/display.model';
 
@@ -47,6 +48,9 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
           </div>
 
           <div class="action-buttons">
+            <button (click)="openEmergencyModal()" class="btn btn-emergency">
+              <span class="btn-icon">🚨</span> Emergency Takeover
+            </button>
             <button (click)="openPairModal()" class="btn btn-secondary">
               <span class="btn-icon">⚡</span> Pair Screen with PIN
             </button>
@@ -98,10 +102,13 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
 
                 <div class="card-actions">
                   <button (click)="openEditor(d.token)" class="btn-action btn-edit">
-                    ✏️ Edit Canvas
+                    ✏️ Edit
                   </button>
                   <button (click)="launchKiosk(d.token)" class="btn-action btn-kiosk" title="Open Kiosk in New Tab">
                     🚀 Launch
+                  </button>
+                  <button (click)="copyWallDropLink(d.token)" class="btn-action btn-walldrop" title="Copy Mobile WallDrop Link">
+                    📲 Drop
                   </button>
                   <button (click)="copyKioskLink(d.token)" class="btn-action btn-copy" title="Copy Kiosk URL">
                     🔗 Copy
@@ -240,6 +247,86 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
             <button (click)="closePairModal()" class="btn btn-secondary">Cancel</button>
             <button (click)="submitPairDevice()" [disabled]="pairing" class="btn btn-primary">
               {{ pairing ? 'Pairing...' : 'Confirm & Authorize Screen' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL 3: 1-CLICK EMERGENCY BROADCAST TAKEOVER -->
+      <div *ngIf="showEmergencyModal" class="modal-backdrop" (click)="closeEmergencyModal()">
+        <div class="modal-card modal-emergency-card" (click)="$event.stopPropagation()">
+          <div class="modal-header modal-emergency-header">
+            <div class="emergency-header-title">
+              <span class="emergency-siren-emoji">🚨</span>
+              <h3>1-Click Emergency Fleet Takeover</h3>
+            </div>
+            <button (click)="closeEmergencyModal()" class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-desc">
+              Instantly broadcast an urgent priority alert across all connected TVs, iPads, and digital wall displays in your fleet.
+            </p>
+
+            <div class="form-group">
+              <label>Alert Severity</label>
+              <div class="severity-toggle">
+                <button 
+                  type="button"
+                  [class.active]="emergencySeverity === 'warning'" 
+                  (click)="emergencySeverity = 'warning'"
+                  class="btn-sev btn-sev-warning"
+                >
+                  ⚠️ Warning (Amber)
+                </button>
+                <button 
+                  type="button"
+                  [class.active]="emergencySeverity === 'critical'" 
+                  (click)="emergencySeverity = 'critical'"
+                  class="btn-sev btn-sev-critical"
+                >
+                  🛑 Critical (Red Emergency)
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Urgent Headline</label>
+              <input 
+                type="text" 
+                [(ngModel)]="emergencyTitle" 
+                placeholder="e.g. SEVERE WEATHER WARNING / MEETING SHIFT" 
+                class="input-control" 
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Alert Details / Instructions</label>
+              <textarea 
+                [(ngModel)]="emergencyMessage" 
+                placeholder="e.g. Thunderstorm advisory in effect until 7:00 PM. Bring pets inside." 
+                rows="3"
+                class="input-control" 
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Target Screens</label>
+              <select [(ngModel)]="emergencyTargetDisplayId" class="input-control">
+                <option [ngValue]="null">🌐 All Screens Across Fleet (Broadcast Everywhere)</option>
+                <option *ngFor="let d of displays" [ngValue]="d.id">🖥️ Only: {{ d.name }}</option>
+              </select>
+            </div>
+
+            <div class="form-group checkbox-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="emergencyPlaySound" /> Play Audible Alarm Chime on Screens
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button (click)="dismissActiveEmergency()" class="btn btn-secondary">Clear Active Alert</button>
+            <button (click)="submitEmergencyBroadcast()" [disabled]="broadcasting" class="btn btn-emergency-send">
+              {{ broadcasting ? 'Transmitting...' : '🚨 Transmit Alert Now' }}
             </button>
           </div>
         </div>
@@ -749,6 +836,73 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
       color: #38bdf8;
       text-transform: uppercase;
     }
+    .btn-emergency {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      font-weight: 700;
+    }
+    .btn-emergency:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #fff;
+    }
+    .modal-emergency-card {
+      max-width: 520px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      box-shadow: 0 25px 50px -12px rgba(239, 68, 68, 0.25);
+    }
+    .modal-emergency-header {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(0, 0, 0, 0.4));
+    }
+    .emergency-header-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .severity-toggle {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-sev {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.3);
+      color: #94a3b8;
+      transition: all 0.2s;
+    }
+    .btn-sev-warning.active {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: #f59e0b;
+      color: #fbbf24;
+    }
+    .btn-sev-critical.active {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #f87171;
+    }
+    .btn-emergency-send {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+    }
+    .btn-walldrop {
+      background: rgba(14, 165, 233, 0.12);
+      color: #38bdf8;
+    }
+    .btn-walldrop:hover {
+      background: rgba(14, 165, 233, 0.25);
+    }
     .modal-footer {
       padding: 16px 24px;
       display: flex;
@@ -804,8 +958,18 @@ export class DisplayListComponent implements OnInit {
   pairingDisplayId: number = 0;
   pairing: boolean = false;
 
+  // Emergency Takeover Modal
+  showEmergencyModal: boolean = false;
+  emergencySeverity: 'warning' | 'critical' = 'warning';
+  emergencyTitle: string = 'SEVERE WEATHER ADVISORY';
+  emergencyMessage: string = 'Thunderstorm warning in effect. High winds expected.';
+  emergencyTargetDisplayId: number | null = null;
+  emergencyPlaySound: boolean = true;
+  broadcasting: boolean = false;
+
   constructor(
     private fleetService: DisplayFleetService,
+    private emergencyService: EmergencyService,
     private authService: AuthService,
     private router: Router
   ) {}
@@ -979,6 +1143,65 @@ export class DisplayListComponent implements OnInit {
       },
       error: (err) => {
         this.showAlert(err.error?.error || 'Failed to revoke device', 'error');
+      }
+    });
+  }
+
+  copyWallDropLink(token: string): void {
+    const url = `${window.location.origin}/#/drop/${token}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.showAlert(`📲 WallDrop Mobile URL copied: ${url}`, 'success');
+    });
+  }
+
+  // Emergency Modal Methods
+  openEmergencyModal(): void {
+    this.emergencyTitle = 'SEVERE WEATHER ADVISORY';
+    this.emergencyMessage = 'Thunderstorm warning in effect until 7:00 PM. High winds expected.';
+    this.emergencySeverity = 'warning';
+    this.emergencyTargetDisplayId = null;
+    this.emergencyPlaySound = true;
+    this.showEmergencyModal = true;
+  }
+
+  closeEmergencyModal(): void {
+    this.showEmergencyModal = false;
+  }
+
+  submitEmergencyBroadcast(): void {
+    if (!this.emergencyTitle.trim() || !this.emergencyMessage.trim()) {
+      this.showAlert('Please provide both an emergency headline and message.', 'error');
+      return;
+    }
+
+    this.broadcasting = true;
+    this.emergencyService.triggerBroadcast({
+      title: this.emergencyTitle,
+      message: this.emergencyMessage,
+      severity: this.emergencySeverity,
+      play_sound: this.emergencyPlaySound,
+      display_id: this.emergencyTargetDisplayId
+    }).subscribe({
+      next: (_res: any) => {
+        this.broadcasting = false;
+        this.closeEmergencyModal();
+        this.showAlert('🚨 Priority Emergency Broadcast transmitted across your fleet!', 'success');
+      },
+      error: (err: any) => {
+        this.broadcasting = false;
+        this.showAlert(err.error?.error || 'Failed to transmit broadcast.', 'error');
+      }
+    });
+  }
+
+  dismissActiveEmergency(): void {
+    this.emergencyService.dismissBroadcast().subscribe({
+      next: () => {
+        this.closeEmergencyModal();
+        this.showAlert('Active emergency broadcasts cleared from all screens.', 'success');
+      },
+      error: (err: any) => {
+        this.showAlert(err.error?.error || 'Failed to clear broadcasts.', 'error');
       }
     });
   }

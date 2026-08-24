@@ -4,6 +4,7 @@ import { DisplayViewerComponent } from './components/display-viewer.component';
 import { DashboardEditorComponent } from './components/admin/dashboard-editor.component';
 import { DisplayListComponent } from './components/admin/display-list.component';
 import { DevicePairingComponent } from './components/pairing/device-pairing.component';
+import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { LoginComponent } from './components/auth/login.component';
 import { AuthGuard } from './guards/auth.guard';
 
@@ -11,6 +12,9 @@ const routes: Routes = [
   // Public Kiosk Display route
   { path: 'display/:token', component: DisplayViewerComponent },
   
+  // Public WallDrop Mobile Beam Portal
+  { path: 'drop/:token', component: WallDropComponent },
+
   // Public Device Pairing route for TVs, iPads, Pi
   { path: 'display', component: DevicePairingComponent },
   { path: 'pair', component: DevicePairingComponent },

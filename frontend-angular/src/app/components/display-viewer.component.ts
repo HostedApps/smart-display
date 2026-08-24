@@ -3,10 +3,11 @@ import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { interval, Subscription, switchMap } from 'rxjs';
-import { DisplayResponse, Widget, DisplayConfig, DisplayPage } from '../models/display.model';
+import { DisplayResponse, Widget, DisplayConfig, DisplayPage, EmergencyBroadcast } from '../models/display.model';
 import { environment } from '../../environments/environment';
 import { OfflineCacheService } from '../services/offline-cache.service';
 import { WakeLockService } from '../services/wake-lock.service';
+import { EmergencyService } from '../services/emergency.service';
 
 @Component({
   selector: 'app-display-viewer',
@@ -98,6 +99,31 @@ import { WakeLockService } from '../services/wake-lock.service';
           <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
           <app-radar-widget *ngIf="widget.type === 'radar'" [config]="widget.config"></app-radar-widget>
           <app-quote-widget *ngIf="widget.type === 'quote'" [config]="widget.config"></app-quote-widget>
+          <app-ai-briefing-widget *ngIf="widget.type === 'ai_briefing'" [config]="widget.config"></app-ai-briefing-widget>
+          <app-chores-widget *ngIf="widget.type === 'chores'" [config]="widget.config"></app-chores-widget>
+          <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
+          <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
+        </div>
+      </div>
+
+      <!-- Fullscreen Emergency Broadcast Takeover Overlay -->
+      <div 
+        class="emergency-takeover-overlay" 
+        *ngIf="activeEmergency"
+        [ngClass]="activeEmergency.severity"
+      >
+        <div class="emergency-strobe-border"></div>
+        <div class="emergency-card">
+          <div class="emergency-siren-badge">
+            <span class="siren-icon">🚨</span>
+            <span class="siren-label">{{ activeEmergency.severity === 'critical' ? 'CRITICAL EMERGENCY BROADCAST' : 'URGENT FLEET BROADCAST' }}</span>
+          </div>
+          <h1 class="emergency-title">{{ activeEmergency.title }}</h1>
+          <p class="emergency-message">{{ activeEmergency.message }}</p>
+          <div class="emergency-footer">
+            <span class="emergency-timestamp">Broadcast transmitted at {{ activeEmergency.created_at | date:'shortTime' }}</span>
+            <button (click)="dismissEmergency()" class="btn-dismiss-alert">Dismiss on this screen</button>
+          </div>
         </div>
       </div>
 
@@ -257,6 +283,109 @@ import { WakeLockService } from '../services/wake-lock.service';
       background: #000000;
       z-index: 100;
     }
+
+    /* Fullscreen Emergency Takeover */
+    .emergency-takeover-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      box-sizing: border-box;
+      animation: alert-fade-in 0.3s ease-out;
+    }
+    .emergency-takeover-overlay.critical {
+      background: rgba(69, 10, 10, 0.97);
+    }
+    .emergency-takeover-overlay.warning {
+      background: rgba(67, 20, 7, 0.97);
+    }
+    .emergency-strobe-border {
+      position: absolute;
+      inset: 0;
+      border: 12px solid #ef4444;
+      pointer-events: none;
+      animation: strobe 1s infinite;
+    }
+    .emergency-takeover-overlay.warning .emergency-strobe-border {
+      border-color: #f59e0b;
+    }
+    @keyframes strobe {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+    @keyframes alert-fade-in { from { opacity: 0; transform: scale(1.05); } to { opacity: 1; transform: scale(1); } }
+
+    .emergency-card {
+      max-width: 780px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      z-index: 2;
+    }
+    .emergency-siren-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(239, 68, 68, 0.25);
+      border: 2px solid #ef4444;
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      padding: 6px 16px;
+      border-radius: 30px;
+    }
+    .siren-icon { font-size: 1.4rem; animation: wobble 1s infinite; }
+    @keyframes wobble { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(10deg); } }
+    .emergency-title {
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin: 0;
+      color: #ffffff;
+      text-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
+    }
+    .emergency-message {
+      font-size: 1.4rem;
+      line-height: 1.5;
+      color: #f1f5f9;
+      margin: 0;
+      max-width: 650px;
+    }
+    .emergency-footer {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .emergency-timestamp {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .btn-dismiss-alert {
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-dismiss-alert:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
   `]
 })
 export class DisplayViewerComponent implements OnInit, OnDestroy {
@@ -269,9 +398,11 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   isSleeping: boolean = false;
   currentTime: Date = new Date();
 
+  activeEmergency?: EmergencyBroadcast;
   private pollSub?: Subscription;
   private carouselTimerSub?: Subscription;
   private clockTimerSub?: Subscription;
+  private emergencyPollSub?: Subscription;
   private token: string = '';
 
   private touchStartX: number = 0;
@@ -282,7 +413,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private offlineCache: OfflineCacheService,
     private sanitizer: DomSanitizer,
-    private wakeLock: WakeLockService
+    private wakeLock: WakeLockService,
+    private emergencyService: EmergencyService
   ) {}
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
@@ -337,6 +469,12 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
           next: res => this.handleData(res),
           error: () => this.isOnline = false
         });
+
+      // Poll for 1-Click Emergency Takeover every 5 seconds
+      this.checkEmergency();
+      this.emergencyPollSub = interval(5000).subscribe(() => {
+        this.checkEmergency();
+      });
     }
 
     // 1-second clock for time & sleep check
@@ -344,6 +482,50 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       this.currentTime = new Date();
       this.checkSleepSchedule();
     });
+  }
+
+  checkEmergency(): void {
+    if (!this.token) return;
+    this.emergencyService.checkActiveBroadcast(this.token).subscribe({
+      next: (res) => {
+        if (res.active && res.broadcast) {
+          const isNew = !this.activeEmergency || this.activeEmergency.id !== res.broadcast.id;
+          this.activeEmergency = res.broadcast;
+          if (isNew && res.broadcast.play_sound) {
+            this.playEmergencySiren();
+          }
+        } else {
+          this.activeEmergency = undefined;
+        }
+      }
+    });
+  }
+
+  dismissEmergency(): void {
+    this.activeEmergency = undefined;
+  }
+
+  private playEmergencySiren(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.6);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.9);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.2);
+    } catch {}
   }
 
   // Fire TV / Android TV Remote & Keyboard Controls
@@ -464,5 +646,6 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     this.pollSub?.unsubscribe();
     this.carouselTimerSub?.unsubscribe();
     this.clockTimerSub?.unsubscribe();
+    this.emergencyPollSub?.unsubscribe();
   }
 }

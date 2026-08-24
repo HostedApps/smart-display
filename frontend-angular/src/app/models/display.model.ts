@@ -165,10 +165,85 @@ export interface QuoteConfig {
   refreshHours?: number;
 }
 
+export interface AIBriefingConfig {
+  apiKey?: string;
+  userName?: string;
+  tone?: 'warm' | 'executive' | 'motivational' | 'concise';
+  refreshHours?: number;
+}
+
+export interface FamilyMember {
+  id: string;
+  name: string;
+  avatar: string; // emoji e.g. "🦁", "🦄", "👑", "⚡", "🚀"
+  points: number;
+  streak: number;
+}
+
+export interface ChoreItem {
+  id: string;
+  memberId: string;
+  title: string;
+  points: number;
+  completed: boolean;
+}
+
+export interface ChoresConfig {
+  title?: string;
+  members?: FamilyMember[];
+  chores?: ChoreItem[];
+}
+
+export interface CameraPipConfig {
+  title?: string;
+  streamUrl?: string; // MJPEG stream / HLS / WebRTC URL
+  snapshotUrl?: string;
+  refreshSeconds?: number;
+  aspectRatio?: '16:9' | '4:3';
+  isLive?: boolean;
+}
+
+export interface CommuteDestination {
+  id: string;
+  name: string; // e.g. "Downtown Office", "Airport", "School"
+  icon: string; // e.g. "🏢", "✈️", "🏫"
+  durationMinutes: number;
+  trafficStatus: 'fast' | 'moderate' | 'heavy';
+  viaRoute: string; // e.g. "via I-280 N"
+  delayMinutes: number;
+}
+
+export interface CommuteConfig {
+  title?: string;
+  destinations?: CommuteDestination[];
+  mode?: 'driving' | 'transit';
+  transitLines?: { line: string; destination: string; nextMinutes: number[] }[];
+}
+
+export interface WallDropItem {
+  id: number;
+  display_id: number;
+  type: 'note' | 'photo' | 'alert';
+  author: string;
+  content: string;
+  media_url?: string;
+  color?: string;
+  created_at: string;
+}
+
+export interface EmergencyBroadcast {
+  id: number;
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  message: string;
+  play_sound: boolean;
+  created_at: string;
+}
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote';
+  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute';
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
