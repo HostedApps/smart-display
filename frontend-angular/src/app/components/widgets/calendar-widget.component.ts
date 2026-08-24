@@ -27,7 +27,7 @@ interface MonthDay {
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
-          <h3 class="widget-title">{{ config.title || (config.viewMode === 'month_grid' ? (currentDate | date:'MMMM yyyy') : 'Upcoming Events') }}</h3>
+          <h3 class="widget-title">{{ config.title || (config.viewMode === 'month_grid' ? (currentDate | date:'MMMM yyyy') : 'Schedule') }}</h3>
         </div>
         
         <!-- Multi-Calendar Legend Dots -->
@@ -95,10 +95,12 @@ interface MonthDay {
     .calendar-card {
       height: 100%;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 14px;
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -107,40 +109,43 @@ interface MonthDay {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .header-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     .cal-icon {
-      width: 18px;
-      height: 18px;
-      color: #38bdf8;
+      width: 16px;
+      height: 16px;
+      color: var(--accent-blue, #0ea5e9);
     }
     .widget-title {
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       font-weight: 600;
       margin: 0;
+      color: #ffffff;
     }
     .calendar-legend {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
     .legend-chip {
       display: flex;
       align-items: center;
       gap: 4px;
-      font-size: 0.7rem;
-      opacity: 0.8;
+      font-size: 0.65rem;
+      color: #94a3b8;
+      font-weight: 600;
     }
     .legend-chip .dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
     }
 
     /* Agenda View */
@@ -153,17 +158,22 @@ interface MonthDay {
     .events-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
     .event-item {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 10px;
+      padding: 6px 10px;
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
       position: relative;
       overflow: hidden;
+      transition: background 0.2s;
+    }
+    .event-item:hover {
+      background: rgba(255, 255, 255, 0.06);
     }
     .event-accent-bar {
       position: absolute;
@@ -177,19 +187,57 @@ interface MonthDay {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.06);
       border-radius: 6px;
-      min-width: 40px;
-      padding: 4px;
+      min-width: 36px;
+      padding: 3px;
     }
-    .event-day { font-size: 1.05rem; font-weight: 700; line-height: 1; }
-    .event-month { font-size: 0.65rem; text-transform: uppercase; opacity: 0.8; }
-    .event-info { flex: 1; overflow: hidden; }
-    .event-title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-    .event-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .feed-tag { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
-    .event-time { font-size: 0.75rem; opacity: 0.7; }
-    .event-location { font-size: 0.7rem; opacity: 0.6; }
+    .event-day {
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1;
+      color: #ffffff;
+    }
+    .event-month {
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .event-info {
+      flex: 1;
+      overflow: hidden;
+    }
+    .event-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .event-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .feed-tag {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .event-time {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      margin-top: 1px;
+    }
+    .event-location {
+      font-size: 0.65rem;
+      color: #64748b;
+    }
 
     /* Month Grid View */
     .month-grid-view {
@@ -202,9 +250,10 @@ interface MonthDay {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       text-align: center;
-      font-size: 0.75rem;
-      font-weight: 600;
-      opacity: 0.7;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
       margin-bottom: 4px;
     }
     .days-matrix {
@@ -216,22 +265,29 @@ interface MonthDay {
     }
     .day-matrix-cell {
       background: rgba(255, 255, 255, 0.03);
-      border-radius: 4px;
+      border-radius: 6px;
       padding: 3px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.02);
     }
-    .day-matrix-cell.other-month { opacity: 0.3; }
+    .day-matrix-cell.other-month { opacity: 0.25; }
     .day-matrix-cell.today {
-      background: rgba(56, 189, 248, 0.15);
-      border: 1px solid #38bdf8;
+      background: rgba(14, 165, 233, 0.15);
+      border: 1px solid #0ea5e9;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
     }
     .cell-num {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: 600;
       line-height: 1;
+      color: #cbd5e1;
       margin-bottom: 2px;
+    }
+    .today .cell-num {
+      color: #38bdf8;
+      font-weight: 700;
     }
     .cell-events {
       display: flex;
@@ -240,17 +296,17 @@ interface MonthDay {
       overflow: hidden;
     }
     .cell-event-chip {
-      font-size: 0.6rem;
-      color: #000;
-      font-weight: 600;
+      font-size: 0.55rem;
+      color: #0f172a;
+      font-weight: 700;
       padding: 1px 3px;
-      border-radius: 2px;
+      border-radius: 3px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .more-dots { font-size: 0.55rem; opacity: 0.7; line-height: 1; }
-    .empty-state { opacity: 0.5; font-size: 0.85rem; margin-top: 16px; text-align: center; }
+    .more-dots { font-size: 0.5rem; color: #94a3b8; line-height: 1; }
+    .empty-state { color: #94a3b8; font-size: 0.8rem; margin-top: 16px; text-align: center; }
   `]
 })
 export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
@@ -339,11 +395,10 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     const month = now.getMonth();
 
     const firstDay = new Date(year, month, 1);
-    const startDayOfWeek = firstDay.getDay(); // 0 = Sun, 1 = Mon ...
+    const startDayOfWeek = firstDay.getDay();
 
     const grid: MonthDay[] = [];
 
-    // Fill days (35 cells: 5 weeks)
     for (let i = 0; i < 35; i++) {
       const cellDate = new Date(year, month, 1 - startDayOfWeek + i);
       const isCurrentMonth = cellDate.getMonth() === month;

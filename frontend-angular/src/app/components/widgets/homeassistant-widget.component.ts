@@ -39,10 +39,12 @@ import { HomeAssistantEntity } from '../../models/display.model';
     .ha-card {
       height: 100%;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 16px;
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -51,86 +53,91 @@ import { HomeAssistantEntity } from '../../models/display.model';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .header-title {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     .ha-icon {
-      width: 20px;
-      height: 20px;
-      color: #0284c7;
+      width: 16px;
+      height: 16px;
+      color: var(--accent-blue, #0ea5e9);
     }
     .widget-title {
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       font-weight: 600;
       margin: 0;
+      color: #ffffff;
     }
     .status-indicator {
-      font-size: 0.7rem;
-      font-weight: 600;
+      font-size: 0.65rem;
+      font-weight: 700;
       padding: 2px 6px;
       border-radius: 10px;
     }
-    .status-indicator.online { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-    .status-indicator.offline { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .status-indicator.online { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .status-indicator.offline { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
     .entities-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 8px;
       overflow-y: auto;
       flex: 1;
     }
     .entity-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px;
+      gap: 8px;
+      padding: 8px;
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      transition: all 0.2s;
     }
     .entity-item.active {
-      background: rgba(59, 130, 246, 0.1);
-      border-color: rgba(59, 130, 246, 0.3);
+      background: rgba(14, 165, 233, 0.12);
+      border-color: rgba(14, 165, 233, 0.4);
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
     }
     .entity-icon-wrap {
-      width: 34px;
-      height: 34px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
     .entity-info {
       flex: 1;
       overflow: hidden;
     }
     .entity-label {
-      font-size: 0.75rem;
-      opacity: 0.7;
+      font-size: 0.7rem;
+      color: #94a3b8;
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
+      font-weight: 600;
     }
     .entity-state {
-      font-size: 1rem;
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-size: 0.95rem;
       font-weight: 600;
-      color: #f1f5f9;
+      color: #ffffff;
       display: flex;
       align-items: baseline;
       gap: 2px;
     }
     .state-unit {
-      font-size: 0.75rem;
-      opacity: 0.8;
+      font-size: 0.7rem;
+      color: var(--accent-cyan, #06b6d4);
     }
   `]
 })
@@ -201,9 +208,8 @@ export class HomeAssistantWidgetComponent implements OnInit, OnDestroy, OnChange
             }
           }
         },
-        error: (err) => {
+        error: () => {
           this.isError = true;
-          console.error(`Failed to fetch state for ${entity.entityId}:`, err);
         }
       });
     });

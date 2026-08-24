@@ -112,9 +112,9 @@ import { OfflineCacheService } from '../services/offline-cache.service';
       height: 100vh;
       position: relative;
       overflow: hidden;
-      background-color: #0b0f19;
-      color: #ffffff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #080c14;
+      color: #f8fafc;
+      font-family: var(--font-main, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
     }
     .bg-image-layer {
       position: absolute;
@@ -146,42 +146,48 @@ import { OfflineCacheService } from '../services/offline-cache.service';
     }
     .offline-pill {
       position: absolute;
-      top: 12px;
-      right: 12px;
+      top: 16px;
+      right: 16px;
       z-index: 99;
       background: rgba(239, 68, 68, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       color: white;
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 20px;
       font-size: 0.75rem;
-      font-weight: 600;
-      backdrop-filter: blur(4px);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
     }
     .carousel-dots {
       position: absolute;
-      bottom: 12px;
+      bottom: 16px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       gap: 8px;
       z-index: 50;
-      background: rgba(0, 0, 0, 0.4);
-      padding: 6px 12px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 14px;
       border-radius: 20px;
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
     .dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.25);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .dot.active {
       width: 24px;
       border-radius: 4px;
-      background: #38bdf8;
+      background: #0ea5e9;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.8);
     }
 
     /* Ambient Night Clock Mode */
@@ -193,29 +199,36 @@ import { OfflineCacheService } from '../services/offline-cache.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #ea580c; /* Ambient dim amber */
-      opacity: 0.6;
+      color: #ea580c;
+      opacity: 0.75;
     }
     .night-clock {
       text-align: center;
     }
     .night-time {
-      font-size: 7rem;
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-size: 8.5rem;
       font-weight: 200;
       line-height: 1;
-      letter-spacing: -2px;
+      letter-spacing: -3px;
       font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 40px rgba(234, 88, 12, 0.3);
     }
     .night-period {
-      font-size: 1.5rem;
-      font-weight: 300;
-      margin-top: 4px;
+      font-family: var(--font-main, sans-serif);
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-top: 6px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
     }
     .night-date {
-      font-size: 1.2rem;
-      font-weight: 300;
-      margin-top: 8px;
-      opacity: 0.8;
+      font-family: var(--font-main, sans-serif);
+      font-size: 1.3rem;
+      font-weight: 400;
+      margin-top: 10px;
+      opacity: 0.85;
+      letter-spacing: 0.5px;
     }
 
     .blackout-overlay {

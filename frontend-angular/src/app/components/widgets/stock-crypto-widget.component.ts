@@ -22,7 +22,7 @@ export interface FinancialAsset {
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
             <polyline points="17 6 23 6 23 12"></polyline>
           </svg>
-          <h3 class="widget-title">Markets & Crypto</h3>
+          <h3 class="widget-title">Markets</h3>
         </div>
         <span class="currency-tag">{{ config.currency || 'USD' }}</span>
       </div>
@@ -41,6 +41,8 @@ export interface FinancialAsset {
                 [attr.stroke]="asset.change24h >= 0 ? '#10b981' : '#ef4444'" 
                 fill="none" 
                 stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
               />
             </svg>
           </div>
@@ -59,10 +61,12 @@ export interface FinancialAsset {
     .market-card {
       height: 100%;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 16px;
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -71,37 +75,39 @@ export interface FinancialAsset {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .title-group {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     .market-icon {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       color: #10b981;
     }
     .widget-title {
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       font-weight: 600;
       margin: 0;
+      color: #ffffff;
     }
     .currency-tag {
-      font-size: 0.75rem;
-      opacity: 0.7;
-      background: rgba(255, 255, 255, 0.1);
+      font-size: 0.65rem;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.06);
       padding: 2px 6px;
       border-radius: 4px;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0.5px;
     }
     .asset-grid {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       overflow-y: auto;
       flex: 1;
     }
@@ -109,34 +115,41 @@ export interface FinancialAsset {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 10px;
+      padding: 6px 10px;
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      transition: background 0.2s;
+    }
+    .asset-item:hover {
+      background: rgba(255, 255, 255, 0.06);
     }
     .asset-left {
       display: flex;
       flex-direction: column;
-      width: 70px;
+      width: 75px;
     }
     .symbol {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 700;
       color: #ffffff;
+      letter-spacing: -0.2px;
     }
     .name {
-      font-size: 0.7rem;
-      opacity: 0.6;
+      font-size: 0.65rem;
+      color: #94a3b8;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .sparkline-wrap {
-      width: 60px;
-      height: 20px;
+      width: 55px;
+      height: 18px;
     }
     .sparkline-svg {
       width: 100%;
       height: 100%;
+      overflow: visible;
     }
     .asset-right {
       display: flex;
@@ -144,16 +157,19 @@ export interface FinancialAsset {
       align-items: flex-end;
     }
     .price {
+      font-family: var(--font-display, 'Outfit', sans-serif);
       font-size: 0.95rem;
       font-weight: 600;
+      color: #ffffff;
       font-variant-numeric: tabular-nums;
     }
     .change-badge {
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.65rem;
+      font-weight: 700;
       padding: 1px 4px;
-      border-radius: 3px;
+      border-radius: 4px;
       font-variant-numeric: tabular-nums;
+      margin-top: 1px;
     }
     .change-badge.positive {
       color: #34d399;
@@ -221,7 +237,7 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
           this.updateAsset('SOL', data.solana.usd, data.solana.usd_24h_change);
         }
       },
-      error: (err) => console.log('Market data fallback active:', err)
+      error: () => {}
     });
   }
 

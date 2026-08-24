@@ -4,7 +4,7 @@ import { interval, Subscription } from 'rxjs';
 @Component({
   selector: 'app-photo-widget',
   template: `
-    <div class="photo-container" [ngClass]="config.fitMode || 'cover'">
+    <div class="photo-card" [ngClass]="config.fitMode || 'cover'">
       <div 
         *ngIf="config.blurBackground && config.fitMode === 'contain' && currentImageUrl" 
         class="blur-backdrop" 
@@ -19,7 +19,7 @@ import { interval, Subscription } from 'rxjs';
           [style.object-fit]="config.fitMode || 'cover'"
           (error)="handleImageError()"
         />
-        <div class="caption-overlay" *ngIf="config.showCaptions && currentCaption">
+        <div class="caption-pill" *ngIf="config.showCaptions && currentCaption">
           <span>{{ currentCaption }}</span>
         </div>
       </div>
@@ -37,13 +37,15 @@ import { interval, Subscription } from 'rxjs';
     </div>
   `,
   styles: [`
-    .photo-container {
+    .photo-card {
       width: 100%;
       height: 100%;
       position: relative;
       overflow: hidden;
-      border-radius: 12px;
-      background-color: rgba(0, 0, 0, 0.4);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background-color: rgba(0, 0, 0, 0.6);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -53,7 +55,7 @@ import { interval, Subscription } from 'rxjs';
       inset: -20px;
       background-size: cover;
       background-position: center;
-      filter: blur(24px) brightness(0.6);
+      filter: blur(28px) brightness(0.5);
       z-index: 1;
     }
     .image-wrapper {
@@ -61,27 +63,32 @@ import { interval, Subscription } from 'rxjs';
       width: 100%;
       height: 100%;
       z-index: 2;
+      overflow: hidden;
     }
     .slide-image {
       width: 100%;
       height: 100%;
       display: block;
-      transition: opacity 0.8s ease-in-out;
-      border-radius: 12px;
+      transition: transform 8s ease, opacity 0.8s ease-in-out;
+      transform: scale(1.03);
     }
-    .caption-overlay {
+    .slide-image:hover {
+      transform: scale(1.08);
+    }
+    .caption-pill {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 10px 16px;
-      background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+      bottom: 12px;
+      left: 12px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      padding: 4px 12px;
+      border-radius: 20px;
       color: #ffffff;
-      font-size: 0.85rem;
-      font-weight: 500;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-      border-bottom-left-radius: 12px;
-      border-bottom-right-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
     .empty-state {
       display: flex;
@@ -89,12 +96,13 @@ import { interval, Subscription } from 'rxjs';
       align-items: center;
       justify-content: center;
       color: rgba(255, 255, 255, 0.5);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       gap: 8px;
     }
     .photo-icon {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
+      color: var(--accent-blue, #0ea5e9);
     }
   `]
 })
