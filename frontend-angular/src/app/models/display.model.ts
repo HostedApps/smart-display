@@ -208,6 +208,43 @@ export interface DisplayConfig {
   background?: DisplayBackground;
   sleep_schedule?: SleepScheduleConfig;
   pages?: DisplayPage[];
+  logo_url?: string;
+  show_logo_kiosk?: boolean;
+}
+
+export interface DisplaySummary {
+  id: number;
+  token: string;
+  name: string;
+  theme: string;
+  orientation: DisplayOrientation;
+  refresh_interval: number;
+  logo_url?: string;
+  show_logo_kiosk?: boolean;
+  widget_count: number;
+  device_count: number;
+  created_at: string;
+}
+
+export interface Device {
+  id: number;
+  device_name: string;
+  ip_address?: string;
+  last_ping?: string;
+  created_at?: string;
+  display_name?: string;
+}
+
+export interface PairingCodeResponse {
+  success: boolean;
+  pairing_code: string;
+  device_secret: string;
+  expires_in_seconds: number;
+}
+
+export interface PairingStatusResponse {
+  status: 'pending' | 'paired' | 'expired';
+  display_token?: string;
 }
 
 export interface DisplayResponse {
