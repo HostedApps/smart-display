@@ -58,22 +58,67 @@ import { AuthService } from '../../services/auth.service';
 
           <hr class="divider" />
 
-          <h3>Add Widget</h3>
+          <div class="palette-header">
+            <h3>Add Widget</h3>
+            <span class="palette-badge">14 Widgets</span>
+          </div>
           <div class="widget-palette">
-            <button (click)="addWidget('clock')" class="btn btn-secondary">+ Clock</button>
-            <button (click)="addWidget('weather')" class="btn btn-secondary">+ Weather</button>
-            <button (click)="addWidget('calendar')" class="btn btn-secondary">+ Calendar</button>
-            <button (click)="addWidget('photo')" class="btn btn-secondary">+ Photo</button>
-            <button (click)="addWidget('rss')" class="btn btn-secondary">+ RSS News</button>
-            <button (click)="addWidget('todo')" class="btn btn-secondary">+ Tasks/Todo</button>
-            <button (click)="addWidget('homeassistant')" class="btn btn-secondary">+ Smart Home</button>
-            <button (click)="addWidget('spotify')" class="btn btn-secondary">+ Spotify</button>
-            <button (click)="addWidget('stock_crypto')" class="btn btn-secondary">+ Markets</button>
-            <button (click)="addWidget('sticky_note')" class="btn btn-secondary">+ Sticky Note</button>
-            <button (click)="addWidget('countdown')" class="btn btn-secondary">+ Countdown</button>
-            <button (click)="addWidget('meal_planner')" class="btn btn-secondary">+ Meal Plan</button>
-            <button (click)="addWidget('radar')" class="btn btn-secondary">+ Weather Radar</button>
-            <button (click)="addWidget('quote')" class="btn btn-secondary">+ Daily Quote</button>
+            <button (click)="addWidget('clock')" class="palette-item">
+              <span class="palette-icon">⏰</span>
+              <span class="palette-title">Clock</span>
+            </button>
+            <button (click)="addWidget('weather')" class="palette-item">
+              <span class="palette-icon">⛅</span>
+              <span class="palette-title">Weather</span>
+            </button>
+            <button (click)="addWidget('calendar')" class="palette-item">
+              <span class="palette-icon">📅</span>
+              <span class="palette-title">Calendar</span>
+            </button>
+            <button (click)="addWidget('photo')" class="palette-item">
+              <span class="palette-icon">🖼️</span>
+              <span class="palette-title">Photos</span>
+            </button>
+            <button (click)="addWidget('rss')" class="palette-item">
+              <span class="palette-icon">📰</span>
+              <span class="palette-title">RSS News</span>
+            </button>
+            <button (click)="addWidget('todo')" class="palette-item">
+              <span class="palette-icon">📝</span>
+              <span class="palette-title">Tasks</span>
+            </button>
+            <button (click)="addWidget('homeassistant')" class="palette-item">
+              <span class="palette-icon">🏠</span>
+              <span class="palette-title">Smart Home</span>
+            </button>
+            <button (click)="addWidget('spotify')" class="palette-item">
+              <span class="palette-icon">🎵</span>
+              <span class="palette-title">Spotify</span>
+            </button>
+            <button (click)="addWidget('stock_crypto')" class="palette-item">
+              <span class="palette-icon">📈</span>
+              <span class="palette-title">Markets</span>
+            </button>
+            <button (click)="addWidget('sticky_note')" class="palette-item">
+              <span class="palette-icon">📌</span>
+              <span class="palette-title">Sticky Notes</span>
+            </button>
+            <button (click)="addWidget('countdown')" class="palette-item">
+              <span class="palette-icon">⏳</span>
+              <span class="palette-title">Countdown</span>
+            </button>
+            <button (click)="addWidget('meal_planner')" class="palette-item">
+              <span class="palette-icon">🍽️</span>
+              <span class="palette-title">Meal Plan</span>
+            </button>
+            <button (click)="addWidget('radar')" class="palette-item">
+              <span class="palette-icon">🛰️</span>
+              <span class="palette-title">Radar</span>
+            </button>
+            <button (click)="addWidget('quote')" class="palette-item">
+              <span class="palette-icon">💬</span>
+              <span class="palette-title">Daily Quote</span>
+            </button>
           </div>
 
           <hr class="divider" />
@@ -595,93 +640,102 @@ import { AuthService } from '../../services/auth.service';
       display: flex;
       width: 100vw;
       height: 100vh;
-      background-color: #121824;
+      background-color: #090d16;
       color: #f1f5f9;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: var(--font-main, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
       overflow: hidden;
     }
     .sidebar {
-      width: 390px;
-      background: #1e293b;
+      width: 400px;
+      background: #0f172a;
       display: flex;
       flex-direction: column;
-      border-right: 1px solid #334155;
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
       box-sizing: border-box;
       overflow-y: auto;
+      box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+      z-index: 20;
     }
     .user-profile-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 16px;
-      background: #0b0f19;
-      border-bottom: 1px solid #334155;
+      padding: 12px 18px;
+      background: rgba(15, 23, 42, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .user-info {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       overflow: hidden;
     }
     .user-avatar {
-      width: 26px;
-      height: 26px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
-      background: #0284c7;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
       color: #fff;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
       flex-shrink: 0;
     }
     .user-email {
-      font-size: 0.75rem;
-      color: #94a3b8;
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .btn-signout {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.25);
       color: #f87171;
-      padding: 3px 8px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 6px;
       font-size: 0.7rem;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.2s;
     }
     .btn-signout:hover {
-      background: rgba(239, 68, 68, 0.3);
-      color: #fff;
+      background: rgba(239, 68, 68, 0.25);
+      color: #ffffff;
     }
     .sidebar-tabs {
       display: flex;
-      background: #0f172a;
-      border-bottom: 1px solid #334155;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 12px;
+      gap: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .sidebar-tabs button {
       flex: 1;
-      padding: 12px 8px;
-      background: none;
-      border: none;
+      padding: 8px 10px;
+      background: transparent;
+      border: 1px solid transparent;
       color: #94a3b8;
       font-size: 0.8rem;
       font-weight: 600;
+      border-radius: 8px;
       cursor: pointer;
-      border-bottom: 2px solid transparent;
       transition: all 0.2s;
     }
+    .sidebar-tabs button:hover {
+      color: #ffffff;
+    }
     .sidebar-tabs button.active {
-      color: #38bdf8;
-      border-bottom-color: #38bdf8;
-      background: #1e293b;
+      color: #ffffff;
+      background: #0ea5e9;
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
     }
     .tab-content {
-      padding: 20px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -689,18 +743,25 @@ import { AuthService } from '../../services/auth.service';
     }
     .tab-desc {
       font-size: 0.8rem;
-      opacity: 0.7;
+      color: #94a3b8;
       margin-top: -6px;
     }
     .divider {
       border: 0;
-      border-top: 1px solid #334155;
-      margin: 12px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 10px 0;
     }
     .form-group {
       display: flex;
       flex-direction: column;
       gap: 5px;
+    }
+    .form-group label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .checkbox-group label {
       display: flex;
@@ -708,6 +769,8 @@ import { AuthService } from '../../services/auth.service';
       gap: 8px;
       cursor: pointer;
       font-size: 0.85rem;
+      color: #f1f5f9;
+      text-transform: none;
     }
     .form-row {
       display: flex;
@@ -717,31 +780,31 @@ import { AuthService } from '../../services/auth.service';
       flex: 1;
     }
     .input-control {
-      background: #0f172a;
-      border: 1px solid #334155;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: #fff;
-      padding: 8px 10px;
-      border-radius: 6px;
+      padding: 8px 12px;
+      border-radius: 8px;
       font-size: 0.85rem;
+      transition: all 0.2s;
     }
     .input-control:focus {
       outline: none;
-      border-color: #38bdf8;
-    }
-    .slider-control {
-      width: 100%;
-      accent-color: #38bdf8;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
     }
     .grid-controls {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      color: #cbd5e1;
     }
     .pill-group {
       display: flex;
-      background: #0f172a;
-      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
       padding: 2px;
     }
     .pill-group button {
@@ -750,41 +813,131 @@ import { AuthService } from '../../services/auth.service';
       color: #94a3b8;
       padding: 4px 10px;
       font-size: 0.75rem;
-      border-radius: 4px;
+      font-weight: 600;
+      border-radius: 6px;
       cursor: pointer;
+      transition: all 0.2s;
     }
     .pill-group button.active {
-      background: #38bdf8;
-      color: #0f172a;
+      background: #0ea5e9;
+      color: #ffffff;
+    }
+
+    .palette-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 2px;
+    }
+    .palette-header h3 {
+      font-size: 0.95rem;
       font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+    }
+    .palette-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      padding: 2px 8px;
+      border-radius: 10px;
     }
     .widget-palette {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 6px;
     }
+    .palette-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      color: #f1f5f9;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .palette-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(14, 165, 233, 0.4);
+      transform: translateY(-1px);
+    }
+    .palette-icon {
+      font-size: 1.05rem;
+    }
+    .palette-title {
+      font-size: 0.78rem;
+    }
+
     .btn {
       padding: 8px 12px;
-      border-radius: 6px;
+      border-radius: 8px;
       border: none;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       font-size: 0.85rem;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     .btn-primary {
-      background: #0284c7;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
       color: #fff;
       width: 100%;
       padding: 12px;
-      font-weight: 600;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
     }
-    .btn-primary:hover { background: #0369a1; }
-    .btn-secondary { background: #334155; color: #fff; }
-    .btn-secondary:hover { background: #475569; }
-    .btn-danger { background: #dc2626; color: #fff; width: 100%; margin-top: 10px; }
-    .full-width { width: 100%; }
-    .btn-icon-danger { background: none; border: none; color: #ef4444; font-size: 1rem; cursor: pointer; }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      box-shadow: 0 6px 16px rgba(14, 165, 233, 0.6);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      width: 100%;
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    .inspector {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .inspector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+    .inspector-header h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+    }
+    .dimension-tag {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-family: monospace;
+      color: #38bdf8;
+    }
 
     .pages-list {
       display: flex;
@@ -792,13 +945,15 @@ import { AuthService } from '../../services/auth.service';
       gap: 8px;
     }
     .page-item {
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px 12px;
+      transition: all 0.2s;
     }
     .page-item.selected {
-      border-color: #38bdf8;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
     }
     .page-top {
       display: flex;
@@ -807,10 +962,12 @@ import { AuthService } from '../../services/auth.service';
       cursor: pointer;
     }
     .page-num {
-      background: #334155;
+      background: #0ea5e9;
+      color: #ffffff;
       font-size: 0.75rem;
-      width: 20px;
-      height: 20px;
+      font-weight: 700;
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -822,23 +979,10 @@ import { AuthService } from '../../services/auth.service';
       gap: 8px;
       margin-top: 6px;
       font-size: 0.75rem;
+      color: #94a3b8;
     }
     .duration-input {
       width: 60px;
-    }
-
-    .inspector-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .dimension-tag {
-      background: #334155;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 0.7rem;
-      font-family: monospace;
     }
 
     .section-subhead {
@@ -848,7 +992,7 @@ import { AuthService } from '../../services/auth.service';
       margin: 8px 0 4px 0;
     }
     .btn-xs-action {
-      background: #0284c7;
+      background: #0ea5e9;
       color: #fff;
       border: none;
       border-radius: 4px;
@@ -857,7 +1001,7 @@ import { AuthService } from '../../services/auth.service';
       padding: 2px 6px;
       cursor: pointer;
     }
-    .btn-xs-action:hover { background: #0369a1; }
+    .btn-xs-action:hover { background: #0284c7; }
 
     .feeds-manager, .meal-days-editor {
       display: flex;
@@ -883,10 +1027,10 @@ import { AuthService } from '../../services/auth.service';
     .feed-url-input { flex: 1; }
 
     .note-config-item {
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 6px;
-      padding: 6px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -910,29 +1054,36 @@ import { AuthService } from '../../services/auth.service';
       font-weight: 600;
       color: #cbd5e1;
     }
+    .btn-icon-danger {
+      background: none;
+      border: none;
+      color: #f87171;
+      font-size: 1rem;
+      cursor: pointer;
+    }
 
     .actions {
       padding: 16px 20px;
-      border-top: 1px solid #334155;
-      background: #1e293b;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0f172a;
       margin-top: auto;
     }
 
     .canvas-viewport {
       flex: 1;
-      padding: 24px;
+      padding: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #0f172a;
+      background: #070b12;
       overflow: auto;
     }
     .screen-canvas {
       position: relative;
       background: #000;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-      border: 2px solid #334155;
-      border-radius: 8px;
+      border: 12px solid #1e293b;
+      border-radius: 20px;
+      box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.8);
       overflow: hidden;
       transition: width 0.3s, height 0.3s;
       flex-shrink: 0;
@@ -957,41 +1108,42 @@ import { AuthService } from '../../services/auth.service';
 
     /* Grid Snapping Matrix Overlays */
     .grid-overlay-10 {
-      background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+      background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
       background-size: 10px 10px;
     }
     .grid-overlay-20 {
-      background-image: radial-gradient(rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+      background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
       background-size: 20px 20px;
     }
 
     .draggable-widget {
       position: absolute;
       cursor: move;
-      border: 1px dashed rgba(255, 255, 255, 0.25);
-      border-radius: 8px;
+      border: 1px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
       box-sizing: border-box;
       user-select: none;
       z-index: 1;
     }
     .draggable-widget.selected {
-      border: 2px solid #38bdf8;
-      box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25);
+      border: 2px solid #0ea5e9;
+      box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.3);
       z-index: 10;
     }
     .widget-header {
       background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
       font-size: 0.65rem;
-      padding: 3px 6px;
+      padding: 3px 8px;
       letter-spacing: 0.5px;
-      border-top-left-radius: 6px;
-      border-top-right-radius: 6px;
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .widget-badge { font-weight: 700; }
-    .widget-size { opacity: 0.7; font-size: 0.6rem; }
+    .widget-badge { font-weight: 700; color: #38bdf8; }
+    .widget-size { color: #94a3b8; font-size: 0.6rem; }
     .widget-preview-content {
       height: calc(100% - 20px);
       pointer-events: none;

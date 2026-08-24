@@ -29,39 +29,41 @@ interface QuoteItem {
     .quote-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85));
-      border-radius: 12px;
-      padding: 16px;
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 16px 18px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.08);
       position: relative;
     }
     .quote-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .category-chip {
       font-size: 0.65rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent-cyan, #06b6d4);
+      background: rgba(6, 182, 212, 0.12);
+      border: 1px solid rgba(6, 182, 212, 0.25);
       padding: 2px 8px;
-      border-radius: 10px;
+      border-radius: 12px;
     }
     .quote-mark {
-      font-size: 2.2rem;
-      line-height: 0.8;
-      font-family: Georgia, serif;
-      color: rgba(255, 255, 255, 0.15);
-      margin-top: 4px;
+      font-size: 2.8rem;
+      line-height: 0.6;
+      font-family: var(--font-serif, Georgia, serif);
+      color: rgba(255, 255, 255, 0.18);
+      margin-top: 8px;
     }
     .quote-body {
       display: flex;
@@ -70,13 +72,14 @@ interface QuoteItem {
       flex: 1;
     }
     .quote-text {
-      font-size: 0.95rem;
+      font-family: var(--font-serif, 'Newsreader', Georgia, serif);
+      font-size: 1.05rem;
       font-weight: 400;
-      line-height: 1.45;
+      line-height: 1.4;
       font-style: italic;
-      color: #f8fafc;
-      margin: 0 0 10px 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Georgia, serif;
+      color: #ffffff;
+      margin: 0 0 8px 0;
+      letter-spacing: 0.2px;
     }
     .author-row {
       display: flex;
@@ -92,7 +95,7 @@ interface QuoteItem {
       font-size: 0.8rem;
       font-weight: 600;
       color: #cbd5e1;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.3px;
     }
   `]
 })
@@ -149,7 +152,6 @@ export class QuoteWidgetComponent implements OnInit, OnChanges {
       filtered = this.quotesLibrary.filter(q => q.category === 'Inspirational');
     }
 
-    // Pick quote based on day of year for consistency throughout the day
     const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
     const index = dayOfYear % (filtered.length || 1);
     this.activeQuote = filtered[index] || this.quotesLibrary[0];

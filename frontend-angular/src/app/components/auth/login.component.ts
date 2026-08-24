@@ -69,43 +69,47 @@ import { AuthService } from '../../services/auth.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      background: radial-gradient(circle at top, #1e293b, #0b0f19);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0%, #080c14 100%);
+      font-family: var(--font-main, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
       color: #f1f5f9;
     }
     .login-card {
       width: 100%;
-      max-width: 400px;
-      padding: 36px 32px;
-      background: rgba(30, 41, 59, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(16px);
+      max-width: 420px;
+      padding: 40px 36px;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.75), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
       box-sizing: border-box;
     }
     .login-header {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 28px;
     }
     .logo-icon {
-      width: 48px;
-      height: 48px;
-      margin: 0 auto 12px;
-      background: rgba(56, 189, 248, 0.15);
+      width: 52px;
+      height: 52px;
+      margin: 0 auto 14px;
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2));
+      border: 1px solid rgba(14, 165, 233, 0.4);
       color: #38bdf8;
-      border-radius: 12px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 0 20px rgba(14, 165, 233, 0.3);
     }
     .logo-icon svg {
       width: 28px;
       height: 28px;
     }
     h2 {
-      font-size: 1.4rem;
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-size: 1.6rem;
       font-weight: 700;
+      letter-spacing: -0.5px;
       margin: 0;
       color: #ffffff;
     }
@@ -119,7 +123,7 @@ import { AuthService } from '../../services/auth.service';
       border: 1px solid rgba(239, 68, 68, 0.4);
       color: #f87171;
       padding: 10px 14px;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 0.85rem;
       margin-bottom: 20px;
       text-align: center;
@@ -127,7 +131,7 @@ import { AuthService } from '../../services/auth.service';
     .login-form {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
     }
     .form-group {
       display: flex;
@@ -135,48 +139,52 @@ import { AuthService } from '../../services/auth.service';
       gap: 6px;
     }
     label {
-      font-size: 0.8rem;
-      font-weight: 500;
-      color: #cbd5e1;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #94a3b8;
     }
     .input-control {
-      background: #0f172a;
-      border: 1px solid #334155;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: #fff;
-      padding: 10px 14px;
-      border-radius: 8px;
+      padding: 11px 14px;
+      border-radius: 10px;
       font-size: 0.9rem;
-      transition: border-color 0.2s;
+      transition: all 0.2s;
     }
     .input-control:focus {
       outline: none;
-      border-color: #38bdf8;
-      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
     }
     .btn {
-      padding: 12px;
-      border-radius: 8px;
+      padding: 13px;
+      border-radius: 10px;
       border: none;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 0.95rem;
       cursor: pointer;
       margin-top: 8px;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     .btn-primary {
-      background: #0284c7;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
       color: #fff;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
     }
     .btn-primary:hover {
-      background: #0369a1;
+      filter: brightness(1.1);
+      box-shadow: 0 6px 18px rgba(14, 165, 233, 0.6);
     }
     .btn-primary:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
     .login-footer {
-      margin-top: 24px;
-      padding-top: 16px;
+      margin-top: 26px;
+      padding-top: 18px;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
       text-align: center;
       font-size: 0.75rem;
@@ -184,12 +192,14 @@ import { AuthService } from '../../services/auth.service';
     }
     code {
       display: inline-block;
-      margin-top: 4px;
-      background: rgba(0, 0, 0, 0.3);
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: #94a3b8;
+      margin-top: 6px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: #38bdf8;
       font-family: monospace;
+      font-size: 0.75rem;
     }
   `]
 })

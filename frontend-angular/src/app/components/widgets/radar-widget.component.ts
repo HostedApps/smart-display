@@ -22,7 +22,7 @@ interface RainViewerFrame {
             <line x1="12" y1="3" x2="12" y2="21"></line>
             <line x1="3" y1="12" x2="21" y2="12"></line>
           </svg>
-          <h3 class="widget-title">{{ config.cityName || 'Live Weather Radar' }}</h3>
+          <h3 class="widget-title">{{ config.cityName || 'Weather Radar' }}</h3>
         </div>
         <div class="radar-badge">
           <span class="live-dot"></span>
@@ -61,14 +61,15 @@ interface RainViewerFrame {
     .radar-card {
       height: 100%;
       box-sizing: border-box;
-      background: rgba(15, 23, 42, 0.85);
-      border-radius: 12px;
-      padding: 12px;
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 12px 14px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .radar-header {
       display: flex;
@@ -84,7 +85,7 @@ interface RainViewerFrame {
     .radar-icon {
       width: 16px;
       height: 16px;
-      color: #38bdf8;
+      color: var(--accent-blue, #0ea5e9);
     }
     .widget-title {
       font-size: 0.95rem;
@@ -96,9 +97,9 @@ interface RainViewerFrame {
       display: flex;
       align-items: center;
       gap: 5px;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.45);
       padding: 2px 8px;
-      border-radius: 10px;
+      border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .live-dot {
@@ -106,6 +107,7 @@ interface RainViewerFrame {
       height: 6px;
       background: #ef4444;
       border-radius: 50%;
+      box-shadow: 0 0 8px #ef4444;
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
@@ -114,18 +116,19 @@ interface RainViewerFrame {
     }
     .timestamp-label {
       font-size: 0.65rem;
-      font-weight: 600;
-      color: #cbd5e1;
+      font-weight: 700;
+      color: #38bdf8;
       font-family: monospace;
+      letter-spacing: 0.5px;
     }
 
     .map-viewport {
       flex: 1;
       position: relative;
       background: #090d16;
-      border-radius: 8px;
+      border-radius: 10px;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
     .tile-layer {
       position: absolute;
@@ -156,8 +159,8 @@ interface RainViewerFrame {
       justify-content: center;
     }
     .center-crosshair .ring {
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
       border: 1.5px dashed rgba(56, 189, 248, 0.8);
       border-radius: 50%;
       animation: spin 10s linear infinite;
@@ -171,16 +174,17 @@ interface RainViewerFrame {
       height: 5px;
       background: #38bdf8;
       border-radius: 50%;
-      box-shadow: 0 0 6px #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
     }
 
     .intensity-legend {
       position: absolute;
-      bottom: 8px;
-      right: 8px;
-      background: rgba(0, 0, 0, 0.7);
+      bottom: 6px;
+      right: 6px;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       padding: 3px 6px;
-      border-radius: 4px;
+      border-radius: 6px;
       display: flex;
       align-items: center;
       gap: 4px;
@@ -190,7 +194,7 @@ interface RainViewerFrame {
       font-size: 0.55rem;
       color: #94a3b8;
       text-transform: uppercase;
-      font-weight: 600;
+      font-weight: 700;
     }
     .color-bar {
       width: 48px;
@@ -206,7 +210,7 @@ export class RadarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     lat: 37.7749,
     lon: -122.4194,
     zoom: 7,
-    colorScheme: 2, // TITAN / Universal
+    colorScheme: 2,
     smooth: true,
     refreshMinutes: 10
   };
@@ -242,7 +246,6 @@ export class RadarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     const zoom = this.config.zoom || 7;
 
     const tile = this.latLonToTile(lat, lon, zoom);
-    // Dark matter OpenStreetMap base tile
     this.baseTileUrl = `https://a.basemaps.cartocdn.com/dark_all/${zoom}/${tile.x}/${tile.y}@2x.png`;
   }
 
@@ -281,7 +284,6 @@ export class RadarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     const smooth = this.config.smooth !== false ? 1 : 0;
 
     const tile = this.latLonToTile(lat, lon, zoom);
-    // RainViewer tile format: {host}{path}/512/{zoom}/{x}/{y}/{colorScheme}/{smooth}_{snow}.png
     this.currentRadarTileUrl = `${this.hostUrl}${frame.path}/512/${zoom}/${tile.x}/${tile.y}/${colorScheme}/${smooth}_1.png`;
 
     const frameDate = new Date(frame.time * 1000);

@@ -11,7 +11,7 @@ import { TodoItem } from '../../models/display.model';
             <polyline points="9 11 12 14 22 4"></polyline>
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
           </svg>
-          <h3 class="widget-title">{{ config.title || 'Tasks & Checklist' }}</h3>
+          <h3 class="widget-title">{{ config.title || 'Family Tasks' }}</h3>
         </div>
         <span class="task-count">{{ completedCount }}/{{ items.length }}</span>
       </div>
@@ -49,10 +49,12 @@ import { TodoItem } from '../../models/display.model';
     .todo-card {
       height: 100%;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 16px;
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -61,46 +63,50 @@ import { TodoItem } from '../../models/display.model';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .title-group {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
     .todo-icon {
-      width: 18px;
-      height: 18px;
-      color: #38bdf8;
+      width: 16px;
+      height: 16px;
+      color: var(--accent-blue, #0ea5e9);
     }
     .widget-title {
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       font-weight: 600;
       margin: 0;
+      color: #ffffff;
     }
     .task-count {
-      font-size: 0.8rem;
-      opacity: 0.7;
-      background: rgba(255, 255, 255, 0.1);
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
       padding: 2px 8px;
       border-radius: 12px;
+      font-variant-numeric: tabular-nums;
     }
     .todo-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 5px;
       overflow-y: auto;
       flex: 1;
     }
     .todo-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 10px;
+      gap: 8px;
+      padding: 6px 10px;
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
       cursor: pointer;
       transition: background 0.15s;
     }
@@ -108,10 +114,10 @@ import { TodoItem } from '../../models/display.model';
       background: rgba(255, 255, 255, 0.06);
     }
     .checkbox {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border-radius: 4px;
-      border: 2px solid rgba(255, 255, 255, 0.4);
+      border: 1.5px solid rgba(255, 255, 255, 0.4);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -121,44 +127,46 @@ import { TodoItem } from '../../models/display.model';
     .checkbox.checked {
       background-color: #10b981;
       border-color: #10b981;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
     }
     .checkbox svg {
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       stroke: #ffffff;
     }
     .todo-text {
       flex: 1;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #f1f5f9;
       transition: opacity 0.2s;
     }
     .todo-item.completed .todo-text {
       text-decoration: line-through;
-      opacity: 0.45;
+      color: #94a3b8;
+      opacity: 0.5;
     }
     .priority-badge {
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       text-transform: uppercase;
       font-weight: 700;
-      padding: 2px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
       letter-spacing: 0.5px;
     }
-    .priority-high { background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-    .priority-medium { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
-    .priority-low { background: rgba(59, 130, 246, 0.25); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .priority-high { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .priority-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .priority-low { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
     .due-badge {
-      font-size: 0.7rem;
-      opacity: 0.65;
+      font-size: 0.65rem;
+      color: #94a3b8;
     }
     .empty-state {
       display: flex;
       align-items: center;
       justify-content: center;
       flex: 1;
-      opacity: 0.5;
-      font-size: 0.9rem;
+      color: #94a3b8;
+      font-size: 0.85rem;
     }
   `]
 })
@@ -171,10 +179,10 @@ export class TodoWidgetComponent implements OnInit {
   };
 
   private defaultItems: TodoItem[] = [
-    { id: '1', text: 'Water the plants', completed: false, priority: 'medium' },
+    { id: '1', text: 'Water the garden plants', completed: false, priority: 'medium' },
     { id: '2', text: 'Groceries: Milk, Eggs, Sourdough', completed: false, priority: 'high', dueDate: 'Today' },
     { id: '3', text: 'Trash & recycling bin to curb', completed: false, priority: 'high', dueDate: '8:00 PM' },
-    { id: '4', text: 'Pack gym bag', completed: true, priority: 'low' }
+    { id: '4', text: 'Pack gym bag & water bottle', completed: true, priority: 'low' }
   ];
 
   get items(): TodoItem[] {

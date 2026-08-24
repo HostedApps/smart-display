@@ -46,29 +46,36 @@ import { interval, Subscription } from 'rxjs';
     .countdown-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(168, 85, 247, 0.1));
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(168, 85, 247, 0.12));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
       padding: 16px;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
       overflow: hidden;
+      position: relative;
     }
     .emoji-badge {
       font-size: 2.2rem;
-      margin-bottom: 4px;
-      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+      margin-bottom: 2px;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+      animation: float 3s ease-in-out infinite alternate;
+    }
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      100% { transform: translateY(-4px); }
     }
     .event-title {
       font-size: 1.15rem;
       font-weight: 700;
       color: #ffffff;
       margin: 0 0 10px 0;
-      letter-spacing: 0.2px;
+      letter-spacing: -0.2px;
     }
     .time-blocks {
       display: flex;
@@ -80,35 +87,40 @@ import { interval, Subscription } from 'rxjs';
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: rgba(0, 0, 0, 0.35);
-      border-radius: 6px;
-      padding: 4px 8px;
-      min-width: 38px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 6px 8px;
+      min-width: 42px;
     }
     .num {
-      font-size: 1.25rem;
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-size: 1.35rem;
       font-weight: 700;
       color: #38bdf8;
-      line-height: 1.1;
+      line-height: 1;
       font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
     }
     .label {
       font-size: 0.6rem;
       text-transform: uppercase;
-      opacity: 0.7;
+      color: #94a3b8;
+      font-weight: 700;
       letter-spacing: 0.5px;
+      margin-top: 2px;
     }
     .time-sep {
-      font-size: 1.1rem;
+      font-size: 1.2rem;
       font-weight: 700;
-      color: rgba(255, 255, 255, 0.4);
+      color: rgba(255, 255, 255, 0.3);
       margin-bottom: 12px;
     }
     .celebration-box {
-      background: rgba(16, 185, 129, 0.2);
+      background: rgba(16, 185, 129, 0.25);
       border: 1px solid #10b981;
       padding: 8px 16px;
-      border-radius: 8px;
+      border-radius: 10px;
       margin-bottom: 6px;
     }
     .celeb-text {
@@ -118,7 +130,8 @@ import { interval, Subscription } from 'rxjs';
     }
     .target-date-sub {
       font-size: 0.7rem;
-      opacity: 0.6;
+      color: #94a3b8;
+      font-weight: 500;
     }
   `]
 })

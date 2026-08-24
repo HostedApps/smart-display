@@ -25,11 +25,11 @@ import { MealPlanDay } from '../../models/display.model';
 
           <div class="meals-info">
             <div class="meal-slot" *ngIf="item.lunch">
-              <span class="slot-label">Lunch:</span>
+              <span class="slot-label">Lunch</span>
               <span class="slot-text">{{ item.lunch }}</span>
             </div>
             <div class="meal-slot" *ngIf="item.dinner">
-              <span class="slot-label">Dinner:</span>
+              <span class="slot-label">Dinner</span>
               <span class="slot-text">{{ item.dinner }}</span>
             </div>
             <div class="meal-slot empty" *ngIf="!item.lunch && !item.dinner">
@@ -44,10 +44,12 @@ import { MealPlanDay } from '../../models/display.model';
     .meal-card {
       height: 100%;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 14px;
-      backdrop-filter: blur(8px);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      padding: 14px 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -56,9 +58,9 @@ import { MealPlanDay } from '../../models/display.model';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .title-wrap {
       display: flex;
@@ -66,63 +68,69 @@ import { MealPlanDay } from '../../models/display.model';
       gap: 6px;
     }
     .chef-icon {
-      font-size: 1.1rem;
+      font-size: 1rem;
     }
     .widget-title {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
       margin: 0;
+      color: #ffffff;
     }
     .today-tag {
-      font-size: 0.75rem;
-      color: #38bdf8;
-      font-weight: 600;
-      background: rgba(56, 189, 248, 0.15);
+      font-size: 0.65rem;
+      color: var(--accent-blue, #0ea5e9);
+      font-weight: 700;
+      background: rgba(14, 165, 233, 0.15);
+      border: 1px solid rgba(14, 165, 233, 0.3);
       padding: 2px 8px;
       border-radius: 12px;
+      letter-spacing: 0.3px;
     }
     .days-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 5px;
       overflow-y: auto;
       flex: 1;
     }
     .day-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 6px 8px;
+      gap: 8px;
+      padding: 5px 8px;
       background: rgba(255, 255, 255, 0.03);
-      border-radius: 6px;
-      border: 1px solid transparent;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      transition: all 0.2s;
     }
     .day-row.active-today {
-      background: rgba(56, 189, 248, 0.1);
-      border-color: #38bdf8;
+      background: rgba(14, 165, 233, 0.12);
+      border-color: rgba(14, 165, 233, 0.4);
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
     }
     .day-badge {
       background: rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
+      border-radius: 6px;
       padding: 2px 6px;
-      min-width: 32px;
+      min-width: 34px;
       text-align: center;
     }
     .day-row.active-today .day-badge {
-      background: #38bdf8;
-      color: #0f172a;
+      background: #0ea5e9;
+      color: #ffffff;
       font-weight: 700;
     }
     .day-short {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       font-weight: 600;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .meals-info {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
       overflow: hidden;
     }
     .meal-slot {
@@ -132,9 +140,9 @@ import { MealPlanDay } from '../../models/display.model';
       font-size: 0.8rem;
     }
     .slot-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      opacity: 0.65;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
       text-transform: uppercase;
       width: 44px;
       flex-shrink: 0;
@@ -144,6 +152,7 @@ import { MealPlanDay } from '../../models/display.model';
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-weight: 500;
     }
     .meal-slot.empty .slot-text {
       opacity: 0.45;
