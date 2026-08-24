@@ -6,6 +6,7 @@ import { interval, Subscription, switchMap } from 'rxjs';
 import { DisplayResponse, Widget, DisplayConfig, DisplayPage } from '../models/display.model';
 import { environment } from '../../environments/environment';
 import { OfflineCacheService } from '../services/offline-cache.service';
+import { WakeLockService } from '../services/wake-lock.service';
 
 @Component({
   selector: 'app-display-viewer',
@@ -254,11 +255,15 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   private clockTimerSub?: Subscription;
   private token: string = '';
 
+  private touchStartX: number = 0;
+  private touchStartY: number = 0;
+
   constructor(
     private route: ActivatedRoute, 
     private http: HttpClient,
     private offlineCache: OfflineCacheService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private wakeLock: WakeLockService
   ) {}
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
@@ -296,6 +301,9 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     this.token = this.route.snapshot.paramMap.get('token') || '';
     this.offlineCache.isOnline$.subscribe(status => this.isOnline = status);
 
+    // Keep screen awake 24/7 on iPad and Android/Fire TV
+    this.wakeLock.requestWakeLock();
+
     // Initial check from offline cache
     if (this.token) {
       const cached = this.offlineCache.getDisplay(this.token);
@@ -319,13 +327,40 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Fire TV / Android TV Remote & Keyboard Controls
   @HostListener('window:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {
     if (this.pages.length > 1) {
-      if (event.key === 'ArrowRight' || event.key === ' ') {
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ' || event.key === 'MediaTrackNext') {
         this.goToPage((this.activePageIndex + 1) % this.pages.length);
-      } else if (event.key === 'ArrowLeft') {
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'MediaTrackPrevious') {
         this.goToPage((this.activePageIndex - 1 + this.pages.length) % this.pages.length);
+      } else if (event.key === 'Enter') {
+        this.goToPage((this.activePageIndex + 1) % this.pages.length);
+      }
+    }
+  }
+
+  // iPad / Touchscreen Swipe Gestures
+  @HostListener('touchstart', ['$event'])
+  handleTouchStart(event: TouchEvent) {
+    if (event.touches.length > 0) {
+      this.touchStartX = event.touches[0].clientX;
+      this.touchStartY = event.touches[0].clientY;
+    }
+  }
+
+  @HostListener('touchend', ['$event'])
+  handleTouchEnd(event: TouchEvent) {
+    if (event.changedTouches.length > 0 && this.pages.length > 1) {
+      const deltaX = event.changedTouches[0].clientX - this.touchStartX;
+      const deltaY = event.changedTouches[0].clientY - this.touchStartY;
+      if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (deltaX < 0) {
+          this.goToPage((this.activePageIndex + 1) % this.pages.length);
+        } else {
+          this.goToPage((this.activePageIndex - 1 + this.pages.length) % this.pages.length);
+        }
       }
     }
   }
@@ -406,6 +441,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.wakeLock.releaseWakeLock();
     this.pollSub?.unsubscribe();
     this.carouselTimerSub?.unsubscribe();
     this.clockTimerSub?.unsubscribe();
