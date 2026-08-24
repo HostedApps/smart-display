@@ -25,6 +25,11 @@ import { CountdownWidgetComponent } from './components/widgets/countdown-widget.
 import { MealPlannerWidgetComponent } from './components/widgets/meal-planner-widget.component';
 import { RadarWidgetComponent } from './components/widgets/radar-widget.component';
 import { QuoteWidgetComponent } from './components/widgets/quote-widget.component';
+import { AIBriefingWidgetComponent } from './components/widgets/ai-briefing-widget.component';
+import { ChoresWidgetComponent } from './components/widgets/chores-widget.component';
+import { CameraPipWidgetComponent } from './components/widgets/camera-pip-widget.component';
+import { CommuteWidgetComponent } from './components/widgets/commute-widget.component';
+import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
 @NgModule({
@@ -48,7 +53,12 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     CountdownWidgetComponent,
     MealPlannerWidgetComponent,
     RadarWidgetComponent,
-    QuoteWidgetComponent
+    QuoteWidgetComponent,
+    AIBriefingWidgetComponent,
+    ChoresWidgetComponent,
+    CameraPipWidgetComponent,
+    CommuteWidgetComponent,
+    WallDropComponent
   ],
   imports: [
     BrowserModule,

@@ -78,9 +78,25 @@ import { AuthService } from '../../services/auth.service';
 
           <div class="palette-header">
             <h3>Add Widget</h3>
-            <span class="palette-badge">14 Widgets</span>
+            <span class="palette-badge">18 Widgets</span>
           </div>
           <div class="widget-palette">
+            <button (click)="addWidget('ai_briefing')" class="palette-item">
+              <span class="palette-icon">🧠</span>
+              <span class="palette-title">AI Briefing</span>
+            </button>
+            <button (click)="addWidget('chores')" class="palette-item">
+              <span class="palette-icon">🏆</span>
+              <span class="palette-title">Chores & Habits</span>
+            </button>
+            <button (click)="addWidget('camera_pip')" class="palette-item">
+              <span class="palette-icon">📹</span>
+              <span class="palette-title">Live Camera</span>
+            </button>
+            <button (click)="addWidget('commute')" class="palette-item">
+              <span class="palette-icon">🚗</span>
+              <span class="palette-title">Commute</span>
+            </button>
             <button (click)="addWidget('clock')" class="palette-item">
               <span class="palette-icon">⏰</span>
               <span class="palette-title">Clock</span>
@@ -437,6 +453,86 @@ import { AuthService } from '../../services/auth.service';
                   <label>Author</label>
                   <input type="text" [(ngModel)]="selectedWidget.config.customAuthor" placeholder="Michael J. Fox" class="input-control" />
                 </div>
+              </div>
+            </ng-container>
+
+            <!-- AI Ambient Briefing -->
+            <ng-container *ngIf="selectedWidget.type === 'ai_briefing'">
+              <div class="form-group">
+                <label>Your Name (for personalized greetings)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.userName" placeholder="e.g. Sandip" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Assistant Tone</label>
+                <select [(ngModel)]="selectedWidget.config.tone" class="input-control">
+                  <option value="warm">Warm & Encouraging (Family)</option>
+                  <option value="executive">Executive & Concise (Office)</option>
+                  <option value="motivational">High-Energy & Motivational</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Google Gemini API Key (Optional)</label>
+                <input type="password" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use built-in ambient engine" class="input-control" />
+                <small style="font-size:0.65rem; color:#94a3b8;">Default built-in intelligence engine works with zero setup.</small>
+              </div>
+            </ng-container>
+
+            <!-- Gamified Chores & Habits -->
+            <ng-container *ngIf="selectedWidget.type === 'chores'">
+              <div class="form-group">
+                <label>Widget Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Chores & Habits" class="input-control" />
+              </div>
+              <p style="font-size:0.75rem; color:#94a3b8;">
+                Family members can interactively complete tasks, gain streak points, and trigger confetti directly on the screen!
+              </p>
+            </ng-container>
+
+            <!-- Live Camera PIP -->
+            <ng-container *ngIf="selectedWidget.type === 'camera_pip'">
+              <div class="form-group">
+                <label>Camera Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Driveway & Front Porch" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Snapshot URL (or Home Assistant proxy)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.snapshotUrl" placeholder="http://192.168.1.50/snapshot.jpg" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Video Stream URL (Optional WebRTC/HLS/MJPEG)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.streamUrl" placeholder="http://.../mjpeg or WebRTC stream" class="input-control" />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Aspect Ratio</label>
+                  <select [(ngModel)]="selectedWidget.config.aspectRatio" class="input-control">
+                    <option value="16:9">16 : 9 (Widescreen)</option>
+                    <option value="4:3">4 : 3 (Standard)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Refresh Interval</label>
+                  <select [(ngModel)]="selectedWidget.config.refreshSeconds" class="input-control">
+                    <option [value]="2">2 seconds (Live)</option>
+                    <option [value]="4">4 seconds (Balanced)</option>
+                    <option [value]="10">10 seconds</option>
+                  </select>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- Live Commute & Transit -->
+            <ng-container *ngIf="selectedWidget.type === 'commute'">
+              <div class="form-group">
+                <label>Widget Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Morning Commute" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Default View Mode</label>
+                <select [(ngModel)]="selectedWidget.config.mode" class="input-control">
+                  <option value="driving">Driving Routes & Live Traffic</option>
+                  <option value="transit">Public Transit Departures</option>
+                </select>
               </div>
             </ng-container>
 
@@ -1554,6 +1650,52 @@ export class DashboardEditorComponent implements OnInit {
           category: 'inspirational'
         };
         initialSize = { width: 340, height: 180 };
+        break;
+      case 'ai_briefing':
+        initialConfig = {
+          userName: 'Sandip',
+          tone: 'warm',
+          refreshHours: 1
+        };
+        initialSize = { width: 460, height: 200 };
+        break;
+      case 'chores':
+        initialConfig = {
+          title: 'Family Chores',
+          members: [
+            { id: '1', name: 'Lucas', avatar: '🦁', points: 140, streak: 5 },
+            { id: '2', name: 'Emma', avatar: '🦄', points: 180, streak: 7 },
+            { id: '3', name: 'Mom', avatar: '👑', points: 90, streak: 12 },
+            { id: '4', name: 'Dad', avatar: '⚡', points: 110, streak: 4 }
+          ],
+          chores: [
+            { id: 'c1', memberId: '1', title: 'Make Bedroom Bed', points: 10, completed: true },
+            { id: 'c2', memberId: '1', title: 'Feed the Dog 🐕', points: 15, completed: false },
+            { id: 'c3', memberId: '2', title: 'Violin Practice 🎻', points: 25, completed: false },
+            { id: 'c4', memberId: '3', title: 'Morning 5k Run 🏃‍♀️', points: 30, completed: true }
+          ]
+        };
+        initialSize = { width: 380, height: 320 };
+        break;
+      case 'camera_pip':
+        initialConfig = {
+          title: 'Driveway Camera',
+          streamUrl: '',
+          snapshotUrl: 'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80',
+          aspectRatio: '16:9',
+          refreshSeconds: 4
+        };
+        initialSize = { width: 380, height: 240 };
+        break;
+      case 'commute':
+        initialConfig = {
+          title: 'Morning Commute',
+          destinations: [
+            { id: '1', name: 'Downtown Office', icon: '🏢', durationMinutes: 24, trafficStatus: 'fast', viaRoute: 'via I-280 N', delayMinutes: 0 },
+            { id: '2', name: 'San Jose Airport (SJC)', icon: '✈️', durationMinutes: 18, trafficStatus: 'moderate', viaRoute: 'via US-101 S', delayMinutes: 4 }
+          ]
+        };
+        initialSize = { width: 360, height: 240 };
         break;
     }
 

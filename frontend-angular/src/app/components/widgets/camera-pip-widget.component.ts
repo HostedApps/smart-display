@@ -1,0 +1,177 @@
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { interval, Subscription } from 'rxjs';
+import { CameraPipConfig } from '../../models/display.model';
+
+@Component({
+  selector: 'app-camera-pip-widget',
+  template: `
+    <div class="camera-card">
+      <div class="camera-feed-wrap">
+        <!-- Live Video Stream (if streamUrl provided) -->
+        <iframe 
+          *ngIf="isIframeStream && safeStreamUrl" 
+          [src]="safeStreamUrl" 
+          class="camera-iframe"
+          allow="autoplay; fullscreen"
+        ></iframe>
+
+        <!-- MJPEG / Image Snapshot Stream -->
+        <img 
+          *ngIf="!isIframeStream" 
+          [src]="currentSnapshotUrl" 
+          alt="Camera Stream" 
+          class="camera-img"
+          (error)="handleImageError()"
+        />
+
+        <!-- Overlay HUD -->
+        <div class="camera-hud-top">
+          <div class="live-tag">
+            <span class="pulse-dot"></span>
+            <span>LIVE</span>
+          </div>
+          <span class="camera-title">{{ config.title || 'Driveway & Entryway' }}</span>
+        </div>
+
+        <div class="camera-hud-bottom">
+          <span class="camera-time">{{ timestamp | date:'hh:mm:ss a' }}</span>
+          <span class="aspect-tag">{{ config.aspectRatio || '16:9' }}</span>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .camera-card {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+    .camera-feed-wrap {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #090d16;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .camera-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      pointer-events: none;
+    }
+    .camera-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .camera-hud-top {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .live-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(239, 68, 68, 0.85);
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background: #fff;
+      border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .camera-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #f8fafc;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .camera-hud-bottom {
+      position: absolute;
+      bottom: 8px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      font-size: 0.68rem;
+      color: rgba(255, 255, 255, 0.75);
+      font-family: monospace;
+    }
+    .aspect-tag {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  `]
+})
+export class CameraPipWidgetComponent implements OnInit, OnDestroy {
+  @Input() config: CameraPipConfig = {};
+
+  timestamp: Date = new Date();
+  currentSnapshotUrl: string = 'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80';
+  safeStreamUrl?: SafeResourceUrl;
+  isIframeStream: boolean = false;
+  private pollSub?: Subscription;
+
+  constructor(private sanitizer: DomSanitizer) {}
+
+  ngOnInit(): void {
+    if (this.config.streamUrl) {
+      if (this.config.streamUrl.includes('http') || this.config.streamUrl.includes('rtsp')) {
+        this.safeStreamUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.config.streamUrl);
+        this.isIframeStream = true;
+      }
+    }
+
+    if (this.config.snapshotUrl) {
+      this.currentSnapshotUrl = this.config.snapshotUrl;
+    }
+
+    // Periodic refresh
+    const intervalSec = this.config.refreshSeconds || 4;
+    this.pollSub = interval(intervalSec * 1000).subscribe(() => {
+      this.timestamp = new Date();
+      if (!this.isIframeStream && this.config.snapshotUrl) {
+        // Cache-buster parameter
+        this.currentSnapshotUrl = this.config.snapshotUrl + (this.config.snapshotUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+      }
+    });
+  }
+
+  handleImageError(): void {
+    this.currentSnapshotUrl = 'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80';
+  }
+
+  ngOnDestroy(): void {
+    this.pollSub?.unsubscribe();
+  }
+}
