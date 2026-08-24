@@ -28,6 +28,19 @@ export class AuthService {
       );
   }
 
+  register(name: string, email: string, password: string): Observable<AuthResponse & { defaultDisplayToken?: string }> {
+    return this.http.post<AuthResponse & { defaultDisplayToken?: string }>(`${environment.apiUrl}/auth.php?action=register`, { name, email, password })
+      .pipe(
+        tap(res => {
+          if (res && res.success && res.token && res.user) {
+            localStorage.setItem(this.TOKEN_KEY, res.token);
+            localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
+            this.currentUserSubject.next(res.user);
+          }
+        })
+      );
+  }
+
   logout(): void {
     const token = this.getToken();
     if (token) {

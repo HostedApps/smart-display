@@ -30,7 +30,9 @@ try {
         'refresh_interval' => (int)($display['refresh_interval'] ?? 60),
         'background' => !empty($display['background_json']) ? json_decode($display['background_json'], true) : null,
         'sleep_schedule' => !empty($display['sleep_schedule_json']) ? json_decode($display['sleep_schedule_json'], true) : null,
-        'pages' => !empty($display['pages_json']) ? json_decode($display['pages_json'], true) : null
+        'pages' => !empty($display['pages_json']) ? json_decode($display['pages_json'], true) : null,
+        'logo_url' => $display['logo_url'] ?? null,
+        'show_logo_kiosk' => (bool)($display['show_logo_kiosk'] ?? false)
     ];
 
     // Fetch Widgets

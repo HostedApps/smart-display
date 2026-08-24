@@ -46,6 +46,8 @@ try {
     $background = isset($input['background']) ? json_encode($input['background']) : null;
     $sleepSchedule = isset($input['sleep_schedule']) ? json_encode($input['sleep_schedule']) : null;
     $pages = isset($input['pages']) ? json_encode($input['pages']) : null;
+    $logoUrl = !empty($input['logo_url']) ? trim($input['logo_url']) : null;
+    $showLogoKiosk = !empty($input['show_logo_kiosk']) ? 1 : 0;
     $widgets = $input['widgets'] ?? [];
 
     $pdo->beginTransaction();
@@ -57,8 +59,8 @@ try {
 
     if (!$display) {
         // Create new display owned by authenticated user
-        $insertDisplay = $pdo->prepare("INSERT INTO displays (user_id, token, name, theme, orientation, refresh_interval, background_json, sleep_schedule_json, pages_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $insertDisplay->execute([$userId, $token, $name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages]);
+        $insertDisplay = $pdo->prepare("INSERT INTO displays (user_id, token, name, theme, orientation, refresh_interval, background_json, sleep_schedule_json, pages_json, logo_url, show_logo_kiosk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $insertDisplay->execute([$userId, $token, $name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages, $logoUrl, $showLogoKiosk]);
         $displayId = (int)$pdo->lastInsertId();
     } else {
         // Verify ownership
@@ -70,8 +72,8 @@ try {
         }
 
         $displayId = (int)$display['id'];
-        $updateStmt = $pdo->prepare("UPDATE displays SET name = ?, theme = ?, orientation = ?, refresh_interval = ?, background_json = ?, sleep_schedule_json = ?, pages_json = ? WHERE id = ?");
-        $updateStmt->execute([$name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages, $displayId]);
+        $updateStmt = $pdo->prepare("UPDATE displays SET name = ?, theme = ?, orientation = ?, refresh_interval = ?, background_json = ?, sleep_schedule_json = ?, pages_json = ?, logo_url = ?, show_logo_kiosk = ? WHERE id = ?");
+        $updateStmt->execute([$name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages, $logoUrl, $showLogoKiosk, $displayId]);
     }
 
     // 2. Clear existing widgets and re-insert updated configuration

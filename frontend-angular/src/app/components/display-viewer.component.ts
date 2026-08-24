@@ -55,6 +55,11 @@ import { WakeLockService } from '../services/wake-lock.service';
         <span>Offline Mode</span>
       </div>
 
+      <!-- Brand Logo Watermark (Optional) -->
+      <div class="kiosk-brand-watermark" *ngIf="displayConfig?.logo_url && displayConfig?.show_logo_kiosk">
+        <img [src]="displayConfig?.logo_url" alt="Logo" class="watermark-logo-img" />
+      </div>
+
       <!-- Ambient Night Mode Clock Overlay -->
       <div class="night-mode-overlay" *ngIf="isSleeping && displayConfig?.sleep_schedule?.nightMode">
         <div class="night-clock">
@@ -160,6 +165,20 @@ import { WakeLockService } from '../services/wake-lock.service';
       letter-spacing: 0.5px;
       backdrop-filter: blur(8px);
       box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+    .kiosk-brand-watermark {
+      position: absolute;
+      bottom: 20px;
+      right: 24px;
+      z-index: 40;
+      opacity: 0.65;
+      pointer-events: none;
+    }
+    .watermark-logo-img {
+      max-height: 40px;
+      max-width: 150px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.7));
     }
     .carousel-dots {
       position: absolute;

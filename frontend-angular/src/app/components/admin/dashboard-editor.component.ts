@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { 
   Widget, 
@@ -21,13 +21,31 @@ import { AuthService } from '../../services/auth.service';
     <div class="admin-layout">
       <!-- Sidebar Control Panel -->
       <aside class="sidebar">
-        <!-- User Profile Bar -->
+        <!-- User Profile & Fleet Nav Bar -->
         <div class="user-profile-bar">
+          <button (click)="goToFleet()" class="btn-back-fleet" title="Back to All Displays">
+            <span>‹</span> All Displays
+          </button>
           <div class="user-info">
             <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
             <span class="user-email">{{ currentUser?.email || 'admin' }}</span>
           </div>
           <button (click)="logout()" class="btn-signout" title="Sign Out">Sign Out</button>
+        </div>
+
+        <!-- Brand Logo Header Slot -->
+        <div class="admin-brand-card">
+          <div class="brand-slot-preview" (click)="activeTab = 'settings'">
+            <img *ngIf="logoUrl" [src]="logoUrl" alt="Brand Logo" class="brand-slot-img" />
+            <div *ngIf="!logoUrl" class="brand-slot-empty">
+              <span class="logo-text-ph">BRAND LOGO</span>
+              <span class="logo-sub-ph">Click to customize</span>
+            </div>
+          </div>
+          <div class="brand-display-meta">
+            <h2 class="display-title-heading">{{ displayConfig.name }}</h2>
+            <span class="res-tag">{{ canvasWidth }}×{{ canvasHeight }}</span>
+          </div>
         </div>
 
         <div class="sidebar-tabs">
@@ -506,6 +524,19 @@ import { AuthService } from '../../services/auth.service';
 
           <hr class="divider" />
 
+          <h4>Brand & Organization Logo</h4>
+          <div class="form-group">
+            <label>Brand Logo Image URL</label>
+            <input type="text" [(ngModel)]="logoUrl" placeholder="https://yourdomain.com/logo.png" class="input-control" />
+          </div>
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" [(ngModel)]="showLogoKiosk" /> Show Logo Watermark on Kiosk Wall Screen
+            </label>
+          </div>
+
+          <hr class="divider" />
+
           <h4>Canvas Background</h4>
           <div class="form-group">
             <label>Background Type</label>
@@ -656,13 +687,93 @@ import { AuthService } from '../../services/auth.service';
       box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
       z-index: 20;
     }
-    .user-profile-bar {
+    .btn-back-fleet {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #38bdf8;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px 18px;
-      background: rgba(15, 23, 42, 0.95);
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .btn-back-fleet:hover {
+      background: rgba(14, 165, 233, 0.2);
+      color: #fff;
+    }
+
+    .admin-brand-card {
+      padding: 14px 18px;
+      background: rgba(0, 0, 0, 0.3);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-slot-preview {
+      width: 50px;
+      height: 50px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px dashed rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .brand-slot-preview:hover {
+      border-color: #0ea5e9;
+      background: rgba(14, 165, 233, 0.1);
+    }
+    .brand-slot-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .brand-slot-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .logo-text-ph {
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: #38bdf8;
+      letter-spacing: 0.5px;
+    }
+    .logo-sub-ph {
+      font-size: 0.5rem;
+      color: #64748b;
+    }
+    .brand-display-meta {
+      overflow: hidden;
+    }
+    .display-title-heading {
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 4px 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .res-tag {
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
     }
     .user-info {
       display: flex;
@@ -1183,6 +1294,9 @@ export class DashboardEditorComponent implements OnInit {
     refresh_interval: 60
   };
 
+  logoUrl: string = '';
+  showLogoKiosk: boolean = false;
+
   sleepSchedule: SleepScheduleConfig = {
     enabled: false,
     sleepTime: '23:00',
@@ -1228,10 +1342,15 @@ export class DashboardEditorComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute, 
+    private router: Router,
     private http: HttpClient,
     private authService: AuthService,
     private sanitizer: DomSanitizer
   ) {}
+
+  goToFleet(): void {
+    this.router.navigate(['/admin/displays']);
+  }
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
     const videoId = id || 'jfKfPfyJRdk';
@@ -1248,6 +1367,9 @@ export class DashboardEditorComponent implements OnInit {
           if (res && res.success) {
             this.displayConfig = res.display;
             this.widgets = res.widgets || [];
+
+            this.logoUrl = res.display.logo_url || '';
+            this.showLogoKiosk = !!res.display.show_logo_kiosk;
 
             if (res.display.pages && res.display.pages.length > 0) {
               this.pages = res.display.pages;
@@ -1597,6 +1719,8 @@ export class DashboardEditorComponent implements OnInit {
       background: this.backgroundConfig,
       sleep_schedule: this.sleepSchedule,
       pages: this.pages,
+      logo_url: this.logoUrl,
+      show_logo_kiosk: this.showLogoKiosk,
       widgets: this.widgets
     };
 

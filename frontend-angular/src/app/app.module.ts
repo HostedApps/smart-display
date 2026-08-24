@@ -8,6 +8,8 @@ import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { DisplayViewerComponent } from './components/display-viewer.component';
 import { DashboardEditorComponent } from './components/admin/dashboard-editor.component';
+import { DisplayListComponent } from './components/admin/display-list.component';
+import { DevicePairingComponent } from './components/pairing/device-pairing.component';
 import { LoginComponent } from './components/auth/login.component';
 import { ClockWidgetComponent } from './components/widgets/clock-widget.component';
 import { WeatherWidgetComponent } from './components/widgets/weather-widget.component';
@@ -30,6 +32,8 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     AppComponent,
     DisplayViewerComponent,
     DashboardEditorComponent,
+    DisplayListComponent,
+    DevicePairingComponent,
     LoginComponent,
     ClockWidgetComponent,
     WeatherWidgetComponent,
