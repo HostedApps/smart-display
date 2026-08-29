@@ -272,7 +272,15 @@ export interface DisplayBackground {
   opacity?: number;
 }
 
-export type DisplayOrientation = 'landscape_720p' | 'landscape_1080p' | 'portrait_720p' | 'portrait_1080p';
+export type DisplayOrientation = 
+  | 'landscape_720p' 
+  | 'landscape_1080p' 
+  | 'landscape_1440p' 
+  | 'landscape_4k' 
+  | 'portrait_720p' 
+  | 'portrait_1080p' 
+  | 'portrait_1440p' 
+  | 'portrait_4k';
 
 export interface DisplayConfig {
   id: number;
