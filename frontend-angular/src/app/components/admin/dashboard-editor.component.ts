@@ -78,9 +78,13 @@ import { AuthService } from '../../services/auth.service';
 
           <div class="palette-header">
             <h3>Add Widget</h3>
-            <span class="palette-badge">18 Widgets</span>
+            <span class="palette-badge">19 Widgets</span>
           </div>
           <div class="widget-palette">
+            <button (click)="addWidget('youtube')" class="palette-item">
+              <span class="palette-icon">▶️</span>
+              <span class="palette-title">YouTube</span>
+            </button>
             <button (click)="addWidget('ai_briefing')" class="palette-item">
               <span class="palette-icon">🧠</span>
               <span class="palette-title">AI Briefing</span>
@@ -536,6 +540,34 @@ import { AuthService } from '../../services/auth.service';
               </div>
             </ng-container>
 
+            <!-- YouTube Video / Stream Config -->
+            <ng-container *ngIf="selectedWidget.type === 'youtube'">
+              <div class="form-group">
+                <label>Widget Title (Optional)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Lofi Chill Beats / NASA Live" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>YouTube URL or Video ID</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.urlOrId" placeholder="https://www.youtube.com/watch?v=... or ID" class="input-control" />
+                <small style="font-size:0.65rem; color:#94a3b8;">Supports standard watch links, youtu.be, shorts, and live streams.</small>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.autoplay" /> Auto-Play Video</label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.muted" /> Mute Audio (Required for wall kiosk autoplay)</label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.loop" /> Loop Continuously</label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showControls" /> Show Video Controls</label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.isLive" /> Show Red "LIVE" Badge</label>
+              </div>
+            </ng-container>
+
             <button (click)="removeSelectedWidget()" class="btn btn-danger">Delete Widget</button>
           </div>
         </div>
@@ -754,6 +786,7 @@ import { AuthService } from '../../services/auth.service';
                 <app-chores-widget *ngIf="widget.type === 'chores'" [config]="widget.config"></app-chores-widget>
                 <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
                 <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
+                <app-youtube-widget *ngIf="widget.type === 'youtube'" [config]="widget.config"></app-youtube-widget>
               </div>
 
               <!-- 8-Point Visual Resize Handles -->
@@ -1851,6 +1884,18 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
           ]
         };
         initialSize = { width: 360, height: 240 };
+        break;
+      case 'youtube':
+        initialConfig = {
+          title: 'Lofi Chill Beats ☕',
+          urlOrId: 'jfKfPfyJRdk',
+          autoplay: true,
+          muted: true,
+          loop: true,
+          showControls: false,
+          isLive: true
+        };
+        initialSize = { width: 440, height: 260 };
         break;
     }
 

@@ -29,6 +29,7 @@ import { AIBriefingWidgetComponent } from './components/widgets/ai-briefing-widg
 import { ChoresWidgetComponent } from './components/widgets/chores-widget.component';
 import { CameraPipWidgetComponent } from './components/widgets/camera-pip-widget.component';
 import { CommuteWidgetComponent } from './components/widgets/commute-widget.component';
+import { YoutubeWidgetComponent } from './components/widgets/youtube-widget.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
@@ -58,6 +59,7 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     ChoresWidgetComponent,
     CameraPipWidgetComponent,
     CommuteWidgetComponent,
+    YoutubeWidgetComponent,
     WallDropComponent
   ],
   imports: [
