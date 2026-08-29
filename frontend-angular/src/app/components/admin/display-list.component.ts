@@ -187,10 +187,14 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
             <div class="form-group">
               <label>Screen Orientation & Resolution</label>
               <select [(ngModel)]="newDisplayOrientation" class="input-control">
-                <option value="landscape_720p">Landscape 720p (1280 × 720) - Standard TV</option>
-                <option value="landscape_1080p">Landscape 1080p (1920 × 1080) - Full HD TV</option>
-                <option value="portrait_720p">Portrait 720p (720 × 1280) - Tablet / Vertical Monitor</option>
-                <option value="portrait_1080p">Portrait 1080p (1080 × 1920) - Vertical 4K/FHD</option>
+                <option value="landscape_720p">Landscape 720p (1280 × 720) - Standard HD</option>
+                <option value="landscape_1080p">Landscape 1080p (1920 × 1080) - Full HD</option>
+                <option value="landscape_1440p">Landscape 1440p (2560 × 1440) - 2K QHD (Your Monitor)</option>
+                <option value="landscape_4k">Landscape 4K (3840 × 2160) - 4K Ultra HD</option>
+                <option value="portrait_720p">Portrait 720p (720 × 1280) - Vertical HD</option>
+                <option value="portrait_1080p">Portrait 1080p (1080 × 1920) - Vertical Full HD</option>
+                <option value="portrait_1440p">Portrait 1440p (1440 × 2560) - Vertical 2K QHD</option>
+                <option value="portrait_4k">Portrait 4K (2160 × 3840) - Vertical 4K</option>
               </select>
             </div>
           </div>
@@ -1016,10 +1020,14 @@ export class DisplayListComponent implements OnInit {
 
   getOrientationLabel(orientation: string): string {
     switch (orientation) {
-      case 'landscape_720p': return '1280×720 Landscape';
+      case 'landscape_720p': return '1280×720 HD';
       case 'landscape_1080p': return '1920×1080 FHD';
+      case 'landscape_1440p': return '2560×1440 2K QHD';
+      case 'landscape_4k': return '3840×2160 4K UHD';
       case 'portrait_720p': return '720×1280 Portrait';
       case 'portrait_1080p': return '1080×1920 Portrait';
+      case 'portrait_1440p': return '1440×2560 2K Portrait';
+      case 'portrait_4k': return '2160×3840 4K Portrait';
       default: return orientation;
     }
   }

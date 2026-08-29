@@ -575,10 +575,14 @@ import { AuthService } from '../../services/auth.service';
           <div class="form-group">
             <label>Orientation & Resolution</label>
             <select [(ngModel)]="displayConfig.orientation" (ngModelChange)="updateOrientation()" class="input-control">
-              <option value="landscape_720p">Landscape 720p (1280 × 720)</option>
-              <option value="landscape_1080p">Landscape 1080p (1920 × 1080)</option>
-              <option value="portrait_720p">Portrait 720p (720 × 1280)</option>
-              <option value="portrait_1080p">Portrait 1080p (1080 × 1920)</option>
+              <option value="landscape_720p">Landscape 720p (1280 × 720) - Standard HD</option>
+              <option value="landscape_1080p">Landscape 1080p (1920 × 1080) - Full HD</option>
+              <option value="landscape_1440p">Landscape 1440p (2560 × 1440) - 2K QHD (Your Monitor)</option>
+              <option value="landscape_4k">Landscape 4K (3840 × 2160) - 4K Ultra HD</option>
+              <option value="portrait_720p">Portrait 720p (720 × 1280) - Vertical HD</option>
+              <option value="portrait_1080p">Portrait 1080p (1080 × 1920) - Vertical Full HD</option>
+              <option value="portrait_1440p">Portrait 1440p (1440 × 2560) - Vertical 2K QHD</option>
+              <option value="portrait_4k">Portrait 4K (2160 × 3840) - Vertical 4K</option>
             </select>
           </div>
 
@@ -603,17 +607,17 @@ import { AuthService } from '../../services/auth.service';
           <div *ngIf="sleepSchedule.enabled">
             <div class="form-row">
               <div class="form-group">
-                <label>Sleep Time</label>
+                <label>Sleep At</label>
                 <input type="time" [(ngModel)]="sleepSchedule.sleepTime" class="input-control" />
               </div>
               <div class="form-group">
-                <label>Wake Time</label>
+                <label>Wake At</label>
                 <input type="time" [(ngModel)]="sleepSchedule.wakeTime" class="input-control" />
               </div>
             </div>
             <div class="form-group checkbox-group">
               <label>
-                <input type="checkbox" [(ngModel)]="sleepSchedule.nightMode" /> Night Clock Mode (Dim Amber)
+                <input type="checkbox" [(ngModel)]="sleepSchedule.nightMode" /> Ambient Night Clock (Red Minimal Mode)
               </label>
             </div>
           </div>
@@ -675,88 +679,110 @@ import { AuthService } from '../../services/auth.service';
         </div>
       </aside>
 
-      <!-- Visual Canvas Viewport -->
-      <main class="canvas-viewport" (click)="selectedWidget = null">
-        <div 
-          class="screen-canvas" 
-          [ngClass]="[displayConfig.theme, displayConfig.orientation || 'landscape_720p', gridSnapSize > 0 ? 'grid-overlay-' + gridSnapSize : '']" 
-          [style.width.px]="canvasWidth"
-          [style.height.px]="canvasHeight"
-          [style.background]="getCanvasBackgroundStyle()"
-          (click)="$event.stopPropagation()"
-        >
-          <!-- Background image layer -->
+      <!-- Visual Canvas Viewport with Auto-Zoom Stage -->
+      <main class="canvas-viewport" id="editorViewport" (click)="selectedWidget = null">
+        <div class="canvas-stage" [style.width.px]="canvasWidth * zoomLevel" [style.height.px]="canvasHeight * zoomLevel">
           <div 
-            *ngIf="getCanvasBackgroundImage()" 
-            class="editor-bg-image" 
-            [style.backgroundImage]="'url(' + getCanvasBackgroundImage() + ')'"
-            [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
-          ></div>
-
-          <!-- Background video layer -->
-          <video 
-            *ngIf="backgroundConfig.type === 'video' && backgroundConfig.videoUrl" 
-            class="editor-bg-video" 
-            [src]="backgroundConfig.videoUrl"
-            autoplay muted loop playsinline
-            [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
-          ></video>
-
-          <!-- Background youtube layer -->
-          <iframe 
-            *ngIf="backgroundConfig.type === 'youtube' && backgroundConfig.youtubeId" 
-            class="editor-bg-youtube" 
-            [src]="getSafeYoutubeUrl(backgroundConfig.youtubeId)"
-            frameborder="0"
-            [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
-          ></iframe>
-
-          <div 
-            *ngFor="let widget of pageWidgets; let i = index"
-            class="draggable-widget"
-            [class.selected]="selectedWidget === widget"
-            [style.left.px]="widget.position.x"
-            [style.top.px]="widget.position.y"
-            [style.width.px]="widget.position.width"
-            [style.height.px]="widget.position.height"
-            [style.opacity]="widget.style?.opacity !== undefined ? widget.style?.opacity : 1"
-            [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
-            (mousedown)="startDrag($event, widget)"
-            (click)="selectWidget(widget, $event)"
+            class="screen-canvas" 
+            [ngClass]="[displayConfig.theme, displayConfig.orientation || 'landscape_720p', gridSnapSize > 0 ? 'grid-overlay-' + gridSnapSize : '']" 
+            [style.width.px]="canvasWidth"
+            [style.height.px]="canvasHeight"
+            [style.transform]="'scale(' + zoomLevel + ')'"
+            [style.background]="getCanvasBackgroundStyle()"
+            (click)="$event.stopPropagation()"
           >
-            <div class="widget-header">
-              <span class="widget-badge">{{ widget.type | uppercase }}</span>
-              <span class="widget-size">{{ widget.position.width }}×{{ widget.position.height }}</span>
-            </div>
+            <!-- Background image layer -->
+            <div 
+              *ngIf="getCanvasBackgroundImage()" 
+              class="editor-bg-image" 
+              [style.backgroundImage]="'url(' + getCanvasBackgroundImage() + ')'"
+              [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
+            ></div>
 
-            <div class="widget-preview-content">
-              <app-clock-widget *ngIf="widget.type === 'clock'" [config]="widget.config"></app-clock-widget>
-              <app-weather-widget *ngIf="widget.type === 'weather'" [config]="widget.config"></app-weather-widget>
-              <app-calendar-widget *ngIf="widget.type === 'calendar'" [config]="widget.config"></app-calendar-widget>
-              <app-photo-widget *ngIf="widget.type === 'photo'" [config]="widget.config"></app-photo-widget>
-              <app-rss-widget *ngIf="widget.type === 'rss'" [config]="widget.config"></app-rss-widget>
-              <app-todo-widget *ngIf="widget.type === 'todo'" [config]="widget.config"></app-todo-widget>
-              <app-homeassistant-widget *ngIf="widget.type === 'homeassistant'" [config]="widget.config"></app-homeassistant-widget>
-              <app-spotify-widget *ngIf="widget.type === 'spotify'" [config]="widget.config"></app-spotify-widget>
-              <app-stock-crypto-widget *ngIf="widget.type === 'stock_crypto'" [config]="widget.config"></app-stock-crypto-widget>
-              <app-sticky-note-widget *ngIf="widget.type === 'sticky_note'" [config]="widget.config"></app-sticky-note-widget>
-              <app-countdown-widget *ngIf="widget.type === 'countdown'" [config]="widget.config"></app-countdown-widget>
-              <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
-              <app-radar-widget *ngIf="widget.type === 'radar'" [config]="widget.config"></app-radar-widget>
-              <app-quote-widget *ngIf="widget.type === 'quote'" [config]="widget.config"></app-quote-widget>
-            </div>
+            <!-- Background video layer -->
+            <video 
+              *ngIf="backgroundConfig.type === 'video' && backgroundConfig.videoUrl" 
+              class="editor-bg-video" 
+              [src]="backgroundConfig.videoUrl"
+              autoplay muted loop playsinline
+              [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
+            ></video>
 
-            <!-- 8-Point Visual Resize Handles -->
-            <ng-container *ngIf="selectedWidget === widget">
-              <div class="resize-handle handle-nw" (mousedown)="startResize($event, widget, 'nw')"></div>
-              <div class="resize-handle handle-n"  (mousedown)="startResize($event, widget, 'n')"></div>
-              <div class="resize-handle handle-ne" (mousedown)="startResize($event, widget, 'ne')"></div>
-              <div class="resize-handle handle-e"  (mousedown)="startResize($event, widget, 'e')"></div>
-              <div class="resize-handle handle-se" (mousedown)="startResize($event, widget, 'se')"></div>
-              <div class="resize-handle handle-s"  (mousedown)="startResize($event, widget, 's')"></div>
-              <div class="resize-handle handle-sw" (mousedown)="startResize($event, widget, 'sw')"></div>
-              <div class="resize-handle handle-w"  (mousedown)="startResize($event, widget, 'w')"></div>
-            </ng-container>
+            <!-- Background youtube layer -->
+            <iframe 
+              *ngIf="backgroundConfig.type === 'youtube' && backgroundConfig.youtubeId" 
+              class="editor-bg-youtube" 
+              [src]="getSafeYoutubeUrl(backgroundConfig.youtubeId)"
+              frameborder="0"
+              [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
+            ></iframe>
+
+            <div 
+              *ngFor="let widget of pageWidgets; let i = index"
+              class="draggable-widget"
+              [class.selected]="selectedWidget === widget"
+              [style.left.px]="widget.position.x"
+              [style.top.px]="widget.position.y"
+              [style.width.px]="widget.position.width"
+              [style.height.px]="widget.position.height"
+              [style.opacity]="widget.style?.opacity !== undefined ? widget.style?.opacity : 1"
+              [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
+              (mousedown)="startDrag($event, widget)"
+              (click)="selectWidget(widget, $event)"
+            >
+              <div class="widget-header">
+                <span class="widget-badge">{{ widget.type | uppercase }}</span>
+                <span class="widget-size">{{ widget.position.width }}×{{ widget.position.height }}</span>
+              </div>
+
+              <div class="widget-preview-content">
+                <app-clock-widget *ngIf="widget.type === 'clock'" [config]="widget.config"></app-clock-widget>
+                <app-weather-widget *ngIf="widget.type === 'weather'" [config]="widget.config"></app-weather-widget>
+                <app-calendar-widget *ngIf="widget.type === 'calendar'" [config]="widget.config"></app-calendar-widget>
+                <app-photo-widget *ngIf="widget.type === 'photo'" [config]="widget.config"></app-photo-widget>
+                <app-rss-widget *ngIf="widget.type === 'rss'" [config]="widget.config"></app-rss-widget>
+                <app-todo-widget *ngIf="widget.type === 'todo'" [config]="widget.config"></app-todo-widget>
+                <app-homeassistant-widget *ngIf="widget.type === 'homeassistant'" [config]="widget.config"></app-homeassistant-widget>
+                <app-spotify-widget *ngIf="widget.type === 'spotify'" [config]="widget.config"></app-spotify-widget>
+                <app-stock-crypto-widget *ngIf="widget.type === 'stock_crypto'" [config]="widget.config"></app-stock-crypto-widget>
+                <app-sticky-note-widget *ngIf="widget.type === 'sticky_note'" [config]="widget.config"></app-sticky-note-widget>
+                <app-countdown-widget *ngIf="widget.type === 'countdown'" [config]="widget.config"></app-countdown-widget>
+                <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
+                <app-radar-widget *ngIf="widget.type === 'radar'" [config]="widget.config"></app-radar-widget>
+                <app-quote-widget *ngIf="widget.type === 'quote'" [config]="widget.config"></app-quote-widget>
+                <app-ai-briefing-widget *ngIf="widget.type === 'ai_briefing'" [config]="widget.config"></app-ai-briefing-widget>
+                <app-chores-widget *ngIf="widget.type === 'chores'" [config]="widget.config"></app-chores-widget>
+                <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
+                <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
+              </div>
+
+              <!-- 8-Point Visual Resize Handles -->
+              <ng-container *ngIf="selectedWidget === widget">
+                <div class="resize-handle handle-nw" (mousedown)="startResize($event, widget, 'nw')"></div>
+                <div class="resize-handle handle-n"  (mousedown)="startResize($event, widget, 'n')"></div>
+                <div class="resize-handle handle-ne" (mousedown)="startResize($event, widget, 'ne')"></div>
+                <div class="resize-handle handle-e"  (mousedown)="startResize($event, widget, 'e')"></div>
+                <div class="resize-handle handle-se" (mousedown)="startResize($event, widget, 'se')"></div>
+                <div class="resize-handle handle-s"  (mousedown)="startResize($event, widget, 's')"></div>
+                <div class="resize-handle handle-sw" (mousedown)="startResize($event, widget, 'sw')"></div>
+                <div class="resize-handle handle-w"  (mousedown)="startResize($event, widget, 'w')"></div>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Viewport Zoom Toolbar -->
+        <div class="floating-zoom-bar" (click)="$event.stopPropagation()">
+          <span class="zoom-res-indicator">{{ canvasWidth }} × {{ canvasHeight }}</span>
+          <div class="zoom-btn-group">
+            <button (click)="zoomOut()" class="zoom-btn" title="Zoom Out">−</button>
+            <button (click)="toggleAutoFit()" class="zoom-btn zoom-fit-btn" [class.active]="autoFit" title="Auto-fit Canvas to Viewport">
+              {{ autoFit ? 'Fit (' + Math.round(zoomLevel * 100) + '%)' : Math.round(zoomLevel * 100) + '%' }}
+            </button>
+            <button (click)="zoomIn()" class="zoom-btn" title="Zoom In">+</button>
+            <button (click)="setZoom(0.5)" [class.active]="zoomLevel === 0.5 && !autoFit" class="zoom-btn">50%</button>
+            <button (click)="setZoom(0.75)" [class.active]="zoomLevel === 0.75 && !autoFit" class="zoom-btn">75%</button>
+            <button (click)="setZoom(1.0)" [class.active]="zoomLevel === 1.0 && !autoFit" class="zoom-btn">100%</button>
           </div>
         </div>
       </main>
@@ -1278,12 +1304,20 @@ import { AuthService } from '../../services/auth.service';
 
     .canvas-viewport {
       flex: 1;
-      padding: 32px;
+      padding: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
       background: #070b12;
       overflow: auto;
+      position: relative;
+    }
+    .canvas-stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: width 0.2s, height 0.2s;
     }
     .screen-canvas {
       position: relative;
@@ -1292,8 +1326,59 @@ import { AuthService } from '../../services/auth.service';
       border-radius: 20px;
       box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.8);
       overflow: hidden;
-      transition: width 0.3s, height 0.3s;
       flex-shrink: 0;
+      transform-origin: top left;
+      transition: transform 0.2s;
+    }
+
+    .floating-zoom-bar {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      padding: 6px 16px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+    }
+    .zoom-res-indicator {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #38bdf8;
+      font-family: monospace;
+      padding-right: 10px;
+      border-right: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .zoom-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .zoom-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .zoom-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+    .zoom-btn.active {
+      background: #0ea5e9;
+      color: #fff;
+      border-color: #38bdf8;
     }
     .editor-bg-image {
       position: absolute;
@@ -1421,6 +1506,11 @@ export class DashboardEditorComponent implements OnInit {
   canvasWidth: number = 1280;
   canvasHeight: number = 720;
 
+  // Viewport Zoom & Scaling
+  zoomLevel: number = 0.75;
+  autoFit: boolean = true;
+  Math = Math;
+
   // Dragging State
   private isDragging: boolean = false;
   private dragStartX: number = 0;
@@ -1487,6 +1577,11 @@ export class DashboardEditorComponent implements OnInit {
 
     window.addEventListener('mousemove', (e) => this.onMouseMove(e));
     window.addEventListener('mouseup', () => this.stopDragOrResize());
+    window.addEventListener('resize', () => {
+      if (this.autoFit) {
+        this.calculateAutoFit();
+      }
+    });
   }
 
   get pageWidgets(): Widget[] {
@@ -1496,17 +1591,33 @@ export class DashboardEditorComponent implements OnInit {
   updateOrientation(): void {
     const orient = this.displayConfig.orientation || 'landscape_720p';
     switch (orient) {
+      case 'landscape_1440p':
+        this.canvasWidth = 2560;
+        this.canvasHeight = 1440;
+        break;
+      case 'landscape_4k':
+        this.canvasWidth = 3840;
+        this.canvasHeight = 2160;
+        break;
       case 'landscape_1080p':
         this.canvasWidth = 1920;
         this.canvasHeight = 1080;
         break;
-      case 'portrait_720p':
-        this.canvasWidth = 720;
-        this.canvasHeight = 1280;
+      case 'portrait_1440p':
+        this.canvasWidth = 1440;
+        this.canvasHeight = 2560;
+        break;
+      case 'portrait_4k':
+        this.canvasWidth = 2160;
+        this.canvasHeight = 3840;
         break;
       case 'portrait_1080p':
         this.canvasWidth = 1080;
         this.canvasHeight = 1920;
+        break;
+      case 'portrait_720p':
+        this.canvasWidth = 720;
+        this.canvasHeight = 1280;
         break;
       case 'landscape_720p':
       default:
@@ -1514,6 +1625,44 @@ export class DashboardEditorComponent implements OnInit {
         this.canvasHeight = 720;
         break;
     }
+
+    if (this.autoFit) {
+      this.calculateAutoFit();
+    }
+  }
+
+  calculateAutoFit(): void {
+    setTimeout(() => {
+      const viewport = document.getElementById('editorViewport');
+      if (!viewport) return;
+      const availableW = viewport.clientWidth - 48; // padding
+      const availableH = viewport.clientHeight - 70; // padding + zoom bar
+      if (availableW <= 0 || availableH <= 0) return;
+      const scaleX = availableW / this.canvasWidth;
+      const scaleY = availableH / this.canvasHeight;
+      this.zoomLevel = Math.min(scaleX, scaleY, 1.0);
+      this.zoomLevel = Math.max(0.15, Math.round(this.zoomLevel * 100) / 100);
+    }, 60);
+  }
+
+  setZoom(level: number): void {
+    this.zoomLevel = level;
+    this.autoFit = false;
+  }
+
+  zoomIn(): void {
+    this.zoomLevel = Math.min(2.0, +(this.zoomLevel + 0.1).toFixed(2));
+    this.autoFit = false;
+  }
+
+  zoomOut(): void {
+    this.zoomLevel = Math.max(0.15, +(this.zoomLevel - 0.1).toFixed(2));
+    this.autoFit = false;
+  }
+
+  toggleAutoFit(): void {
+    this.autoFit = true;
+    this.calculateAutoFit();
   }
 
   onPageSwitch(): void {
@@ -1797,9 +1946,11 @@ export class DashboardEditorComponent implements OnInit {
   onMouseMove(event: MouseEvent): void {
     if (!this.selectedWidget) return;
 
+    const zoom = this.zoomLevel || 1.0;
+
     if (this.isDragging) {
-      const dx = event.clientX - this.dragStartX;
-      const dy = event.clientY - this.dragStartY;
+      const dx = (event.clientX - this.dragStartX) / zoom;
+      const dy = (event.clientY - this.dragStartY) / zoom;
 
       const rawX = Math.max(0, Math.min(this.canvasWidth - this.selectedWidget.position.width, this.widgetStartX + dx));
       const rawY = Math.max(0, Math.min(this.canvasHeight - this.selectedWidget.position.height, this.widgetStartY + dy));
@@ -1807,8 +1958,8 @@ export class DashboardEditorComponent implements OnInit {
       this.selectedWidget.position.x = this.snap(rawX);
       this.selectedWidget.position.y = this.snap(rawY);
     } else if (this.isResizing) {
-      const dx = event.clientX - this.resizeStartX;
-      const dy = event.clientY - this.resizeStartY;
+      const dx = (event.clientX - this.resizeStartX) / zoom;
+      const dy = (event.clientY - this.resizeStartY) / zoom;
       const minW = 100;
       const minH = 60;
 
