@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -1304,31 +1304,33 @@ import { AuthService } from '../../services/auth.service';
 
     .canvas-viewport {
       flex: 1;
-      padding: 24px;
+      height: 100vh;
+      box-sizing: border-box;
+      padding: 32px 32px 80px 32px;
       display: flex;
-      align-items: center;
-      justify-content: center;
       background: #070b12;
       overflow: auto;
       position: relative;
     }
     .canvas-stage {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: relative;
+      margin: auto;
       flex-shrink: 0;
-      transition: width 0.2s, height 0.2s;
+      box-sizing: border-box;
+      transition: width 0.2s ease, height 0.2s ease;
     }
     .screen-canvas {
-      position: relative;
+      position: absolute;
+      top: 0;
+      left: 0;
+      box-sizing: border-box;
       background: #000;
-      border: 12px solid #1e293b;
+      border: 10px solid #1e293b;
       border-radius: 20px;
       box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.8);
       overflow: hidden;
-      flex-shrink: 0;
-      transform-origin: top left;
-      transition: transform 0.2s;
+      transform-origin: 0 0;
+      transition: transform 0.2s ease;
     }
 
     .floating-zoom-bar {
@@ -1462,7 +1464,7 @@ import { AuthService } from '../../services/auth.service';
     .handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
   `]
 })
-export class DashboardEditorComponent implements OnInit {
+export class DashboardEditorComponent implements OnInit, AfterViewInit {
   token: string = '';
   saving: boolean = false;
   activeTab: 'layout' | 'pages' | 'settings' = 'layout';
@@ -1584,6 +1586,10 @@ export class DashboardEditorComponent implements OnInit {
     });
   }
 
+  ngAfterViewInit(): void {
+    this.calculateAutoFit();
+  }
+
   get pageWidgets(): Widget[] {
     return this.widgets.filter(w => !w.page_id || w.page_id === this.activePageId || w.page_id === 'default');
   }
@@ -1635,14 +1641,14 @@ export class DashboardEditorComponent implements OnInit {
     setTimeout(() => {
       const viewport = document.getElementById('editorViewport');
       if (!viewport) return;
-      const availableW = viewport.clientWidth - 48; // padding
-      const availableH = viewport.clientHeight - 70; // padding + zoom bar
-      if (availableW <= 0 || availableH <= 0) return;
+      const availableW = viewport.clientWidth - 80; // 40px margin/padding on each side
+      const availableH = viewport.clientHeight - 110; // 32px top + 78px bottom zoom bar
+      if (availableW <= 0 || availableH <= 0 || this.canvasWidth <= 0 || this.canvasHeight <= 0) return;
       const scaleX = availableW / this.canvasWidth;
       const scaleY = availableH / this.canvasHeight;
-      this.zoomLevel = Math.min(scaleX, scaleY, 1.0);
-      this.zoomLevel = Math.max(0.15, Math.round(this.zoomLevel * 100) / 100);
-    }, 60);
+      const fitScale = Math.min(scaleX, scaleY);
+      this.zoomLevel = Math.max(0.1, Math.min(1.0, Math.floor(fitScale * 100) / 100));
+    }, 50);
   }
 
   setZoom(level: number): void {
