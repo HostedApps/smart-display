@@ -103,6 +103,7 @@ import { EmergencyService } from '../services/emergency.service';
           <app-chores-widget *ngIf="widget.type === 'chores'" [config]="widget.config"></app-chores-widget>
           <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
           <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
+          <app-youtube-widget *ngIf="widget.type === 'youtube'" [config]="widget.config"></app-youtube-widget>
         </div>
       </div>
 
