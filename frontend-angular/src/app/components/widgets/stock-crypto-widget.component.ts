@@ -1,6 +1,7 @@
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { interval, Subscription } from 'rxjs';
+import { interval, Subscription, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 export interface FinancialAsset {
@@ -22,15 +23,21 @@ export interface FinancialAsset {
             <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
             <polyline points="17 6 23 6 23 12"></polyline>
           </svg>
-          <h3 class="widget-title">Markets</h3>
+          <h3 class="widget-title">{{ config.title || 'Markets & Stocks' }}</h3>
         </div>
-        <span class="currency-tag">{{ config.currency || 'USD' }}</span>
+        <div class="header-tags">
+          <span class="view-tag" *ngIf="config.mode && config.mode !== 'all'">{{ config.mode | uppercase }}</span>
+          <span class="currency-tag">{{ config.currency || 'USD' }}</span>
+        </div>
       </div>
 
-      <div class="asset-grid">
-        <div *ngFor="let asset of assetList" class="asset-item">
+      <div class="asset-grid" *ngIf="displayedAssets.length > 0; else noAssets">
+        <div *ngFor="let asset of displayedAssets" class="asset-item">
           <div class="asset-left">
-            <span class="symbol">{{ asset.symbol }}</span>
+            <div class="symbol-row">
+              <span class="symbol">{{ asset.symbol }}</span>
+              <span class="type-badge" [class.type-crypto]="asset.type === 'crypto'">{{ asset.type === 'crypto' ? 'COIN' : 'STOCK' }}</span>
+            </div>
             <span class="name">{{ asset.name }}</span>
           </div>
 
@@ -48,13 +55,19 @@ export interface FinancialAsset {
           </div>
 
           <div class="asset-right">
-            <span class="price">\${{ asset.price | number:'1.2-2' }}</span>
+            <span class="price">{{ getCurrencySymbol() }}{{ asset.price | number:'1.2-2' }}</span>
             <span class="change-badge" [class.positive]="asset.change24h >= 0" [class.negative]="asset.change24h < 0">
               {{ asset.change24h >= 0 ? '+' : '' }}{{ asset.change24h | number:'1.2-2' }}%
             </span>
           </div>
         </div>
       </div>
+
+      <ng-template #noAssets>
+        <div class="empty-state">
+          <p>No symbols configured</p>
+        </div>
+      </ng-template>
     </div>
   `,
   styles: [`
@@ -95,56 +108,89 @@ export interface FinancialAsset {
       margin: 0;
       color: #ffffff;
     }
+    .header-tags {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .view-tag {
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
     .currency-tag {
       font-size: 0.65rem;
       color: #94a3b8;
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.05);
       padding: 2px 6px;
       border-radius: 4px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
+      font-weight: 600;
     }
     .asset-grid {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       overflow-y: auto;
       flex: 1;
+      padding-right: 2px;
     }
     .asset-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 6px 10px;
+      padding: 6px 8px;
       background: rgba(255, 255, 255, 0.03);
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.04);
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     .asset-item:hover {
       background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.1);
     }
     .asset-left {
       display: flex;
       flex-direction: column;
-      width: 75px;
+      min-width: 70px;
+    }
+    .symbol-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
     .symbol {
-      font-size: 0.9rem;
       font-weight: 700;
+      font-size: 0.85rem;
       color: #ffffff;
-      letter-spacing: -0.2px;
+      letter-spacing: 0.5px;
+    }
+    .type-badge {
+      font-size: 0.55rem;
+      font-weight: 800;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    .type-badge.type-crypto {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.15);
     }
     .name {
-      font-size: 0.65rem;
+      font-size: 0.68rem;
       color: #94a3b8;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      max-width: 90px;
     }
     .sparkline-wrap {
-      width: 55px;
-      height: 18px;
+      width: 60px;
+      height: 20px;
+      margin: 0 8px;
     }
     .sparkline-svg {
       width: 100%;
@@ -158,7 +204,7 @@ export interface FinancialAsset {
     }
     .price {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 0.95rem;
+      font-size: 0.92rem;
       font-weight: 600;
       color: #ffffff;
       font-variant-numeric: tabular-nums;
@@ -166,7 +212,7 @@ export interface FinancialAsset {
     .change-badge {
       font-size: 0.65rem;
       font-weight: 700;
-      padding: 1px 4px;
+      padding: 1px 5px;
       border-radius: 4px;
       font-variant-numeric: tabular-nums;
       margin-top: 1px;
@@ -179,28 +225,52 @@ export interface FinancialAsset {
       color: #f87171;
       background: rgba(239, 68, 68, 0.15);
     }
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      color: #64748b;
+      font-size: 0.8rem;
+    }
   `]
 })
 export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   @Input() config: any = {
+    title: 'Markets & Stocks',
+    symbols: ['AAPL', 'TSLA', 'NVDA', 'SPY'],
     cryptoIds: ['bitcoin', 'ethereum', 'solana'],
-    symbols: ['AAPL', 'NVDA'],
+    mode: 'all', // 'all' | 'stocks' | 'crypto'
     currency: 'USD',
     showSparklines: true,
-    refreshMinutes: 5
+    refreshMinutes: 3
   };
 
   private pollSub?: Subscription;
 
-  assetList: FinancialAsset[] = [
-    { symbol: 'BTC', name: 'Bitcoin', price: 68420.50, change24h: 3.42, type: 'crypto', sparkline: [10, 12, 11, 14, 13, 16, 18] },
-    { symbol: 'ETH', name: 'Ethereum', price: 3540.20, change24h: -1.15, type: 'crypto', sparkline: [18, 16, 17, 14, 15, 13, 11] },
-    { symbol: 'SOL', name: 'Solana', price: 178.90, change24h: 5.80, type: 'crypto', sparkline: [10, 11, 13, 12, 15, 17, 19] },
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 224.23, change24h: 1.05, type: 'stock', sparkline: [12, 13, 14, 13, 15, 16, 17] },
-    { symbol: 'NVDA', name: 'Nvidia Corp.', price: 128.60, change24h: 4.25, type: 'stock', sparkline: [11, 13, 12, 15, 14, 18, 20] }
-  ];
+  stockAssets: FinancialAsset[] = [];
+  cryptoAssets: FinancialAsset[] = [];
 
   constructor(private http: HttpClient) {}
+
+  get displayedAssets(): FinancialAsset[] {
+    const mode = this.config.mode || 'all';
+    if (mode === 'stocks') return this.stockAssets;
+    if (mode === 'crypto') return this.cryptoAssets;
+    return [...this.stockAssets, ...this.cryptoAssets];
+  }
+
+  getCurrencySymbol(): string {
+    const c = (this.config.currency || 'USD').toUpperCase();
+    switch (c) {
+      case 'EUR': return '€';
+      case 'GBP': return '£';
+      case 'CAD': return 'CA$';
+      case 'INR': return '₹';
+      case 'JPY': return '¥';
+      default: return '$';
+    }
+  }
 
   ngOnInit(): void {
     this.fetchMarketData();
@@ -216,37 +286,95 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
 
   private startPolling(): void {
     this.pollSub?.unsubscribe();
-    const intervalMins = Math.max(1, Number(this.config.refreshMinutes) || 5);
+    const intervalMins = Math.max(1, Number(this.config.refreshMinutes) || 3);
     this.pollSub = interval(intervalMins * 60 * 1000).subscribe(() => this.fetchMarketData());
   }
 
   fetchMarketData(): void {
-    const cryptoCoins = (this.config.cryptoIds || ['bitcoin', 'ethereum', 'solana']).join(',');
-    const url = `${environment.apiUrl}/proxy.php?action=fetch_crypto&coins=${encodeURIComponent(cryptoCoins)}&currencies=usd`;
-
-    this.http.get<any>(url).subscribe({
-      next: (data) => {
-        if (!data) return;
-        if (data.bitcoin) {
-          this.updateAsset('BTC', data.bitcoin.usd, data.bitcoin.usd_24h_change);
-        }
-        if (data.ethereum) {
-          this.updateAsset('ETH', data.ethereum.usd, data.ethereum.usd_24h_change);
-        }
-        if (data.solana) {
-          this.updateAsset('SOL', data.solana.usd, data.solana.usd_24h_change);
-        }
-      },
-      error: () => {}
-    });
+    this.fetchStocks();
+    this.fetchCrypto();
   }
 
-  private updateAsset(symbol: string, price: number, change: number): void {
-    const item = this.assetList.find(a => a.symbol === symbol);
-    if (item && price) {
-      item.price = price;
-      item.change24h = change || 0;
+  private fetchStocks(): void {
+    let syms: string[] = [];
+    if (Array.isArray(this.config.symbols)) {
+      syms = this.config.symbols;
+    } else if (typeof this.config.symbols === 'string' && this.config.symbols.trim()) {
+      syms = this.config.symbols.split(',').map((s: string) => s.trim().toUpperCase()).filter((s: string) => !!s);
+    } else {
+      syms = ['AAPL', 'TSLA', 'NVDA', 'SPY'];
     }
+
+    if (syms.length === 0) {
+      this.stockAssets = [];
+      return;
+    }
+
+    const url = `${environment.apiUrl}/proxy.php?action=fetch_stocks&symbols=${encodeURIComponent(syms.join(','))}`;
+    this.http.get<any>(url)
+      .pipe(catchError(() => of(null)))
+      .subscribe(res => {
+        if (res && res.success && Array.isArray(res.stocks)) {
+          this.stockAssets = res.stocks;
+        } else {
+          // Fallback mock representation if network drops
+          this.stockAssets = syms.map(sym => ({
+            symbol: sym,
+            name: `${sym} Equity`,
+            price: 150.0 + (sym.charCodeAt(0) * 1.5),
+            change24h: 1.25,
+            type: 'stock',
+            sparkline: [148, 149, 151, 150, 152]
+          }));
+        }
+      });
+  }
+
+  private fetchCrypto(): void {
+    let coins: string[] = [];
+    if (Array.isArray(this.config.cryptoIds)) {
+      coins = this.config.cryptoIds;
+    } else if (typeof this.config.cryptoIds === 'string' && this.config.cryptoIds.trim()) {
+      coins = this.config.cryptoIds.split(',').map((s: string) => s.trim().toLowerCase()).filter((s: string) => !!s);
+    } else {
+      coins = ['bitcoin', 'ethereum', 'solana'];
+    }
+
+    if (coins.length === 0) {
+      this.cryptoAssets = [];
+      return;
+    }
+
+    const url = `${environment.apiUrl}/proxy.php?action=fetch_crypto&coins=${encodeURIComponent(coins.join(','))}&currencies=usd`;
+    this.http.get<any>(url)
+      .pipe(catchError(() => of(null)))
+      .subscribe(data => {
+        if (!data) return;
+        
+        const cryptoMeta: { [key: string]: { symbol: string; name: string } } = {
+          bitcoin: { symbol: 'BTC', name: 'Bitcoin' },
+          ethereum: { symbol: 'ETH', name: 'Ethereum' },
+          solana: { symbol: 'SOL', name: 'Solana' },
+          dogecoin: { symbol: 'DOGE', name: 'Dogecoin' },
+          cardano: { symbol: 'ADA', name: 'Cardano' },
+          ripple: { symbol: 'XRP', name: 'XRP' }
+        };
+
+        this.cryptoAssets = coins.map(coin => {
+          const coinData = data[coin];
+          const meta = cryptoMeta[coin] || { symbol: coin.toUpperCase().substring(0, 4), name: coin };
+          const price = coinData?.usd || 0;
+          const change = coinData?.usd_24h_change || 0;
+          return {
+            symbol: meta.symbol,
+            name: meta.name,
+            price: price,
+            change24h: change,
+            type: 'crypto',
+            sparkline: [price * 0.98, price * 0.99, price * 1.01, price * 1.0, price]
+          };
+        });
+      });
   }
 
   generateSparklinePath(data: number[]): string {

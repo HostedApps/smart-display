@@ -274,29 +274,45 @@ import { AuthService } from '../../services/auth.service';
               </div>
             </ng-container>
 
-            <!-- Photo -->
+            <!-- Photo Slideshow & Google Photos Album -->
             <ng-container *ngIf="selectedWidget.type === 'photo'">
               <div class="form-group">
-                <label>Image URLs (one per line)</label>
+                <label>Google Photos Shared Album URL</label>
+                <input 
+                  type="text" 
+                  [(ngModel)]="selectedWidget.config.albumUrl" 
+                  placeholder="https://photos.app.goo.gl/... or https://photos.google.com/share/..." 
+                  class="input-control" 
+                />
+                <small style="font-size:0.65rem; color:#38bdf8;">Paste any Google Photos shared album link to automatically stream family photos.</small>
+              </div>
+
+              <div class="form-group">
+                <label>Or Custom Image URLs (one per line)</label>
                 <textarea 
                   [ngModel]="getPhotoImagesText(selectedWidget)" 
                   (ngModelChange)="setPhotoImagesText(selectedWidget, $event)" 
                   rows="3" 
                   class="input-control"
+                  placeholder="https://images.unsplash.com/..."
                 ></textarea>
               </div>
+
               <div class="form-row">
                 <div class="form-group">
-                  <label>Interval (s)</label>
-                  <input type="number" [(ngModel)]="selectedWidget.config.intervalSeconds" class="input-control" />
+                  <label>Slide Interval (s)</label>
+                  <input type="number" [(ngModel)]="selectedWidget.config.intervalSeconds" min="3" class="input-control" />
                 </div>
                 <div class="form-group">
-                  <label>Fit</label>
+                  <label>Image Fit</label>
                   <select [(ngModel)]="selectedWidget.config.fitMode" class="input-control">
-                    <option value="cover">Cover</option>
-                    <option value="contain">Contain</option>
+                    <option value="cover">Cover (Fill Frame)</option>
+                    <option value="contain">Contain (Fit Whole Photo)</option>
                   </select>
                 </div>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.blurBackground" /> Blur Backdrop when Contained</label>
               </div>
             </ng-container>
 
@@ -323,15 +339,42 @@ import { AuthService } from '../../services/auth.service';
               </div>
             </ng-container>
 
-            <!-- Home Assistant -->
+            <!-- Home Assistant & Smart Home -->
             <ng-container *ngIf="selectedWidget.type === 'homeassistant'">
               <div class="form-group">
-                <label>HA URL</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.haUrl" placeholder="http://homeassistant.local:8123" class="input-control" />
+                <label>Widget Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Smart Home" class="input-control" />
+              </div>
+
+              <div class="form-group">
+                <label>Home Assistant URL (Optional)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.haUrl" placeholder="http://homeassistant.local:8123 or Nabu Casa" class="input-control" />
               </div>
               <div class="form-group">
-                <label>Long-Lived Access Token</label>
+                <label>Long-Lived Access Token (Optional)</label>
                 <input type="password" [(ngModel)]="selectedWidget.config.token" placeholder="Bearer Token" class="input-control" />
+                <small style="font-size:0.65rem; color:#94a3b8;">Leave blank to use interactive simulated smart tiles.</small>
+              </div>
+
+              <div class="smart-home-guide-box">
+                <strong>🔌 Google Home & Alexa Integration:</strong>
+                <p>Connect Google Home & Alexa through Home Assistant (Matter / Cloud) or customize the smart tiles directly below:</p>
+              </div>
+
+              <div class="section-subhead">
+                <label>Smart Entities</label>
+                <button type="button" (click)="addSmartHomeEntity(selectedWidget)" class="btn-xs-action">+ Add Entity</button>
+              </div>
+              <div *ngFor="let ent of (selectedWidget.config.entities || []); let ei = index" class="note-config-item">
+                <div class="note-config-top">
+                  <input type="text" [(ngModel)]="ent.icon" placeholder="💡" style="width:36px; text-align:center;" class="input-control" />
+                  <input type="text" [(ngModel)]="ent.label" placeholder="Entity Label (e.g. Living Room)" class="input-control" />
+                  <button type="button" (click)="removeSmartHomeEntity(selectedWidget, ei)" class="btn-icon-danger">✕</button>
+                </div>
+                <div class="form-row" style="margin-top:4px;">
+                  <input type="text" [(ngModel)]="ent.entityId" placeholder="light.living_room" class="input-control" />
+                  <input type="text" [(ngModel)]="ent.state" placeholder="on / 72°F" class="input-control" style="max-width:80px;" />
+                </div>
               </div>
             </ng-container>
 
@@ -347,11 +390,72 @@ import { AuthService } from '../../services/auth.service';
               </div>
             </ng-container>
 
-            <!-- Markets -->
+            <!-- Markets & Stocks Ticker -->
             <ng-container *ngIf="selectedWidget.type === 'stock_crypto'">
               <div class="form-group">
+                <label>Widget Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Markets & Stocks" class="input-control" />
+              </div>
+
+              <div class="form-group">
+                <label>Stock Symbols (comma separated)</label>
+                <input 
+                  type="text" 
+                  [ngModel]="getStockSymbolsText(selectedWidget)" 
+                  (ngModelChange)="setStockSymbolsText(selectedWidget, $event)" 
+                  placeholder="AAPL, TSLA, NVDA, SPY, MSFT, GOOGL" 
+                  class="input-control" 
+                />
+                <div class="quick-tags-row">
+                  <span class="quick-tag-label">Quick Add:</span>
+                  <button type="button" (click)="addQuickStock(selectedWidget, 'AAPL')" class="tag-pill">+ AAPL</button>
+                  <button type="button" (click)="addQuickStock(selectedWidget, 'TSLA')" class="tag-pill">+ TSLA</button>
+                  <button type="button" (click)="addQuickStock(selectedWidget, 'NVDA')" class="tag-pill">+ NVDA</button>
+                  <button type="button" (click)="addQuickStock(selectedWidget, 'SPY')" class="tag-pill">+ SPY</button>
+                  <button type="button" (click)="addQuickStock(selectedWidget, 'MSFT')" class="tag-pill">+ MSFT</button>
+                </div>
+              </div>
+
+              <div class="form-group">
                 <label>Crypto IDs (comma separated)</label>
-                <input type="text" [ngModel]="getCryptoIdsText(selectedWidget)" (ngModelChange)="setCryptoIdsText(selectedWidget, $event)" placeholder="bitcoin,ethereum,solana" class="input-control" />
+                <input 
+                  type="text" 
+                  [ngModel]="getCryptoIdsText(selectedWidget)" 
+                  (ngModelChange)="setCryptoIdsText(selectedWidget, $event)" 
+                  placeholder="bitcoin, ethereum, solana, dogecoin" 
+                  class="input-control" 
+                />
+                <div class="quick-tags-row">
+                  <span class="quick-tag-label">Quick Add:</span>
+                  <button type="button" (click)="addQuickCrypto(selectedWidget, 'bitcoin')" class="tag-pill">+ BTC</button>
+                  <button type="button" (click)="addQuickCrypto(selectedWidget, 'ethereum')" class="tag-pill">+ ETH</button>
+                  <button type="button" (click)="addQuickCrypto(selectedWidget, 'solana')" class="tag-pill">+ SOL</button>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Display Mode</label>
+                  <select [(ngModel)]="selectedWidget.config.mode" class="input-control">
+                    <option value="all">Combined (Stocks & Crypto)</option>
+                    <option value="stocks">Stocks Only</option>
+                    <option value="crypto">Crypto Only</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Currency</label>
+                  <select [(ngModel)]="selectedWidget.config.currency" class="input-control">
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="CAD">CAD ($)</option>
+                    <option value="INR">INR (₹)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showSparklines" /> Show Mini Trend Sparklines</label>
               </div>
             </ng-container>
 
@@ -408,6 +512,34 @@ import { AuthService } from '../../services/auth.service';
 
             <!-- Radar -->
             <ng-container *ngIf="selectedWidget.type === 'radar'">
+              <div class="radar-notice-banner">
+                <span class="radar-notice-icon">ℹ️</span>
+                <span><strong>No API Key Required!</strong> Powered by RainViewer Global Precipitation Doppler Radar.</span>
+              </div>
+
+              <div class="form-group">
+                <label>Quick City Preset</label>
+                <select (change)="onRadarCitySelect(selectedWidget, $event)" class="input-control">
+                  <option value="">-- Choose City or Enter Manually --</option>
+                  <option value="San Francisco|37.77|-122.42">San Francisco, CA</option>
+                  <option value="New York|40.71|-74.00">New York, NY</option>
+                  <option value="Los Angeles|34.05|-118.24">Los Angeles, CA</option>
+                  <option value="Chicago|41.88|-87.63">Chicago, IL</option>
+                  <option value="Seattle|47.60|-122.33">Seattle, WA</option>
+                  <option value="Miami|25.76|-80.19">Miami, FL</option>
+                  <option value="Austin|30.27|-97.74">Austin, TX</option>
+                  <option value="Dallas|32.78|-96.80">Dallas, TX</option>
+                  <option value="Denver|39.74|-104.99">Denver, CO</option>
+                  <option value="Boston|42.36|-71.06">Boston, MA</option>
+                  <option value="Toronto|43.65|-79.38">Toronto, Canada</option>
+                  <option value="London|51.51|-0.13">London, UK</option>
+                  <option value="Paris|48.86|2.35">Paris, France</option>
+                  <option value="Berlin|52.52|13.40">Berlin, Germany</option>
+                  <option value="Tokyo|35.68|139.69">Tokyo, Japan</option>
+                  <option value="Sydney|-33.87|151.21">Sydney, Australia</option>
+                </select>
+              </div>
+
               <div class="form-group">
                 <label>Location / City Label</label>
                 <input type="text" [(ngModel)]="selectedWidget.config.cityName" placeholder="San Francisco Bay Area" class="input-control" />
@@ -1329,6 +1461,71 @@ import { AuthService } from '../../services/auth.service';
     }
     .btn-xs-action:hover { background: #0284c7; }
 
+    .smart-home-guide-box {
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px dashed rgba(14, 165, 233, 0.3);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin: 8px 0;
+      font-size: 0.72rem;
+    }
+    .smart-home-guide-box strong {
+      color: #38bdf8;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .smart-home-guide-box p {
+      color: #94a3b8;
+      margin: 0;
+      line-height: 1.35;
+    }
+
+    .quick-tags-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .quick-tag-label {
+      font-size: 0.65rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .tag-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #38bdf8;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tag-pill:hover {
+      background: #0ea5e9;
+      color: #ffffff;
+      border-color: #0ea5e9;
+    }
+
+    .radar-notice-banner {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      color: #a7f3d0;
+      line-height: 1.35;
+    }
+    .radar-notice-icon {
+      font-size: 1rem;
+    }
+
     .feeds-manager, .meal-days-editor {
       display: flex;
       flex-direction: column;
@@ -1825,12 +2022,15 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         break;
       case 'photo':
         initialConfig = {
+          albumUrl: '',
           images: [
             'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1280&q=80',
             'https://images.unsplash.com/photo-1511884642898-4c92249e20b6?w=1280&q=80'
           ],
           intervalSeconds: 10,
-          fitMode: 'cover'
+          fitMode: 'cover',
+          blurBackground: true,
+          showCaptions: false
         };
         initialSize = { width: 440, height: 280 };
         break;
@@ -1843,16 +2043,35 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         initialSize = { width: 340, height: 260 };
         break;
       case 'homeassistant':
-        initialConfig = { haUrl: '', token: '', entities: [] };
-        initialSize = { width: 360, height: 220 };
+        initialConfig = {
+          title: 'Smart Home',
+          haUrl: '',
+          token: '',
+          entities: [
+            { entityId: 'light.living_room', label: 'Living Room Lights', state: 'on', icon: '💡' },
+            { entityId: 'climate.thermostat', label: 'Nest Thermostat', state: '72', unit: '°F', icon: '🌡️' },
+            { entityId: 'lock.front_door', label: 'Front Door Lock', state: 'locked', icon: '🔒' },
+            { entityId: 'binary_sensor.driveway', label: 'Driveway Camera', state: 'clear', icon: '📹' }
+          ],
+          refreshSeconds: 30
+        };
+        initialSize = { width: 360, height: 240 };
         break;
       case 'spotify':
         initialConfig = { track: 'Midnight City', artist: 'M83', isPlaying: true };
         initialSize = { width: 360, height: 160 };
         break;
       case 'stock_crypto':
-        initialConfig = { cryptoIds: ['bitcoin', 'ethereum', 'solana'], currency: 'USD' };
-        initialSize = { width: 360, height: 260 };
+        initialConfig = {
+          title: 'Markets & Stocks',
+          symbols: ['AAPL', 'TSLA', 'NVDA', 'SPY'],
+          cryptoIds: ['bitcoin', 'ethereum', 'solana'],
+          mode: 'all',
+          currency: 'USD',
+          showSparklines: true,
+          refreshMinutes: 3
+        };
+        initialSize = { width: 360, height: 280 };
         break;
       case 'sticky_note':
         initialConfig = {
@@ -2015,6 +2234,58 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   setCryptoIdsText(widget: Widget, text: string): void {
     widget.config.cryptoIds = text.split(',').map(s => s.trim().toLowerCase()).filter(s => !!s);
+  }
+
+  getStockSymbolsText(widget: Widget): string {
+    if (!widget.config.symbols) return '';
+    return Array.isArray(widget.config.symbols) ? widget.config.symbols.join(', ') : String(widget.config.symbols);
+  }
+
+  setStockSymbolsText(widget: Widget, text: string): void {
+    widget.config.symbols = text.split(',').map(s => s.trim().toUpperCase()).filter(s => !!s);
+  }
+
+  addQuickStock(widget: Widget, sym: string): void {
+    let list: string[] = Array.isArray(widget.config.symbols) ? [...widget.config.symbols] : (typeof widget.config.symbols === 'string' ? widget.config.symbols.split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean) : []);
+    if (!list.includes(sym)) {
+      list.push(sym);
+      widget.config.symbols = list;
+    }
+  }
+
+  addQuickCrypto(widget: Widget, coin: string): void {
+    let list: string[] = Array.isArray(widget.config.cryptoIds) ? [...widget.config.cryptoIds] : (typeof widget.config.cryptoIds === 'string' ? widget.config.cryptoIds.split(',').map((s: string) => s.trim().toLowerCase()).filter(Boolean) : []);
+    if (!list.includes(coin)) {
+      list.push(coin);
+      widget.config.cryptoIds = list;
+    }
+  }
+
+  onRadarCitySelect(widget: Widget, event: any): void {
+    const val = event.target.value;
+    if (!val) return;
+    const [city, lat, lon] = val.split('|');
+    if (city && lat && lon) {
+      widget.config.cityName = city;
+      widget.config.lat = parseFloat(lat);
+      widget.config.lon = parseFloat(lon);
+    }
+  }
+
+  addSmartHomeEntity(widget: Widget): void {
+    if (!widget.config.entities) widget.config.entities = [];
+    widget.config.entities.push({
+      entityId: 'light.new_device',
+      label: 'New Smart Device',
+      state: 'on',
+      icon: '💡'
+    });
+  }
+
+  removeSmartHomeEntity(widget: Widget, index: number): void {
+    if (widget.config.entities) {
+      widget.config.entities.splice(index, 1);
+    }
   }
 
   getCanvasBackgroundImage(): string | null {

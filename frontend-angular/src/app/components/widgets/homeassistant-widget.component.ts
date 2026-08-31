@@ -12,15 +12,21 @@ import { HomeAssistantEntity } from '../../models/display.model';
           <svg class="ha-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path>
           </svg>
-          <h3 class="widget-title">Smart Home</h3>
+          <h3 class="widget-title">{{ config.title || 'Smart Home' }}</h3>
         </div>
         <span class="status-indicator" [class.online]="!isError" [class.offline]="isError">
-          {{ isError ? 'Offline' : 'Connected' }}
+          {{ isLiveHA ? (isError ? 'HA Offline' : 'HA Connected') : 'Smart Home' }}
         </span>
       </div>
 
-      <div class="entities-grid">
-        <div *ngFor="let entity of entitiesList" class="entity-item" [ngClass]="getEntityStatusClass(entity)">
+      <div class="entities-grid" *ngIf="entitiesList.length > 0; else emptyState">
+        <div 
+          *ngFor="let entity of entitiesList" 
+          class="entity-item" 
+          [ngClass]="getEntityStatusClass(entity)"
+          (click)="toggleEntity(entity)"
+          [title]="'Click to toggle ' + (entity.label || entity.entityId)"
+        >
           <div class="entity-icon-wrap">
             <span class="entity-emoji">{{ getEntityIcon(entity) }}</span>
           </div>
@@ -33,6 +39,12 @@ import { HomeAssistantEntity } from '../../models/display.model';
           </div>
         </div>
       </div>
+
+      <ng-template #emptyState>
+        <div class="empty-state">
+          <p>No smart entities configured</p>
+        </div>
+      </ng-template>
     </div>
   `,
   styles: [`
@@ -88,61 +100,80 @@ import { HomeAssistantEntity } from '../../models/display.model';
       gap: 8px;
       overflow-y: auto;
       flex: 1;
+      padding-right: 2px;
     }
     .entity-item {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px;
+      padding: 8px 10px;
       background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
       transition: all 0.2s;
+      cursor: pointer;
+      user-select: none;
+    }
+    .entity-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
     }
     .entity-item.active {
-      background: rgba(14, 165, 233, 0.12);
-      border-color: rgba(14, 165, 233, 0.4);
-      box-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
+      background: rgba(14, 165, 233, 0.15);
+      border-color: rgba(14, 165, 233, 0.35);
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
     }
     .entity-icon-wrap {
       width: 32px;
       height: 32px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 6px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.3);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1rem;
+      font-size: 1.1rem;
+      flex-shrink: 0;
     }
     .entity-info {
-      flex: 1;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
+      flex: 1;
     }
     .entity-label {
-      font-size: 0.7rem;
-      color: #94a3b8;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
+      font-size: 0.78rem;
       font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .entity-state {
-      font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #ffffff;
       display: flex;
-      align-items: baseline;
-      gap: 2px;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-weight: 500;
     }
-    .state-unit {
-      font-size: 0.7rem;
-      color: var(--accent-cyan, #06b6d4);
+    .entity-item.active .entity-state {
+      color: #38bdf8;
+      font-weight: 700;
+    }
+    .empty-state {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      color: #64748b;
+      font-size: 0.8rem;
     }
   `]
 })
 export class HomeAssistantWidgetComponent implements OnInit, OnDestroy, OnChanges {
   @Input() config: any = {
+    title: 'Smart Home',
     haUrl: '',
     token: '',
     entities: [],
@@ -152,12 +183,16 @@ export class HomeAssistantWidgetComponent implements OnInit, OnDestroy, OnChange
   isError: boolean = false;
   private pollSub?: Subscription;
 
-  private defaultEntities: HomeAssistantEntity[] = [
-    { entityId: 'sensor.living_room_temp', label: 'Living Room', icon: '🌡️', state: '72.4', unit: '°F' },
-    { entityId: 'sensor.indoor_humidity', label: 'Humidity', icon: '💧', state: '45', unit: '%' },
-    { entityId: 'light.kitchen_lights', label: 'Kitchen Light', icon: '💡', state: 'ON' },
-    { entityId: 'lock.front_door', label: 'Front Door', icon: '🔒', state: 'Locked' }
+  defaultEntities: HomeAssistantEntity[] = [
+    { entityId: 'light.living_room', label: 'Living Room Lights', state: 'on', icon: '💡' },
+    { entityId: 'climate.thermostat', label: 'Nest Thermostat', state: '72', unit: '°F', icon: '🌡️' },
+    { entityId: 'lock.front_door', label: 'Front Door Lock', state: 'locked', icon: '🔒' },
+    { entityId: 'binary_sensor.driveway_motion', label: 'Driveway Camera', state: 'clear', icon: '📹' }
   ];
+
+  get isLiveHA(): boolean {
+    return !!(this.config.haUrl && this.config.token);
+  }
 
   get entitiesList(): HomeAssistantEntity[] {
     if (this.config.entities && Array.isArray(this.config.entities) && this.config.entities.length > 0) {
@@ -169,12 +204,14 @@ export class HomeAssistantWidgetComponent implements OnInit, OnDestroy, OnChange
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    this.fetchEntityStates();
-    this.startPolling();
+    if (this.isLiveHA) {
+      this.fetchEntityStates();
+      this.startPolling();
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['config']) {
+    if (changes['config'] && this.isLiveHA) {
       this.fetchEntityStates();
       this.startPolling();
     }
@@ -215,21 +252,46 @@ export class HomeAssistantWidgetComponent implements OnInit, OnDestroy, OnChange
     });
   }
 
+  toggleEntity(entity: HomeAssistantEntity): void {
+    if (this.isLiveHA) {
+      const cleanUrl = this.config.haUrl.replace(/\/+$/, '');
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${this.config.token}`,
+        'Content-Type': 'application/json'
+      });
+      const domain = entity.entityId.split('.')[0] || 'homeassistant';
+      this.http.post<any>(`${cleanUrl}/api/services/${domain}/toggle`, { entity_id: entity.entityId }, { headers }).subscribe({
+        next: () => {
+          setTimeout(() => this.fetchEntityStates(), 500);
+        }
+      });
+    } else {
+      // Interactive local state toggle
+      if (entity.state === 'on') entity.state = 'off';
+      else if (entity.state === 'off') entity.state = 'on';
+      else if (entity.state === 'locked') entity.state = 'unlocked';
+      else if (entity.state === 'unlocked') entity.state = 'locked';
+      else if (entity.state === 'clear') entity.state = 'motion';
+      else if (entity.state === 'motion') entity.state = 'clear';
+    }
+  }
+
   getEntityIcon(entity: HomeAssistantEntity): string {
     if (entity.icon) return entity.icon;
     const id = entity.entityId.toLowerCase();
-    if (id.includes('temp')) return '🌡️';
+    if (id.includes('temp') || id.includes('climate')) return '🌡️';
     if (id.includes('humid')) return '💧';
     if (id.includes('light')) return '💡';
     if (id.includes('lock')) return '🔒';
     if (id.includes('motion')) return '🏃';
+    if (id.includes('camera')) return '📹';
     if (id.includes('door') || id.includes('window')) return '🚪';
     return '⚡';
   }
 
   getEntityStatusClass(entity: HomeAssistantEntity): string {
     const s = String(entity.state).toLowerCase();
-    if (s === 'on' || s === 'open' || s === 'unlocked' || s === 'active') return 'active';
+    if (s === 'on' || s === 'open' || s === 'unlocked' || s === 'motion' || s === 'active') return 'active';
     return '';
   }
 
