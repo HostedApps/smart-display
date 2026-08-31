@@ -706,6 +706,44 @@ import { Router } from '@angular/router';
     .btn-primary:hover {
       background: #0284c7;
     }
+
+    @media (max-width: 768px) {
+      .modal-backdrop {
+        padding: 10px;
+      }
+      .modal-container {
+        max-height: 94vh;
+        border-radius: 14px;
+      }
+      .modal-header {
+        padding: 14px 16px;
+      }
+      .help-tabs {
+        padding: 8px 12px 0 12px;
+      }
+      .help-tabs button {
+        padding: 8px 10px;
+        font-size: 0.78rem;
+      }
+      .modal-body {
+        padding: 16px;
+      }
+      .flow-steps, .platform-cards, .feature-two-col, .tips-grid {
+        grid-template-columns: 1fr;
+      }
+      .widget-grid {
+        grid-template-columns: 1fr;
+      }
+      .modal-footer {
+        padding: 12px 16px;
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+      }
+      .footer-right {
+        justify-content: flex-end;
+      }
+    }
   `]
 })
 export class HelpDocsModalComponent {
