@@ -53,6 +53,7 @@ export interface CalendarConfig {
 }
 
 export interface PhotoConfig {
+  albumUrl?: string;
   images?: string[];
   intervalSeconds?: number;
   fitMode?: 'cover' | 'contain';
@@ -92,6 +93,7 @@ export interface HomeAssistantEntity {
 }
 
 export interface HomeAssistantConfig {
+  title?: string;
   haUrl?: string;
   token?: string;
   entities?: HomeAssistantEntity[];
@@ -110,8 +112,10 @@ export interface SpotifyConfig {
 }
 
 export interface StockCryptoConfig {
-  symbols?: string[]; // e.g. ['AAPL', 'TSLA', 'MSFT']
+  title?: string;
+  symbols?: string[]; // e.g. ['AAPL', 'TSLA', 'MSFT', 'NVDA']
   cryptoIds?: string[]; // e.g. ['bitcoin', 'ethereum', 'solana']
+  mode?: 'all' | 'stocks' | 'crypto';
   currency?: string;
   showSparklines?: boolean;
   refreshMinutes?: number;
