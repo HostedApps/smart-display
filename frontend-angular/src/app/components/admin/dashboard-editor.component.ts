@@ -23,19 +23,23 @@ import { AuthService } from '../../services/auth.service';
       <aside class="sidebar">
         <!-- User Profile & Fleet Nav Bar -->
         <div class="user-profile-bar">
-          <button (click)="goToFleet()" class="btn-back-fleet" title="Back to All Displays">
+          <button (click)="goToFleet()" class="btn-back-fleet" title="Back to Fleet Hub">
             <span>‹</span> All Displays
+          </button>
+          <button (click)="showHelpModal = true" class="btn-help-mini" title="Open Help Center & Widget Documentation">
+            📖 Help
+          </button>
+          <button (click)="openInstallationGuide()" class="btn-guide-mini" title="Open Client Hardware Installation Guide (PDF)">
+            📄 PDF Guide
           </button>
           <div class="user-info">
             <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
-            <span class="user-email">{{ currentUser?.email || 'admin' }}</span>
           </div>
-          <button (click)="logout()" class="btn-signout" title="Sign Out">Sign Out</button>
         </div>
 
         <!-- Brand Logo Header Slot -->
         <div class="admin-brand-card">
-          <div class="brand-slot-preview" (click)="activeTab = 'settings'">
+          <div class="brand-slot-preview" (click)="activeTab = 'settings'" title="Click to configure Brand Logo & Watermark">
             <img *ngIf="logoUrl" [src]="logoUrl" alt="Brand Logo" class="brand-slot-img" />
             <div *ngIf="!logoUrl" class="brand-slot-empty">
               <span class="logo-text-ph">BRAND LOGO</span>
@@ -44,14 +48,14 @@ import { AuthService } from '../../services/auth.service';
           </div>
           <div class="brand-display-meta">
             <h2 class="display-title-heading">{{ displayConfig.name }}</h2>
-            <span class="res-tag">{{ canvasWidth }}×{{ canvasHeight }}</span>
+            <span class="res-tag" title="Canvas Resolution Dimensions">{{ canvasWidth }}×{{ canvasHeight }}</span>
           </div>
         </div>
 
         <div class="sidebar-tabs">
-          <button [class.active]="activeTab === 'layout'" (click)="activeTab = 'layout'">Layout & Widgets</button>
-          <button [class.active]="activeTab === 'pages'" (click)="activeTab = 'pages'">Pages</button>
-          <button [class.active]="activeTab === 'settings'" (click)="activeTab = 'settings'">Display Settings</button>
+          <button [class.active]="activeTab === 'layout'" (click)="activeTab = 'layout'" title="Widget Palette & Canvas Layout">Layout & Widgets</button>
+          <button [class.active]="activeTab === 'pages'" (click)="activeTab = 'pages'" title="Multi-Screen Rotating Pages">Pages</button>
+          <button [class.active]="activeTab === 'settings'" (click)="activeTab = 'settings'" title="Screen Resolution, Theme, Sleep Schedule">Display Settings</button>
         </div>
 
         <!-- TAB 1: LAYOUT & WIDGETS -->
@@ -66,11 +70,11 @@ import { AuthService } from '../../services/auth.service';
 
           <!-- Snap to grid -->
           <div class="grid-controls">
-            <label>Snap to Grid:</label>
+            <label title="Align widgets to grid increments">Snap to Grid:</label>
             <div class="pill-group">
-              <button [class.active]="gridSnapSize === 0" (click)="gridSnapSize = 0">Off</button>
-              <button [class.active]="gridSnapSize === 10" (click)="gridSnapSize = 10">10px</button>
-              <button [class.active]="gridSnapSize === 20" (click)="gridSnapSize = 20">20px</button>
+              <button [class.active]="gridSnapSize === 0" (click)="gridSnapSize = 0" title="Freeform pixel positioning">Off</button>
+              <button [class.active]="gridSnapSize === 10" (click)="gridSnapSize = 10" title="Snap to 10px increments">10px</button>
+              <button [class.active]="gridSnapSize === 20" (click)="gridSnapSize = 20" title="Snap to 20px increments">20px</button>
             </div>
           </div>
 
@@ -81,79 +85,79 @@ import { AuthService } from '../../services/auth.service';
             <span class="palette-badge">19 Widgets</span>
           </div>
           <div class="widget-palette">
-            <button (click)="addWidget('youtube')" class="palette-item">
+            <button (click)="addWidget('youtube')" class="palette-item" title="Embed ambient YouTube videos or live news/music streams with auto-play and loop">
               <span class="palette-icon">▶️</span>
               <span class="palette-title">YouTube</span>
             </button>
-            <button (click)="addWidget('ai_briefing')" class="palette-item">
+            <button (click)="addWidget('ai_briefing')" class="palette-item" title="AI-synthesized daily morning and evening executive updates using Google Gemini or ambient engine">
               <span class="palette-icon">🧠</span>
               <span class="palette-title">AI Briefing</span>
             </button>
-            <button (click)="addWidget('chores')" class="palette-item">
+            <button (click)="addWidget('chores')" class="palette-item" title="Interactive Hearth-style family chore charts with avatar emojis, flame streaks, and confetti">
               <span class="palette-icon">🏆</span>
               <span class="palette-title">Chores & Habits</span>
             </button>
-            <button (click)="addWidget('camera_pip')" class="palette-item">
+            <button (click)="addWidget('camera_pip')" class="palette-item" title="Low-latency RTSP/MJPEG live doorbell and security camera PIP stream with snapshot refresh HUD">
               <span class="palette-icon">📹</span>
               <span class="palette-title">Live Camera</span>
             </button>
-            <button (click)="addWidget('commute')" class="palette-item">
+            <button (click)="addWidget('commute')" class="palette-item" title="Real-time driving route traffic ETA matrices and public transit live departure countdowns">
               <span class="palette-icon">🚗</span>
               <span class="palette-title">Commute</span>
             </button>
-            <button (click)="addWidget('clock')" class="palette-item">
+            <button (click)="addWidget('clock')" class="palette-item" title="Precision digital clock with 12h/24h formats, date display, and typography styling">
               <span class="palette-icon">⏰</span>
               <span class="palette-title">Clock</span>
             </button>
-            <button (click)="addWidget('weather')" class="palette-item">
+            <button (click)="addWidget('weather')" class="palette-item" title="Current temperature, weather condition icons, humidity, wind, and 5-day forecast">
               <span class="palette-icon">⛅</span>
               <span class="palette-title">Weather</span>
             </button>
-            <button (click)="addWidget('calendar')" class="palette-item">
+            <button (click)="addWidget('calendar')" class="palette-item" title="Monthly calendar grid and agenda list synchronized with Google Calendar, iCloud, and Outlook iCal">
               <span class="palette-icon">📅</span>
               <span class="palette-title">Calendar</span>
             </button>
-            <button (click)="addWidget('photo')" class="palette-item">
+            <button (click)="addWidget('photo')" class="palette-item" title="Rotating family photo album slideshow with crossfade transitions">
               <span class="palette-icon">🖼️</span>
               <span class="palette-title">Photos</span>
             </button>
-            <button (click)="addWidget('rss')" class="palette-item">
+            <button (click)="addWidget('rss')" class="palette-item" title="Live headline ticker pulling from major news outlets, tech blogs, and custom RSS XML feeds">
               <span class="palette-icon">📰</span>
               <span class="palette-title">RSS News</span>
             </button>
-            <button (click)="addWidget('todo')" class="palette-item">
+            <button (click)="addWidget('todo')" class="palette-item" title="Shared family or office checklist with strike-through task completion">
               <span class="palette-icon">📝</span>
               <span class="palette-title">Tasks</span>
             </button>
-            <button (click)="addWidget('homeassistant')" class="palette-item">
+            <button (click)="addWidget('homeassistant')" class="palette-item" title="Displays live entity states, lights, sensors, temperature gauges from Home Assistant">
               <span class="palette-icon">🏠</span>
               <span class="palette-title">Smart Home</span>
             </button>
-            <button (click)="addWidget('spotify')" class="palette-item">
+            <button (click)="addWidget('spotify')" class="palette-item" title="Shows active track artwork, artist name, progress bar, and playback status">
               <span class="palette-icon">🎵</span>
               <span class="palette-title">Spotify</span>
             </button>
-            <button (click)="addWidget('stock_crypto')" class="palette-item">
+            <button (click)="addWidget('stock_crypto')" class="palette-item" title="Live price tracking for Bitcoin, Ethereum, and major stock market indices">
               <span class="palette-icon">📈</span>
               <span class="palette-title">Markets</span>
             </button>
-            <button (click)="addWidget('sticky_note')" class="palette-item">
+            <button (click)="addWidget('sticky_note')" class="palette-item" title="Colored virtual post-it notes with handwriting typography">
               <span class="palette-icon">📌</span>
               <span class="palette-title">Sticky Notes</span>
             </button>
-            <button (click)="addWidget('countdown')" class="palette-item">
+            <button (click)="addWidget('countdown')" class="palette-item" title="Live countdown timer to vacations, weddings, birthdays, or product launches">
               <span class="palette-icon">⏳</span>
               <span class="palette-title">Countdown</span>
             </button>
-            <button (click)="addWidget('meal_planner')" class="palette-item">
+            <button (click)="addWidget('meal_planner')" class="palette-item" title="Weekly Monday-to-Sunday dinner and lunch meal schedule for the whole family">
               <span class="palette-icon">🍽️</span>
               <span class="palette-title">Meal Plan</span>
             </button>
-            <button (click)="addWidget('radar')" class="palette-item">
+            <button (click)="addWidget('radar')" class="palette-item" title="Live animated Doppler rain and cloud radar map for your geographical region">
               <span class="palette-icon">🛰️</span>
               <span class="palette-title">Radar</span>
             </button>
-            <button (click)="addWidget('quote')" class="palette-item">
+            <button (click)="addWidget('quote')" class="palette-item" title="Daily motivational thoughts, stoic philosophy, or custom family mottos">
               <span class="palette-icon">💬</span>
               <span class="palette-title">Daily Quote</span>
             </button>
@@ -819,6 +823,9 @@ import { AuthService } from '../../services/auth.service';
           </div>
         </div>
       </main>
+
+      <!-- Help & Documentation Modal -->
+      <app-help-docs-modal *ngIf="showHelpModal" (closed)="showHelpModal = false"></app-help-docs-modal>
     </div>
   `,
   styles: [`
@@ -842,11 +849,19 @@ import { AuthService } from '../../services/auth.service';
       box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
       z-index: 20;
     }
+    .user-profile-bar {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
     .btn-back-fleet {
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.12);
       color: #38bdf8;
-      padding: 4px 10px;
+      padding: 4px 8px;
       border-radius: 6px;
       font-size: 0.72rem;
       font-weight: 700;
@@ -859,6 +874,51 @@ import { AuthService } from '../../services/auth.service';
     .btn-back-fleet:hover {
       background: rgba(14, 165, 233, 0.2);
       color: #fff;
+    }
+    .btn-help-mini {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-help-mini:hover {
+      background: #0ea5e9;
+      color: #ffffff;
+    }
+    .btn-guide-mini {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-guide-mini:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+    }
+    .user-info {
+      margin-left: auto;
+    }
+    .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .admin-brand-card {
@@ -1561,6 +1621,8 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   private initPos = { x: 0, y: 0, width: 0, height: 0 };
   currentUser: User | null = null;
 
+  showHelpModal: boolean = false;
+
   constructor(
     private route: ActivatedRoute, 
     private router: Router,
@@ -1571,6 +1633,10 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   goToFleet(): void {
     this.router.navigate(['/admin/displays']);
+  }
+
+  openInstallationGuide(): void {
+    this.router.navigate(['/docs/installation']);
   }
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
