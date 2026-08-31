@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
   selector: 'app-installation-guide',
   template: `
     <div class="doc-container">
-      <!-- Non-Print Header Bar -->
+      <!-- Non-Print Sticky Navigation Bar -->
       <header class="doc-navbar no-print">
         <div class="nav-left">
           <button (click)="goBack()" class="btn-back">
@@ -33,9 +33,9 @@ import { Router } from '@angular/router';
         </div>
       </header>
 
-      <!-- Main Document Body -->
+      <!-- Main Document Layout -->
       <div class="doc-layout">
-        <!-- Sticky Table of Contents (On Screen Only) -->
+        <!-- Sticky Table of Contents (On-Screen Desktop Only) -->
         <aside class="doc-sidebar no-print">
           <div class="toc-title">TABLE OF CONTENTS</div>
           <nav class="toc-nav">
@@ -46,20 +46,25 @@ import { Router } from '@angular/router';
             <a href="#ipad-ios">5. Apple iPad (Guided Access Kiosk)</a>
             <a href="#android-tablet">6. Android Tablets & Displays</a>
             <a href="#windows-mini-pc">7. Windows & Mini PC Kiosk</a>
-            <a href="#troubleshooting">8. Troubleshooting & Diagnostics</a>
+            <a href="#troubleshooting">8. Diagnostics & Troubleshooting</a>
           </nav>
+
+          <div class="sidebar-help-card">
+            <span class="sidebar-help-title">💡 Pro-Tip</span>
+            <p>Click <strong>Print / Save as PDF</strong> in the top-right to generate a clean, bounded PDF export.</p>
+          </div>
         </aside>
 
-        <!-- Printable Document Content -->
+        <!-- Printable Document Content Area -->
         <main class="doc-content printable-area">
           <!-- Document Header -->
           <div class="manual-cover">
             <div class="cover-badge">OFFICIAL HARDWARE & CLIENT MANUAL</div>
             <h1 class="manual-title">Smart Display Multi-Platform Installation Guide</h1>
-            <p class="manual-subtitle">Step-by-step field deployment instructions for Raspberry Pi, Amazon Fire TV, Apple iPad, Android Tablets, and Windows Mini PCs.</p>
+            <p class="manual-subtitle">Complete deployment instructions for Raspberry Pi, Amazon Fire TV, Apple iPad, Android Tablets, and Windows Mini PCs.</p>
             
             <div class="meta-row">
-              <div class="meta-item"><span class="meta-label">Document Version:</span> 2.4.0 (Enterprise)</div>
+              <div class="meta-item"><span class="meta-label">Document Version:</span> 2.5.0 (Enterprise)</div>
               <div class="meta-item"><span class="meta-label">Target Cloud URL:</span> https://palevioletred-ibex-451966.hostingersite.com</div>
               <div class="meta-item"><span class="meta-label">Protocol:</span> Web PWA / Chromium Kiosk / REST API</div>
             </div>
@@ -255,37 +260,39 @@ amixer set Master 100%</code></pre>
           <section id="troubleshooting" class="doc-section">
             <div class="section-num">08</div>
             <h2>Diagnostics & Troubleshooting Reference</h2>
-            <table class="trouble-table">
-              <thead>
-                <tr>
-                  <th>Symptom</th>
-                  <th>Root Cause</th>
-                  <th>Remedy</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Red "Offline Mode" badge visible</td>
-                  <td>Network connectivity dropped or Wi-Fi sleeping</td>
-                  <td>Display automatically serves cached data and auto-reconnects every 15 seconds. Check Wi-Fi sleep policy.</td>
-                </tr>
-                <tr>
-                  <td>Audio does not play on emergency or briefing</td>
-                  <td>Browser autoplay policy requires muted initial media</td>
-                  <td>Launch Chromium with <code>--autoplay-policy=no-user-gesture-required</code> or tap screen once to grant audio permission.</td>
-                </tr>
-                <tr>
-                  <td>Screen edges cut off on TV</td>
-                  <td>TV HDMI Overscan enabled by default</td>
-                  <td>Open TV Picture Settings ➔ Set Aspect Ratio to "Just Scan", "Screen Fit", or "1:1 Pixel Mapping" (disable Overscan).</td>
-                </tr>
-                <tr>
-                  <td>Screen goes black after 10 minutes</td>
-                  <td>OS power management / DPMS active</td>
-                  <td>Disable screen blanking in Raspberry Pi / iPad / Windows power options.</td>
-                </tr>
-              </tbody>
-            </table>
+            <div class="table-responsive">
+              <table class="trouble-table">
+                <thead>
+                  <tr>
+                    <th style="width: 25%;">Symptom</th>
+                    <th style="width: 30%;">Root Cause</th>
+                    <th style="width: 45%;">Remedy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Red "Offline Mode" badge</strong></td>
+                    <td>Network connectivity dropped or Wi-Fi sleeping</td>
+                    <td>Display automatically serves cached data and auto-reconnects every 15 seconds. Check Wi-Fi sleep policy.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>No audio on alerts</strong></td>
+                    <td>Browser autoplay policy requires muted initial media</td>
+                    <td>Launch Chromium with <code>--autoplay-policy=no-user-gesture-required</code> or tap screen once to grant audio permission.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Screen edges cut off on TV</strong></td>
+                    <td>TV HDMI Overscan enabled by default</td>
+                    <td>Open TV Picture Settings ➔ Set Aspect Ratio to "Just Scan", "Screen Fit", or "1:1 Pixel Mapping" (disable Overscan).</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Screen goes black after 10m</strong></td>
+                    <td>OS power management / DPMS active</td>
+                    <td>Disable screen blanking in Raspberry Pi / iPad / Windows power options.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <!-- Document Footer -->
@@ -298,11 +305,17 @@ amixer set Master 100%</code></pre>
     </div>
   `,
   styles: [`
+    * {
+      box-sizing: border-box;
+    }
+
     .doc-container {
       min-height: 100vh;
       background: #090d16;
       color: #f1f5f9;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
     }
 
     /* Navbar */
@@ -313,7 +326,7 @@ amixer set Master 100%</code></pre>
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 32px;
+      padding: 0 24px;
       position: sticky;
       top: 0;
       z-index: 100;
@@ -322,7 +335,8 @@ amixer set Master 100%</code></pre>
     .nav-left {
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 16px;
+      min-width: 0;
     }
     .btn-back {
       background: rgba(255, 255, 255, 0.06);
@@ -330,13 +344,15 @@ amixer set Master 100%</code></pre>
       color: #38bdf8;
       font-size: 0.8rem;
       font-weight: 700;
-      padding: 8px 14px;
+      padding: 8px 12px;
       border-radius: 8px;
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 8px;
       transition: all 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .btn-back:hover {
       background: rgba(56, 189, 248, 0.15);
@@ -346,6 +362,7 @@ amixer set Master 100%</code></pre>
       display: flex;
       align-items: center;
       gap: 10px;
+      overflow: hidden;
     }
     .brand-badge {
       font-size: 0.65rem;
@@ -355,12 +372,17 @@ amixer set Master 100%</code></pre>
       padding: 2px 8px;
       border-radius: 4px;
       letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .doc-title-bar {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       color: #ffffff;
       margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .btn-print {
       background: linear-gradient(135deg, #0ea5e9, #0284c7);
@@ -368,7 +390,7 @@ amixer set Master 100%</code></pre>
       color: #ffffff;
       font-size: 0.85rem;
       font-weight: 700;
-      padding: 10px 18px;
+      padding: 10px 16px;
       border-radius: 8px;
       cursor: pointer;
       display: flex;
@@ -376,6 +398,8 @@ amixer set Master 100%</code></pre>
       gap: 8px;
       box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
       transition: all 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .btn-print:hover {
       transform: translateY(-1px);
@@ -384,141 +408,172 @@ amixer set Master 100%</code></pre>
 
     /* Layout */
     .doc-layout {
-      max-width: 1200px;
+      max-width: 1160px;
       margin: 0 auto;
       display: flex;
-      padding: 32px 24px;
-      gap: 40px;
+      padding: 28px 20px;
+      gap: 32px;
+      box-sizing: border-box;
+      width: 100%;
     }
 
     /* Sidebar TOC */
     .doc-sidebar {
-      width: 260px;
+      width: 240px;
       flex-shrink: 0;
       position: sticky;
-      top: 96px;
-      height: calc(100vh - 128px);
+      top: 92px;
+      height: calc(100vh - 120px);
       overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
     .toc-title {
       font-size: 0.7rem;
       font-weight: 800;
       color: #64748b;
       letter-spacing: 1px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .toc-nav {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
     .toc-nav a {
       color: #94a3b8;
       text-decoration: none;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 500;
       padding: 6px 10px;
       border-radius: 6px;
       transition: all 0.2s;
-      line-height: 1.3;
+      line-height: 1.35;
     }
     .toc-nav a:hover {
       background: rgba(255, 255, 255, 0.05);
       color: #38bdf8;
     }
+    .sidebar-help-card {
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.2);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.75rem;
+    }
+    .sidebar-help-title {
+      font-weight: 700;
+      color: #38bdf8;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .sidebar-help-card p {
+      color: #94a3b8;
+      margin: 0;
+      line-height: 1.4;
+    }
 
     /* Content Area */
     .doc-content {
       flex: 1;
+      min-width: 0;
       background: #0f172a;
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 16px;
-      padding: 48px;
+      padding: 40px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      box-sizing: border-box;
+      overflow: hidden;
     }
 
     .cover-badge {
       display: inline-block;
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 800;
       color: #38bdf8;
       background: rgba(56, 189, 248, 0.12);
       border: 1px solid rgba(56, 189, 248, 0.25);
       padding: 4px 10px;
       border-radius: 6px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       letter-spacing: 0.5px;
     }
     .manual-title {
-      font-size: 2.2rem;
+      font-size: 1.85rem;
       font-weight: 900;
       color: #ffffff;
-      margin: 0 0 12px 0;
-      line-height: 1.2;
+      margin: 0 0 10px 0;
+      line-height: 1.25;
     }
     .manual-subtitle {
-      font-size: 1.05rem;
+      font-size: 0.95rem;
       color: #94a3b8;
-      margin: 0 0 24px 0;
+      margin: 0 0 20px 0;
       line-height: 1.5;
     }
     .meta-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 20px;
-      font-size: 0.8rem;
+      gap: 16px;
+      font-size: 0.78rem;
       color: #cbd5e1;
       background: rgba(0, 0, 0, 0.3);
-      padding: 12px 18px;
-      border-radius: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      word-break: break-all;
     }
     .meta-label {
       color: #64748b;
       font-weight: 600;
-      margin-right: 4px;
     }
     .doc-divider {
       border: 0;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
-      margin: 36px 0;
+      margin: 28px 0;
     }
 
     /* Sections */
     .doc-section {
-      margin-bottom: 48px;
+      margin-bottom: 36px;
       position: relative;
     }
     .section-num {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 900;
       color: #0ea5e9;
       font-family: monospace;
       letter-spacing: 1px;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
     .doc-section h2 {
-      font-size: 1.45rem;
+      font-size: 1.3rem;
       font-weight: 800;
       color: #ffffff;
-      margin: 0 0 16px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      padding-bottom: 8px;
+      margin: 0 0 14px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 6px;
     }
     .doc-section h3 {
-      font-size: 1.05rem;
+      font-size: 1rem;
       font-weight: 700;
       color: #e2e8f0;
-      margin: 24px 0 10px 0;
+      margin: 20px 0 8px 0;
     }
     .doc-section p {
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       color: #cbd5e1;
       line-height: 1.6;
-      margin: 0 0 14px 0;
+      margin: 0 0 12px 0;
     }
     .section-lead {
-      font-size: 1rem;
+      font-size: 0.95rem;
       color: #94a3b8;
     }
 
@@ -526,28 +581,32 @@ amixer set Master 100%</code></pre>
     .info-card {
       background: rgba(14, 165, 233, 0.06);
       border: 1px solid rgba(14, 165, 233, 0.2);
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin: 18px 0;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 14px 0;
     }
     .info-card-header {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 700;
       color: #38bdf8;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .info-list {
       margin: 0;
-      padding-left: 20px;
-      font-size: 0.85rem;
+      padding-left: 18px;
+      font-size: 0.82rem;
       color: #cbd5e1;
       line-height: 1.6;
     }
+    .info-list li {
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
     .step-list {
-      padding-left: 20px;
+      padding-left: 18px;
       color: #cbd5e1;
-      font-size: 0.92rem;
-      line-height: 1.7;
+      font-size: 0.88rem;
+      line-height: 1.65;
     }
     .step-list li {
       margin-bottom: 10px;
@@ -557,55 +616,71 @@ amixer set Master 100%</code></pre>
     .code-box {
       background: #070a12;
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      margin: 14px 0;
+      border-radius: 8px;
+      margin: 12px 0;
       overflow: hidden;
+      max-width: 100%;
     }
     .code-title {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       color: #94a3b8;
       background: rgba(255, 255, 255, 0.04);
-      padding: 6px 14px;
+      padding: 6px 12px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       font-family: monospace;
     }
     .code-box pre {
       margin: 0;
-      padding: 14px;
+      padding: 12px 14px;
       overflow-x: auto;
+      max-width: 100%;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
     .code-box code {
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: #38bdf8;
-      line-height: 1.5;
+      line-height: 1.45;
+      background: none;
+      padding: 0;
     }
     code {
       font-family: monospace;
       background: rgba(0, 0, 0, 0.4);
       color: #38bdf8;
-      padding: 2px 6px;
+      padding: 2px 5px;
       border-radius: 4px;
-      font-size: 0.85em;
+      font-size: 0.82em;
+      word-break: break-word;
     }
 
     /* Troubleshooting Table */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      margin: 14px 0;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
     .trouble-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 16px 0;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
+      table-layout: auto;
     }
     .trouble-table th, .trouble-table td {
       border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 12px 14px;
+      padding: 10px 12px;
       text-align: left;
+      vertical-align: top;
     }
     .trouble-table th {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.06);
       color: #ffffff;
       font-weight: 700;
+      white-space: nowrap;
     }
     .trouble-table td {
       color: #cbd5e1;
@@ -615,100 +690,245 @@ amixer set Master 100%</code></pre>
     /* Footer */
     .doc-footer {
       border-top: 1px solid rgba(255, 255, 255, 0.08);
-      padding-top: 24px;
-      margin-top: 48px;
+      padding-top: 20px;
+      margin-top: 36px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: #64748b;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
-    /* Print Styles (Publication-Grade PDF Export) */
-    @media print {
-      body {
-        background: #ffffff !important;
-        color: #000000 !important;
+    /* Responsive Screen Styles */
+    @media (max-width: 900px) {
+      .doc-layout {
+        flex-direction: column;
+        padding: 16px 12px;
+        gap: 20px;
       }
+      .doc-sidebar {
+        display: none;
+      }
+      .doc-content {
+        padding: 24px 18px;
+        border-radius: 12px;
+      }
+      .manual-title {
+        font-size: 1.45rem;
+      }
+      .doc-navbar {
+        padding: 0 14px;
+      }
+      .doc-title-bar {
+        display: none;
+      }
+    }
+
+    /* Publication-Grade Print & PDF Styles */
+    @media print {
+      @page {
+        size: letter portrait;
+        margin: 14mm 14mm 14mm 14mm;
+      }
+
+      html, body {
+        background: #ffffff !important;
+        color: #111827 !important;
+        font-size: 10pt !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+      }
+
       .no-print {
         display: none !important;
       }
+
       .doc-container {
         background: #ffffff !important;
-        color: #000000 !important;
+        color: #111827 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: auto !important;
       }
+
       .doc-layout {
         max-width: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
         display: block !important;
+        width: 100% !important;
       }
+
       .doc-content {
         background: #ffffff !important;
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
-        color: #000000 !important;
+        margin: 0 !important;
+        color: #111827 !important;
+        width: 100% !important;
+        overflow: visible !important;
       }
+
+      .manual-cover {
+        margin-bottom: 20pt;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
       .manual-title {
-        color: #000000 !important;
-        font-size: 24pt !important;
+        color: #0f172a !important;
+        font-size: 20pt !important;
+        margin-bottom: 6pt !important;
       }
+
       .manual-subtitle {
-        color: #333333 !important;
+        color: #475569 !important;
+        font-size: 10.5pt !important;
+        margin-bottom: 14pt !important;
       }
+
       .cover-badge {
-        border: 1px solid #000 !important;
-        color: #000000 !important;
-        background: #eeeeee !important;
+        border: 1pt solid #0284c7 !important;
+        color: #0369a1 !important;
+        background: #f0f9ff !important;
       }
+
       .meta-row {
         background: #f8fafc !important;
-        border: 1px solid #e2e8f0 !important;
-        color: #333333 !important;
+        border: 1pt solid #e2e8f0 !important;
+        color: #334155 !important;
+        padding: 8pt 10pt !important;
       }
+
+      .meta-label {
+        color: #64748b !important;
+      }
+
+      .doc-divider {
+        border-top: 1pt solid #cbd5e1 !important;
+        margin: 16pt 0 !important;
+      }
+
       .doc-section {
-        page-break-inside: avoid;
-        margin-bottom: 24pt;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-bottom: 18pt !important;
       }
+
       .doc-section h2 {
-        color: #000000 !important;
-        border-bottom: 1.5pt solid #000000 !important;
+        color: #0f172a !important;
+        font-size: 13pt !important;
+        border-bottom: 1.5pt solid #0f172a !important;
+        padding-bottom: 4pt !important;
+        margin-bottom: 8pt !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
+
       .doc-section h3 {
-        color: #111111 !important;
+        color: #1e293b !important;
+        font-size: 11pt !important;
+        margin: 12pt 0 4pt 0 !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
+
       .doc-section p, .step-list, .step-list li {
-        color: #222222 !important;
+        color: #334155 !important;
+        line-height: 1.5 !important;
       }
+
       .code-box {
         background: #f8fafc !important;
-        border: 1px solid #cbd5e1 !important;
-        page-break-inside: avoid;
+        border: 1pt solid #cbd5e1 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin: 8pt 0 !important;
+        width: 100% !important;
       }
+
       .code-title {
         background: #e2e8f0 !important;
-        color: #333333 !important;
+        color: #334155 !important;
+        font-size: 8pt !important;
+        padding: 4pt 8pt !important;
+        border-bottom: 1pt solid #cbd5e1 !important;
       }
+
+      .code-box pre {
+        padding: 8pt 10pt !important;
+        white-space: pre-wrap !important;
+        word-break: break-all !important;
+        overflow-wrap: anywhere !important;
+      }
+
       .code-box code {
         color: #0369a1 !important;
+        font-size: 8.5pt !important;
+        line-height: 1.4 !important;
       }
+
+      code {
+        background: #f1f5f9 !important;
+        color: #0369a1 !important;
+        border: 0.5pt solid #e2e8f0 !important;
+        font-size: 8.5pt !important;
+        word-break: break-all !important;
+      }
+
       .info-card {
         background: #f0f9ff !important;
-        border: 1px solid #bae6fd !important;
+        border: 1pt solid #bae6fd !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin: 10pt 0 !important;
+      }
+
+      .info-card-header {
         color: #0369a1 !important;
       }
+
+      .table-responsive {
+        border: 1pt solid #cbd5e1 !important;
+        overflow: visible !important;
+        margin: 10pt 0 !important;
+      }
+
+      .trouble-table {
+        width: 100% !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        table-layout: fixed !important;
+      }
+
       .trouble-table th {
-        background: #e2e8f0 !important;
-        color: #000000 !important;
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1pt solid #cbd5e1 !important;
+        padding: 6pt 8pt !important;
+        font-size: 8.5pt !important;
       }
-      .trouble-table th, .trouble-table td {
-        border: 1px solid #cbd5e1 !important;
-        color: #222222 !important;
+
+      .trouble-table td {
+        border: 1pt solid #cbd5e1 !important;
+        color: #334155 !important;
+        padding: 6pt 8pt !important;
+        font-size: 8pt !important;
+        word-break: break-word !important;
       }
+
       .doc-footer {
         border-top: 1pt solid #cbd5e1 !important;
         color: #64748b !important;
+        margin-top: 24pt !important;
+        padding-top: 10pt !important;
+        font-size: 7.5pt !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
     }
   `]
