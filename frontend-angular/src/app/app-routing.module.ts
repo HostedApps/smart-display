@@ -6,6 +6,7 @@ import { DisplayListComponent } from './components/admin/display-list.component'
 import { DevicePairingComponent } from './components/pairing/device-pairing.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { LoginComponent } from './components/auth/login.component';
+import { InstallationGuideComponent } from './components/help/installation-guide.component';
 import { AuthGuard } from './guards/auth.guard';
 
 const routes: Routes = [
@@ -18,6 +19,9 @@ const routes: Routes = [
   // Public Device Pairing route for TVs, iPads, Pi
   { path: 'display', component: DevicePairingComponent },
   { path: 'pair', component: DevicePairingComponent },
+
+  // Public Hardware & Client Installation Guide (Printable / PDF)
+  { path: 'docs/installation', component: InstallationGuideComponent },
 
   // Admin Authentication
   { path: 'admin/login', component: LoginComponent },

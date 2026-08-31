@@ -26,6 +26,12 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
         </div>
 
         <div class="user-actions">
+          <button (click)="showHelpModal = true" class="btn-help-header" title="Open Interactive Documentation & 19-Widget Catalog">
+            📖 Help & Docs
+          </button>
+          <button (click)="openInstallationGuide()" class="btn-guide-header" title="Open Client Hardware Installation Guide (Printable PDF)">
+            📄 Installation PDF
+          </button>
           <div class="user-chip">
             <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
             <span class="user-email">{{ currentUser?.email }}</span>
@@ -335,6 +341,9 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
           </div>
         </div>
       </div>
+
+      <!-- Help & Documentation Modal -->
+      <app-help-docs-modal *ngIf="showHelpModal" (closed)="showHelpModal = false"></app-help-docs-modal>
     </div>
   `,
   styles: [`
@@ -418,6 +427,43 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
     .user-email {
       font-size: 0.8rem;
       color: #cbd5e1;
+    }
+    .btn-help-header {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      color: #38bdf8;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-help-header:hover {
+      background: #0ea5e9;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
+    }
+    .btn-guide-header {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-guide-header:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
     }
     .btn-signout {
       background: rgba(239, 68, 68, 0.12);
@@ -948,6 +994,7 @@ export class DisplayListComponent implements OnInit {
   loadingDevices: boolean = false;
   alertMessage: string = '';
   alertType: 'success' | 'error' = 'success';
+  showHelpModal: boolean = false;
 
   // Create Modal
   showCreateModal: boolean = false;
@@ -1030,6 +1077,10 @@ export class DisplayListComponent implements OnInit {
       case 'portrait_4k': return '2160×3840 4K Portrait';
       default: return orientation;
     }
+  }
+
+  openInstallationGuide(): void {
+    this.router.navigate(['/docs/installation']);
   }
 
   openEditor(token: string): void {

@@ -31,6 +31,8 @@ import { CameraPipWidgetComponent } from './components/widgets/camera-pip-widget
 import { CommuteWidgetComponent } from './components/widgets/commute-widget.component';
 import { YoutubeWidgetComponent } from './components/widgets/youtube-widget.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
+import { InstallationGuideComponent } from './components/help/installation-guide.component';
+import { HelpDocsModalComponent } from './components/help/help-docs-modal.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
 @NgModule({
@@ -60,7 +62,9 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     CameraPipWidgetComponent,
     CommuteWidgetComponent,
     YoutubeWidgetComponent,
-    WallDropComponent
+    WallDropComponent,
+    InstallationGuideComponent,
+    HelpDocsModalComponent
   ],
   imports: [
     BrowserModule,
