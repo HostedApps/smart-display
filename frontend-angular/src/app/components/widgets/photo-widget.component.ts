@@ -185,18 +185,29 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   constructor(private http: HttpClient) {}
 
+  private normalizeImageUrl(url: string): string {
+    if (!url) return '';
+    const trimmed = url.trim();
+    const driveMatch = trimmed.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_\-]+)/i);
+    if (driveMatch) {
+      return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+    }
+    return trimmed;
+  }
+
   get effectiveImages(): string[] {
+    let list: string[] = [];
     if (this.googlePhotosList.length > 0) {
-      return this.googlePhotosList;
-    }
-    if (this.config.images && Array.isArray(this.config.images) && this.config.images.length > 0) {
-      return this.config.images;
-    }
-    if (typeof this.config.images === 'string' && this.config.images.trim()) {
+      list = this.googlePhotosList;
+    } else if (this.config.images && Array.isArray(this.config.images) && this.config.images.length > 0) {
+      list = this.config.images;
+    } else if (typeof this.config.images === 'string' && this.config.images.trim()) {
       const urls = this.config.images.split('\n').map((u: string) => u.trim()).filter((u: string) => !!u);
-      if (urls.length > 0) return urls;
+      if (urls.length > 0) list = urls;
+    } else {
+      list = this.defaultImages;
     }
-    return this.defaultImages;
+    return list.map(u => this.normalizeImageUrl(u));
   }
 
   get currentImageUrl(): string {
@@ -222,9 +233,9 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private checkAndFetchGooglePhotos(): void {
-    const albumUrl = this.config.albumUrl || (typeof this.config.images === 'string' && this.config.images.includes('photos.') ? this.config.images.trim() : '');
+    const albumUrl = this.config.albumUrl || (typeof this.config.images === 'string' && (this.config.images.includes('photos.') || this.config.images.includes('drive.google.com') || this.config.images.includes('goo.gl')) ? this.config.images.trim() : '');
     
-    if (albumUrl && (albumUrl.includes('photos.app.goo.gl') || albumUrl.includes('photos.google.com'))) {
+    if (albumUrl && (albumUrl.includes('photos.app.goo.gl') || albumUrl.includes('photos.google.com') || albumUrl.includes('drive.google.com') || albumUrl.includes('goo.gl'))) {
       this.isGooglePhotos = true;
       this.fetchGooglePhotosAlbum(albumUrl);
 

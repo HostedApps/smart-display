@@ -7,42 +7,99 @@ checkRateLimit($pdo, 'proxy', 60, 60);
 $action = $_GET['action'] ?? '';
 $feedUrl = $_GET['url'] ?? '';
 
-// ACTION 1: FETCH GOOGLE PHOTOS SHARED ALBUM
+// ACTION 1: FETCH GOOGLE PHOTOS SHARED ALBUM & GOOGLE DRIVE MEDIA
 if ($action === 'fetch_google_photos') {
-    $albumUrl = $_GET['album_url'] ?? $_GET['url'] ?? '';
+    $albumUrl = trim($_GET['album_url'] ?? $_GET['url'] ?? '');
     if (empty($albumUrl) || !isSafeExternalUrl($albumUrl)) {
         http_response_code(400);
         echo json_encode(["success" => false, "error" => "Invalid or unsafe album_url"]);
         exit();
     }
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $albumUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-    $html = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    // Direct Google Drive single file support
+    if (preg_match('/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_\-]+)/i', $albumUrl, $driveMatch)) {
+        $fileId = $driveMatch[1];
+        $cdnUrl = "https://lh3.googleusercontent.com/d/" . $fileId;
+        header("Content-Type: application/json; charset=UTF-8");
+        echo json_encode([
+            "success" => true,
+            "count" => 1,
+            "images" => [$cdnUrl]
+        ]);
+        exit();
+    }
 
-    if ($httpCode !== 200 || empty($html)) {
+    // Helper to fetch URL with full desktop browser simulation
+    $fetchUrl = function($targetUrl) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $targetUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 10);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, "");
+        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 18);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+        $html = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return [$html, $httpCode];
+    };
+
+    // If it's a photos.app.goo.gl link, ensure desktop link param
+    $requestUrl = $albumUrl;
+    if (strpos($requestUrl, 'photos.app.goo.gl') !== false && strpos($requestUrl, '_imcp=1') === false) {
+        $requestUrl .= (strpos($requestUrl, '?') !== false ? '&' : '?') . '_imcp=1';
+    }
+
+    list($html, $httpCode) = $fetchUrl($requestUrl);
+
+    // If initial response contains canonical og:url or data-desktop-link to photos.google.com/share, follow it
+    if (!empty($html)) {
+        if (preg_match('/<meta\s+property=["\']og:url["\']\s+content=["\'](https:\/\/photos\.google\.com\/share\/[^"\']+)["\']/i', $html, $ogMatch)) {
+            list($subHtml, $subCode) = $fetchUrl($ogMatch[1]);
+            if ($subCode === 200 && !empty($subHtml)) {
+                $html = $subHtml;
+            }
+        } elseif (preg_match('/data-desktop-link=["\'](https:\/\/photos\.app\.goo\.gl\/[^"\']+)["\']/i', $html, $deskMatch)) {
+            list($subHtml, $subCode) = $fetchUrl($deskMatch[1]);
+            if ($subCode === 200 && !empty($subHtml)) {
+                $html = $subHtml;
+            }
+        }
+    }
+
+    if (empty($html)) {
         http_response_code(502);
         echo json_encode(["success" => false, "error" => "Unable to fetch Google Photos album", "status" => $httpCode]);
         exit();
     }
 
-    // Extract high-resolution Google User Content photos
-    preg_match_all('/"(https:\/\/lh3\.googleusercontent\.com\/[a-zA-Z0-9_\-]+)"/', $html, $matches);
-    
-    $rawUrls = $matches[1] ?? [];
+    // Unescape JSON slashes in JavaScript payload
+    $cleanHtml = str_replace('\\/', '/', $html);
+
+    // Extract all googleusercontent photos (covers /pw/, /a-/, and standard root tokens)
+    preg_match_all('/https:\/\/[a-z0-9]+\.googleusercontent\.com\/(?:pw\/|a-\/)?[a-zA-Z0-9_\-]+/i', $cleanHtml, $matches);
+
+    $rawUrls = $matches[0] ?? [];
     $seen = [];
     $photos = [];
 
+    // Also extract og:image if present
+    if (preg_match('/<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']/i', $html, $ogImgMatch)) {
+        $ogBase = preg_replace('/=.*$/', '', $ogImgMatch[1]);
+        if (strpos($ogBase, 'googleusercontent.com') !== false) {
+            $rawUrls[] = $ogBase;
+        }
+    }
+
     foreach ($rawUrls as $url) {
-        if (strlen($url) > 60 && !isset($seen[$url])) {
-            $seen[$url] = true;
-            $photos[] = $url . '=w1920-h1080-no';
+        $base = preg_replace('/=.*$/', '', $url);
+        // Exclude avatars / short icons (valid photos have hash keys > 45 characters)
+        if (strlen($base) > 50 && !isset($seen[$base]) && strpos($base, 'googleusercontent.com') !== false) {
+            $seen[$base] = true;
+            $photos[] = $base . '=w1920-h1080-no';
         }
     }
 
