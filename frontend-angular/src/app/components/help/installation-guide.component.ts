@@ -305,6 +305,15 @@ amixer set Master 100%</code></pre>
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      width: 100%;
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      user-select: text;
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -316,6 +325,8 @@ amixer set Master 100%</code></pre>
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       margin: 0;
       padding: 0;
+      overflow-y: visible;
+      user-select: text;
     }
 
     /* Navbar */
