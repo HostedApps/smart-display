@@ -9,6 +9,12 @@ interface ForecastItem {
   desc: string;
 }
 
+interface HourlyItem {
+  time: string;
+  temp: number;
+  icon: string;
+}
+
 @Component({
   selector: 'app-weather-widget',
   template: `
@@ -49,12 +55,30 @@ interface ForecastItem {
         </div>
       </div>
 
-      <!-- 5-Day Mini Forecast -->
-      <div class="forecast-section" *ngIf="config.showForecast !== false && displayForecast.length > 0">
-        <div *ngFor="let item of displayForecast | slice:0:5" class="forecast-col">
-          <span class="forecast-day">{{ item.date | date:'EEE' }}</span>
-          <img [src]="getIconUrl(item.icon)" class="forecast-mini-icon" />
-          <span class="forecast-temp">{{ item.temp | number:'1.0-0' }}°</span>
+      <!-- Mode Selector / Forecast Strip -->
+      <div class="forecast-section" *ngIf="config.showForecast !== false">
+        <!-- Mode Tabs -->
+        <div class="forecast-header">
+          <button (click)="forecastMode = 'daily'" class="mode-tab-btn" [class.active]="forecastMode === 'daily'">5-Day</button>
+          <button (click)="forecastMode = 'hourly'" class="mode-tab-btn" [class.active]="forecastMode === 'hourly'">12-Hour</button>
+        </div>
+
+        <!-- 5-Day Daily Grid -->
+        <div class="forecast-grid" *ngIf="forecastMode === 'daily' && displayForecast.length > 0">
+          <div *ngFor="let item of displayForecast | slice:0:5" class="forecast-col">
+            <span class="forecast-day">{{ item.date | date:'EEE' }}</span>
+            <img [src]="getIconUrl(item.icon)" class="forecast-mini-icon" />
+            <span class="forecast-temp">{{ item.temp | number:'1.0-0' }}°</span>
+          </div>
+        </div>
+
+        <!-- 12-Hour Hourly Strip -->
+        <div class="forecast-grid" *ngIf="forecastMode === 'hourly' && displayHourly.length > 0">
+          <div *ngFor="let item of displayHourly | slice:0:5" class="forecast-col">
+            <span class="forecast-day">{{ item.time }}</span>
+            <img [src]="getIconUrl(item.icon)" class="forecast-mini-icon" />
+            <span class="forecast-temp">{{ item.temp | number:'1.0-0' }}°</span>
+          </div>
         </div>
       </div>
     </div>
@@ -66,7 +90,7 @@ interface ForecastItem {
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 16px;
-      padding: 16px;
+      padding: 14px 16px;
       backdrop-filter: blur(16px);
       box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
@@ -99,45 +123,44 @@ interface ForecastItem {
       font-size: 0.8rem;
       font-weight: 600;
       color: #94a3b8;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
     }
     .temp-display {
       display: flex;
-      align-items: baseline;
+      align-items: flex-start;
       line-height: 1;
-      margin: 4px 0;
+      margin: 2px 0;
     }
     .temp-num {
-      font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: clamp(2.2rem, 5vw, 3.4rem);
-      font-weight: 400;
+      font-size: 2.7rem;
+      font-weight: 800;
+      font-family: var(--font-display, inherit);
       color: #ffffff;
-      letter-spacing: -1px;
+      letter-spacing: -1.5px;
     }
     .temp-unit {
-      font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 1.2rem;
-      color: var(--accent-cyan, #06b6d4);
-      font-weight: 500;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent-blue, #0ea5e9);
+      margin-top: 2px;
       margin-left: 2px;
     }
     .weather-desc {
-      font-size: 0.85rem;
-      color: #e2e8f0;
-      font-weight: 500;
+      font-size: 0.78rem;
+      color: #cbd5e1;
       text-transform: capitalize;
+      font-weight: 500;
     }
-
     .weather-right {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 8px;
+      align-items: center;
+      gap: 10px;
     }
     .icon-aura {
-      width: 54px;
-      height: 54px;
+      position: relative;
+      width: 52px;
+      height: 52px;
       background: radial-gradient(circle, rgba(14, 165, 233, 0.25) 0%, transparent 70%);
       display: flex;
       align-items: center;
@@ -145,13 +168,13 @@ interface ForecastItem {
       border-radius: 50%;
     }
     .weather-icon {
-      width: 52px;
-      height: 52px;
+      width: 50px;
+      height: 50px;
       filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
     }
     .metrics-column {
       display: flex;
-      gap: 6px;
+      gap: 5px;
     }
     .metric-pill {
       background: rgba(255, 255, 255, 0.05);
@@ -163,46 +186,72 @@ interface ForecastItem {
       align-items: center;
     }
     .metric-label {
-      font-size: 0.55rem;
+      font-size: 0.52rem;
       color: #94a3b8;
       text-transform: uppercase;
       font-weight: 600;
     }
     .metric-val {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 700;
       color: #f1f5f9;
     }
 
     .forecast-section {
+      padding-top: 8px;
+      margin-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .forecast-header {
+      display: flex;
+      gap: 4px;
+      align-self: flex-end;
+    }
+    .mode-tab-btn {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #64748b;
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-tab-btn.active {
+      background: rgba(14, 165, 233, 0.2);
+      border-color: #0ea5e9;
+      color: #38bdf8;
+    }
+    .forecast-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
       gap: 4px;
-      padding-top: 10px;
-      margin-top: 8px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
     .forecast-col {
       display: flex;
       flex-direction: column;
       align-items: center;
       background: rgba(255, 255, 255, 0.03);
-      padding: 4px 2px;
+      padding: 3px 2px;
       border-radius: 6px;
     }
     .forecast-day {
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       font-weight: 600;
       color: #94a3b8;
       text-transform: uppercase;
     }
     .forecast-mini-icon {
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
       margin: 1px 0;
     }
     .forecast-temp {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
       color: #ffffff;
     }
@@ -213,11 +262,14 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
     apiKey: '',
     city: 'San Jose',
     units: 'imperial',
-    showForecast: true
+    showForecast: true,
+    showHourly: false
   };
 
+  forecastMode: 'daily' | 'hourly' = 'daily';
   currentWeather: any = null;
   forecast: ForecastItem[] = [];
+  hourly: HourlyItem[] = [];
   private pollSub?: Subscription;
 
   private defaultWeather = {
@@ -236,6 +288,14 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
     { date: new Date(Date.now() + 86400000 * 5).toISOString(), temp: 75, icon: '02d', desc: 'Mostly Sunny' }
   ];
 
+  private defaultHourly: HourlyItem[] = [
+    { time: '12 PM', temp: 73, icon: '01d' },
+    { time: '3 PM', temp: 75, icon: '02d' },
+    { time: '6 PM', temp: 70, icon: '02d' },
+    { time: '9 PM', temp: 65, icon: '01n' },
+    { time: '12 AM', temp: 61, icon: '01n' }
+  ];
+
   get displayWeather(): any {
     return this.currentWeather || this.defaultWeather;
   }
@@ -244,15 +304,25 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
     return this.forecast.length > 0 ? this.forecast : this.defaultForecast;
   }
 
+  get displayHourly(): HourlyItem[] {
+    return this.hourly.length > 0 ? this.hourly : this.defaultHourly;
+  }
+
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
+    if (this.config.showHourly) {
+      this.forecastMode = 'hourly';
+    }
     this.fetchWeatherData();
     this.pollSub = interval(900000).subscribe(() => this.fetchWeatherData());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
+      if (this.config.showHourly) {
+        this.forecastMode = 'hourly';
+      }
       this.fetchWeatherData();
     }
   }
@@ -274,6 +344,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
           wind: current.wind.speed
         };
 
+        // Parse Daily (5 days)
         const dailyMap = new Map<string, any>();
         for (const item of data.list) {
           const dateStr = item.dt_txt.split(' ')[0];
@@ -287,6 +358,19 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
           }
         }
         this.forecast = Array.from(dailyMap.values());
+
+        // Parse Hourly (next 5 points, 3h intervals)
+        const hourlyItems: HourlyItem[] = [];
+        for (const item of data.list.slice(0, 5)) {
+          const dt = new Date(item.dt_txt);
+          const timeStr = dt.toLocaleTimeString([], { hour: 'numeric', hour12: true });
+          hourlyItems.push({
+            time: timeStr,
+            temp: item.main.temp,
+            icon: item.weather[0].icon
+          });
+        }
+        this.hourly = hourlyItems;
       },
       error: () => {}
     });

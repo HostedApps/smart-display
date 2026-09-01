@@ -1,15 +1,18 @@
 <?php
 require_once 'db.php';
 
+// Rate limit: 60 proxy requests per minute per client IP
+checkRateLimit($pdo, 'proxy', 60, 60);
+
 $action = $_GET['action'] ?? '';
 $feedUrl = $_GET['url'] ?? '';
 
 // ACTION 1: FETCH GOOGLE PHOTOS SHARED ALBUM
 if ($action === 'fetch_google_photos') {
     $albumUrl = $_GET['album_url'] ?? $_GET['url'] ?? '';
-    if (empty($albumUrl) || !filter_var($albumUrl, FILTER_VALIDATE_URL)) {
+    if (empty($albumUrl) || !isSafeExternalUrl($albumUrl)) {
         http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Invalid or missing album_url"]);
+        echo json_encode(["success" => false, "error" => "Invalid or unsafe album_url"]);
         exit();
     }
 
@@ -30,7 +33,6 @@ if ($action === 'fetch_google_photos') {
     }
 
     // Extract high-resolution Google User Content photos
-    // Matches patterns like https://lh3.googleusercontent.com/pw/... or https://lh3.googleusercontent.com/...
     preg_match_all('/"(https:\/\/lh3\.googleusercontent\.com\/[a-zA-Z0-9_\-]+)"/', $html, $matches);
     
     $rawUrls = $matches[1] ?? [];
@@ -38,10 +40,8 @@ if ($action === 'fetch_google_photos') {
     $photos = [];
 
     foreach ($rawUrls as $url) {
-        // Filter out tiny UI icons / avatar placeholders (usually short keys)
         if (strlen($url) > 60 && !isset($seen[$url])) {
             $seen[$url] = true;
-            // Append high-res parameters for wall displays (1920x1080)
             $photos[] = $url . '=w1920-h1080-no';
         }
     }
@@ -62,6 +62,10 @@ if ($action === 'fetch_stocks') {
     $results = [];
 
     foreach ($symbols as $sym) {
+        // Sanitize symbol to alphanumeric plus dots/hyphens (e.g. BRK.B)
+        $sym = preg_replace('/[^A-Z0-9\.\-]/', '', $sym);
+        if (empty($sym)) continue;
+
         $chartUrl = "https://query1.finance.yahoo.com/v8/finance/chart/" . urlencode($sym) . "?interval=1d&range=5d";
         
         $ch = curl_init();
@@ -85,7 +89,6 @@ if ($action === 'fetch_stocks') {
                 $change24h = $prevClose > 0 ? (($price - $prevClose) / $prevClose) * 100 : 0;
                 $name = $meta['shortName'] ?? $meta['symbol'] ?? $sym;
                 
-                // Extract sparkline points
                 $closes = $result['indicators']['quote'][0]['close'] ?? [];
                 $cleanCloses = array_values(array_filter($closes, function($v) { return $v !== null && is_numeric($v); }));
                 if (empty($cleanCloses)) {
@@ -103,23 +106,14 @@ if ($action === 'fetch_stocks') {
             }
         }
 
-        // Fallback for unknown or rate-limited symbols
+        // Fallback for symbols if Yahoo is rate-limited
         if (!$parsed) {
             $stockNames = [
-                'AAPL' => 'Apple Inc.',
-                'TSLA' => 'Tesla Inc.',
-                'NVDA' => 'NVIDIA Corp.',
-                'MSFT' => 'Microsoft Corp.',
-                'GOOGL' => 'Alphabet Inc.',
-                'AMZN' => 'Amazon.com Inc.',
-                'SPY' => 'SPDR S&P 500 ETF',
-                'QQQ' => 'Invesco QQQ Trust',
-                'META' => 'Meta Platforms Inc.',
-                'AMD' => 'Advanced Micro Devices',
-                'NFLX' => 'Netflix Inc.',
-                'DIS' => 'Walt Disney Co.',
-                'PLTR' => 'Palantir Technologies',
-                'COIN' => 'Coinbase Global Inc.'
+                'AAPL' => 'Apple Inc.', 'TSLA' => 'Tesla Inc.', 'NVDA' => 'NVIDIA Corp.',
+                'MSFT' => 'Microsoft Corp.', 'GOOGL' => 'Alphabet Inc.', 'AMZN' => 'Amazon.com Inc.',
+                'SPY' => 'SPDR S&P 500 ETF', 'QQQ' => 'Invesco QQQ Trust', 'META' => 'Meta Platforms Inc.',
+                'AMD' => 'Advanced Micro Devices', 'NFLX' => 'Netflix Inc.', 'DIS' => 'Walt Disney Co.',
+                'PLTR' => 'Palantir Technologies', 'COIN' => 'Coinbase Global Inc.'
             ];
             $basePrices = [
                 'AAPL' => 224.50, 'TSLA' => 210.30, 'NVDA' => 128.80, 'MSFT' => 418.20,
@@ -155,9 +149,9 @@ if (in_array($action, ['fetch_ical', 'fetch_rss', 'fetch_json', 'fetch_crypto'])
         $feedUrl = "https://api.coingecko.com/api/v3/simple/price?ids=" . urlencode($coins) . "&vs_currencies=" . urlencode($currencies) . "&include_24hr_change=true";
     }
 
-    if (!filter_var($feedUrl, FILTER_VALIDATE_URL)) {
+    if (!isSafeExternalUrl($feedUrl)) {
         http_response_code(400);
-        echo json_encode(["error" => "Invalid URL"]);
+        echo json_encode(["error" => "Invalid or unsafe external URL"]);
         exit();
     }
 

@@ -5,7 +5,8 @@ $action = $_GET['action'] ?? 'login';
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 if ($action === 'register') {
-    $name = trim($input['name'] ?? 'User');
+    checkRateLimit($pdo, 'register', 5, 3600);
+    $name = sanitizeText($input['name'] ?? 'User');
     $email = trim(strtolower($input['email'] ?? ''));
     $password = $input['password'] ?? '';
 
@@ -98,6 +99,7 @@ if ($action === 'register') {
 }
 
 if ($action === 'login') {
+    checkRateLimit($pdo, 'login', 15, 300);
     $email = trim(strtolower($input['email'] ?? ''));
     $password = $input['password'] ?? '';
 

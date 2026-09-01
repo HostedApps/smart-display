@@ -18,6 +18,7 @@ $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 // 1. Kiosk Screen requests new 6-digit pairing code
 if ($action === 'generate_code') {
+    checkRateLimit($pdo, 'pairing_gen', 30, 60);
     try {
         // Clean up expired pairings (> 15 mins old)
         $pdo->query("DELETE FROM device_pairings WHERE expires_at < NOW()");
@@ -89,6 +90,7 @@ if ($action === 'check_status') {
 
 // 3. Admin pairs device by entering 6-digit PIN (Requires Auth)
 if ($action === 'pair_device') {
+    checkRateLimit($pdo, 'pair_claim', 10, 60);
     $user = getAuthenticatedUser($pdo);
     if (!$user) {
         http_response_code(401);
@@ -98,7 +100,7 @@ if ($action === 'pair_device') {
 
     $code = strtoupper(trim($input['pairing_code'] ?? ''));
     $displayId = (int)($input['display_id'] ?? 0);
-    $deviceName = trim($input['device_name'] ?? 'Smart Display Device');
+    $deviceName = sanitizeText($input['device_name'] ?? 'Smart Display Device');
 
     if (empty($code) || !$displayId) {
         http_response_code(400);

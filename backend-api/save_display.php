@@ -38,15 +38,15 @@ try {
         exit();
     }
 
-    $token = $input['token'];
-    $name = $input['name'] ?? 'Main Display';
-    $theme = $input['theme'] ?? 'dark';
+    $token = preg_replace('/[^a-zA-Z0-9_\-]/', '', $input['token']);
+    $name = sanitizeText($input['name'] ?? 'Main Display');
+    $theme = in_array($input['theme'] ?? '', ['dark', 'light', 'glass', 'minimal']) ? $input['theme'] : 'dark';
     $orientation = $input['orientation'] ?? 'landscape_720p';
-    $refreshInterval = (int)($input['refresh_interval'] ?? 60);
+    $refreshInterval = max(10, (int)($input['refresh_interval'] ?? 60));
     $background = isset($input['background']) ? json_encode($input['background']) : null;
     $sleepSchedule = isset($input['sleep_schedule']) ? json_encode($input['sleep_schedule']) : null;
     $pages = isset($input['pages']) ? json_encode($input['pages']) : null;
-    $logoUrl = !empty($input['logo_url']) ? trim($input['logo_url']) : null;
+    $logoUrl = (!empty($input['logo_url']) && isSafeExternalUrl($input['logo_url'])) ? trim($input['logo_url']) : null;
     $showLogoKiosk = !empty($input['show_logo_kiosk']) ? 1 : 0;
     $widgets = $input['widgets'] ?? [];
 

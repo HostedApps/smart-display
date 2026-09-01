@@ -19,6 +19,7 @@ import { environment } from '../../../environments/environment';
           [src]="currentImageUrl" 
           [alt]="'Slide ' + (currentIndex + 1)" 
           class="slide-image"
+          [class.ken-burns]="config.kenBurns !== false"
           [style.object-fit]="config.fitMode || 'cover'"
           (error)="handleImageError()"
         />
@@ -85,6 +86,14 @@ import { environment } from '../../../environments/environment';
       display: block;
       transition: transform 8s ease, opacity 0.8s ease-in-out;
       transform: scale(1.03);
+    }
+    .slide-image.ken-burns {
+      animation: kenBurnsPan 16s ease-in-out infinite alternate;
+    }
+    @keyframes kenBurnsPan {
+      0% { transform: scale(1.0) translate(0%, 0%); }
+      50% { transform: scale(1.08) translate(-1.5%, -1%); }
+      100% { transform: scale(1.04) translate(1%, -1.5%); }
     }
     .slide-image:hover {
       transform: scale(1.08);
