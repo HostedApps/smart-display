@@ -251,6 +251,14 @@ import { EmergencyService } from '../services/emergency.service';
     }
     .night-clock {
       text-align: center;
+      animation: oledBurnInPrevent 600s ease-in-out infinite alternate;
+    }
+    @keyframes oledBurnInPrevent {
+      0% { transform: translate(0px, 0px); }
+      25% { transform: translate(3px, -2px); }
+      50% { transform: translate(-2px, 3px); }
+      75% { transform: translate(-3px, -1px); }
+      100% { transform: translate(2px, 2px); }
     }
     .night-time {
       font-family: var(--font-display, 'Outfit', sans-serif);

@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, HostListener } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -238,6 +238,9 @@ import { AuthService } from '../../services/auth.service';
                   <option value="metric">Metric (°C)</option>
                 </select>
               </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showHourly" /> Show 12-Hour Hourly Forecast</label>
+              </div>
             </ng-container>
 
             <!-- Calendar -->
@@ -313,6 +316,9 @@ import { AuthService } from '../../services/auth.service';
               </div>
               <div class="form-group checkbox-group">
                 <label><input type="checkbox" [(ngModel)]="selectedWidget.config.blurBackground" /> Blur Backdrop when Contained</label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.kenBurns" /> Cinematic Ken Burns Pan & Zoom</label>
               </div>
             </ng-container>
 
@@ -849,6 +855,52 @@ import { AuthService } from '../../services/auth.service';
 
       <!-- Visual Canvas Viewport with Auto-Zoom Stage -->
       <main class="canvas-viewport" id="editorViewport" (click)="selectedWidget = null">
+        <!-- Floating Canvas Power Toolbar (Undo, Redo, Duplication, Alignment) -->
+        <div class="canvas-power-toolbar" (click)="$event.stopPropagation()">
+          <div class="power-tool-group">
+            <button (click)="undo()" [disabled]="!canUndo()" class="power-btn" title="Undo (Ctrl+Z / ⌘Z)">
+              <span>↩</span> Undo
+            </button>
+            <button (click)="redo()" [disabled]="!canRedo()" class="power-btn" title="Redo (Ctrl+Y / ⌘Y)">
+              <span>↪</span> Redo
+            </button>
+          </div>
+
+          <div class="power-divider" *ngIf="selectedWidget"></div>
+
+          <!-- Selection & Alignment Tools -->
+          <div class="power-tool-group" *ngIf="selectedWidget">
+            <button (click)="duplicateSelectedWidget()" class="power-btn" title="Duplicate Widget (Ctrl+D / ⌘D)">
+              <span>📋</span> Duplicate
+            </button>
+            <button (click)="alignSelectedWidget('left')" class="power-btn" title="Align Left">
+              <span>⇤</span>
+            </button>
+            <button (click)="alignSelectedWidget('center_h')" class="power-btn" title="Center Horizontally">
+              <span>↔</span>
+            </button>
+            <button (click)="alignSelectedWidget('right')" class="power-btn" title="Align Right">
+              <span>⇥</span>
+            </button>
+            <button (click)="alignSelectedWidget('top')" class="power-btn" title="Align Top">
+              <span>⤒</span>
+            </button>
+            <button (click)="alignSelectedWidget('center_v')" class="power-btn" title="Center Vertically">
+              <span>↕</span>
+            </button>
+            <button (click)="alignSelectedWidget('bottom')" class="power-btn" title="Align Bottom">
+              <span>⤓</span>
+            </button>
+            <button (click)="removeSelectedWidget()" class="power-btn power-btn-danger" title="Delete Widget (Delete)">
+              <span>🗑️</span>
+            </button>
+          </div>
+
+          <div class="selected-coord-pill" *ngIf="selectedWidget">
+            X: {{ selectedWidget.position.x }} · Y: {{ selectedWidget.position.y }} | {{ selectedWidget.position.width }}×{{ selectedWidget.position.height }}
+          </div>
+        </div>
+
         <div class="canvas-stage" [style.width.px]="canvasWidth * zoomLevel" [style.height.px]="canvasHeight * zoomLevel">
           <div 
             class="screen-canvas" 
@@ -898,6 +950,11 @@ import { AuthService } from '../../services/auth.service';
               (mousedown)="startDrag($event, widget)"
               (click)="selectWidget(widget, $event)"
             >
+              <!-- Live Position HUD Badge on Selected Widget -->
+              <div class="live-pos-hud" *ngIf="selectedWidget === widget">
+                X: {{ widget.position.x }}, Y: {{ widget.position.y }} | {{ widget.position.width }}×{{ widget.position.height }}
+              </div>
+
               <div class="widget-header">
                 <span class="widget-badge">{{ widget.type | uppercase }}</span>
                 <span class="widget-size">{{ widget.position.width }}×{{ widget.position.height }}</span>
@@ -1623,6 +1680,88 @@ import { AuthService } from '../../services/auth.service';
       transition: transform 0.2s ease;
     }
 
+    .canvas-power-toolbar {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(14px);
+      border-radius: 12px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 50;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    .power-tool-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .power-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s;
+    }
+    .power-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .power-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .power-btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25) !important;
+      color: #f87171 !important;
+      border-color: rgba(239, 68, 68, 0.5) !important;
+    }
+    .power-divider {
+      width: 1px;
+      height: 18px;
+      background: rgba(255, 255, 255, 0.12);
+      margin: 0 2px;
+    }
+    .selected-coord-pill {
+      font-size: 0.68rem;
+      font-family: monospace;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 3px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .live-pos-hud {
+      position: absolute;
+      top: -24px;
+      left: 0;
+      background: #0284c7;
+      color: #ffffff;
+      font-size: 0.62rem;
+      font-weight: 800;
+      font-family: monospace;
+      padding: 2px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      z-index: 30;
+    }
+
     .floating-zoom-bar {
       position: absolute;
       bottom: 20px;
@@ -1817,8 +1956,12 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   private resizeStartY: number = 0;
   private initPos = { x: 0, y: 0, width: 0, height: 0 };
   currentUser: User | null = null;
-
   showHelpModal: boolean = false;
+
+  // History & Undo/Redo State Stack
+  private historyStack: string[] = [];
+  private historyIndex: number = -1;
+  private isApplyingHistory: boolean = false;
 
   constructor(
     private route: ActivatedRoute, 
@@ -2194,12 +2337,14 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     };
     this.widgets.push(newWidget);
     this.selectedWidget = newWidget;
+    this.pushHistory();
   }
 
   removeSelectedWidget(): void {
     if (!this.selectedWidget) return;
     this.widgets = this.widgets.filter(w => w !== this.selectedWidget);
     this.selectedWidget = null;
+    this.pushHistory();
   }
 
   getWidgetOpacity(): number {
@@ -2384,9 +2529,158 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   }
 
   stopDragOrResize(): void {
+    if (this.isDragging || this.isResizing) {
+      this.pushHistory();
+    }
     this.isDragging = false;
     this.isResizing = false;
     this.resizeHandle = '';
+  }
+
+  pushHistory(): void {
+    if (this.isApplyingHistory) return;
+    const snapshot = JSON.stringify({
+      widgets: this.widgets,
+      pages: this.pages,
+      backgroundConfig: this.backgroundConfig,
+      sleepSchedule: this.sleepSchedule,
+      activePageId: this.activePageId
+    });
+    if (this.historyIndex < this.historyStack.length - 1) {
+      this.historyStack = this.historyStack.slice(0, this.historyIndex + 1);
+    }
+    this.historyStack.push(snapshot);
+    if (this.historyStack.length > 40) {
+      this.historyStack.shift();
+    }
+    this.historyIndex = this.historyStack.length - 1;
+  }
+
+  canUndo(): boolean {
+    return this.historyIndex > 0;
+  }
+
+  canRedo(): boolean {
+    return this.historyIndex < this.historyStack.length - 1;
+  }
+
+  undo(): void {
+    if (!this.canUndo()) return;
+    this.historyIndex--;
+    this.applyHistorySnapshot(this.historyStack[this.historyIndex]);
+  }
+
+  redo(): void {
+    if (!this.canRedo()) return;
+    this.historyIndex++;
+    this.applyHistorySnapshot(this.historyStack[this.historyIndex]);
+  }
+
+  private applyHistorySnapshot(jsonStr: string): void {
+    try {
+      this.isApplyingHistory = true;
+      const data = JSON.parse(jsonStr);
+      this.widgets = data.widgets || [];
+      this.pages = data.pages || [];
+      this.backgroundConfig = data.backgroundConfig || this.backgroundConfig;
+      this.sleepSchedule = data.sleepSchedule || this.sleepSchedule;
+      this.activePageId = data.activePageId || this.activePageId;
+      if (this.selectedWidget) {
+        this.selectedWidget = this.widgets.find(w => w.id === this.selectedWidget?.id) || null;
+      }
+    } finally {
+      this.isApplyingHistory = false;
+    }
+  }
+
+  duplicateSelectedWidget(): void {
+    if (!this.selectedWidget) return;
+    const cloned: Widget = JSON.parse(JSON.stringify(this.selectedWidget));
+    cloned.id = Date.now();
+    cloned.position.x = Math.min(this.canvasWidth - cloned.position.width, cloned.position.x + 24);
+    cloned.position.y = Math.min(this.canvasHeight - cloned.position.height, cloned.position.y + 24);
+    this.widgets.push(cloned);
+    this.selectedWidget = cloned;
+    this.pushHistory();
+  }
+
+  alignSelectedWidget(mode: 'left' | 'center_h' | 'right' | 'top' | 'center_v' | 'bottom'): void {
+    if (!this.selectedWidget) return;
+    const p = this.selectedWidget.position;
+    switch (mode) {
+      case 'left':
+        p.x = 20;
+        break;
+      case 'center_h':
+        p.x = Math.round((this.canvasWidth - p.width) / 2);
+        break;
+      case 'right':
+        p.x = this.canvasWidth - p.width - 20;
+        break;
+      case 'top':
+        p.y = 20;
+        break;
+      case 'center_v':
+        p.y = Math.round((this.canvasHeight - p.height) / 2);
+        break;
+      case 'bottom':
+        p.y = this.canvasHeight - p.height - 20;
+        break;
+    }
+    this.pushHistory();
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardShortcut(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement;
+    const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+    
+    // Undo: Ctrl+Z / Cmd+Z (without Shift)
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+      if (!isInput) {
+        event.preventDefault();
+        this.undo();
+      }
+      return;
+    }
+
+    // Redo: Ctrl+Y / Cmd+Y or Ctrl+Shift+Z / Cmd+Shift+Z
+    if (((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') ||
+        ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z')) {
+      if (!isInput) {
+        event.preventDefault();
+        this.redo();
+      }
+      return;
+    }
+
+    // Duplicate: Ctrl+D / Cmd+D
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
+      if (this.selectedWidget && !isInput) {
+        event.preventDefault();
+        this.duplicateSelectedWidget();
+      }
+      return;
+    }
+
+    // Delete / Backspace
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !isInput && this.selectedWidget) {
+      event.preventDefault();
+      this.removeSelectedWidget();
+      return;
+    }
+
+    // Arrow Key Nudges
+    if (!isInput && this.selectedWidget && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      const delta = event.shiftKey ? 20 : 5;
+      const p = this.selectedWidget.position;
+      if (event.key === 'ArrowLeft') p.x = Math.max(0, p.x - delta);
+      if (event.key === 'ArrowRight') p.x = Math.min(this.canvasWidth - p.width, p.x + delta);
+      if (event.key === 'ArrowUp') p.y = Math.max(0, p.y - delta);
+      if (event.key === 'ArrowDown') p.y = Math.min(this.canvasHeight - p.height, p.y + delta);
+      this.pushHistory();
+    }
   }
 
   saveConfiguration(): void {
@@ -2421,11 +2715,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   addCalendarFeed(widget: Widget): void {
     if (!widget.config.feeds) widget.config.feeds = [];
     widget.config.feeds.push({ name: 'Family', url: '', color: '#ec4899' });
+    this.pushHistory();
   }
 
   removeCalendarFeed(widget: Widget, index: number): void {
     if (widget.config.feeds) {
       widget.config.feeds.splice(index, 1);
+      this.pushHistory();
     }
   }
 
@@ -2438,11 +2734,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       color: '#fef08a',
       date: 'Today'
     });
+    this.pushHistory();
   }
 
   removeStickyNote(widget: Widget, index: number): void {
     if (widget.config.notes) {
       widget.config.notes.splice(index, 1);
+      this.pushHistory();
     }
   }
 

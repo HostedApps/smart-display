@@ -1,6 +1,9 @@
 <?php
 require_once 'db.php';
 
+// Rate limit: 20 drops per minute per IP
+checkRateLimit($pdo, 'walldrop', 20, 60);
+
 $token = $_GET['token'] ?? '';
 if (empty($token)) {
     http_response_code(400);
@@ -49,11 +52,17 @@ try {
     // POST: Beam a note or photo to the display
     if ($method === 'POST') {
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $type = $input['type'] ?? 'note'; // 'note' | 'photo' | 'alert'
-        $author = trim($input['author'] ?? 'Family Member');
-        $content = trim($input['content'] ?? '');
+        $type = in_array($input['type'] ?? '', ['note', 'photo', 'alert']) ? $input['type'] : 'note';
+        $author = sanitizeText($input['author'] ?? 'Family Member');
+        $content = sanitizeText($input['content'] ?? '');
         $mediaUrl = trim($input['media_url'] ?? '');
-        $color = $input['color'] ?? '#fef08a';
+        $color = preg_match('/^#[0-9a-fA-F]{6}$/', $input['color'] ?? '') ? $input['color'] : '#fef08a';
+
+        if (!empty($mediaUrl) && !isSafeExternalUrl($mediaUrl)) {
+            http_response_code(400);
+            echo json_encode(["error" => "Invalid or unsafe photo URL"]);
+            exit();
+        }
 
         if (empty($content) && empty($mediaUrl)) {
             http_response_code(400);
@@ -101,5 +110,5 @@ try {
     }
 } catch (\Exception $e) {
     http_response_code(500);
-    echo json_encode(["error" => "WallDrop operation failed: " . $e->getMessage()]);
+    echo json_encode(["error" => "Server error: " . $e->getMessage()]);
 }

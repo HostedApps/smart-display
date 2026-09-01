@@ -29,3 +29,99 @@ try {
     echo json_encode(["error" => "Database connection failed: " . $e->getMessage()]);
     exit();
 }
+
+function getClientIp() {
+    return $_SERVER['HTTP_CF_CONNECTING_IP'] 
+        ?? $_SERVER['HTTP_X_FORWARDED_FOR'] 
+        ?? $_SERVER['REMOTE_ADDR'] 
+        ?? '127.0.0.1';
+}
+
+function checkRateLimit($pdo, $action, $maxAttempts = 10, $windowSeconds = 60) {
+    $ip = getClientIp();
+    $rateKey = $action . ':' . md5($ip);
+    $now = time();
+
+    try {
+        $stmt = $pdo->prepare("SELECT hits, expires_at FROM rate_limits WHERE rate_key = ?");
+        $stmt->execute([$rateKey]);
+        $record = $stmt->fetch();
+
+        if ($record) {
+            if ($record['expires_at'] < $now) {
+                $up = $pdo->prepare("UPDATE rate_limits SET hits = 1, expires_at = ? WHERE rate_key = ?");
+                $up->execute([$now + $windowSeconds, $rateKey]);
+                return true;
+            } else {
+                if ((int)$record['hits'] >= $maxAttempts) {
+                    http_response_code(429);
+                    echo json_encode([
+                        "error" => "Too many requests. Please wait a moment and try again.",
+                        "retry_after_seconds" => max(1, $record['expires_at'] - $now)
+                    ]);
+                    exit();
+                }
+                $up = $pdo->prepare("UPDATE rate_limits SET hits = hits + 1 WHERE rate_key = ?");
+                $up->execute([$rateKey]);
+                return true;
+            }
+        } else {
+            $ins = $pdo->prepare("INSERT INTO rate_limits (rate_key, hits, expires_at) VALUES (?, 1, ?)");
+            $ins->execute([$rateKey, $now + $windowSeconds]);
+            return true;
+        }
+    } catch (\Exception $e) {
+        return true;
+    }
+}
+
+function isSafeExternalUrl($url) {
+    if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+        return false;
+    }
+
+    $parsed = parse_url($url);
+    $scheme = strtolower($parsed['scheme'] ?? '');
+    if (!in_array($scheme, ['http', 'https'])) {
+        return false;
+    }
+
+    $host = strtolower($parsed['host'] ?? '');
+    if (empty($host) || $host === 'localhost' || str_ends_with($host, '.local') || str_ends_with($host, '.internal')) {
+        return false;
+    }
+
+    $ip = gethostbyname($host);
+    if (!$ip || $ip === $host) {
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $ip = $host;
+        }
+    }
+
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return false;
+    }
+
+    $long = ip2long($ip);
+    if ($long === false) {
+        if ($ip === '::1' || str_starts_with($ip, 'fc') || str_starts_with($ip, 'fd') || str_starts_with($ip, 'fe80')) {
+            return false;
+        }
+        return true;
+    }
+
+    // Block Loopback, Private RFC1918, Link-local/Cloud Metadata, Broadcast
+    if (($long & 0xFF000000) === 0x7F000000) return false; // 127.0.0.0/8
+    if (($long & 0xFF000000) === 0x0A000000) return false; // 10.0.0.0/8
+    if (($long & 0xFFF00000) === 0xAC100000) return false; // 172.16.0.0/12
+    if (($long & 0xFFFF0000) === 0xC0A80000) return false; // 192.168.0.0/16
+    if (($long & 0xFFFF0000) === 0xA9FE0000) return false; // 169.254.0.0/16
+    if (($long & 0xFF000000) === 0x00000000) return false; // 0.0.0.0/8
+
+    return true;
+}
+
+function sanitizeText($text) {
+    if ($text === null) return '';
+    return htmlspecialchars(strip_tags(trim($text)), ENT_QUOTES, 'UTF-8');
+}

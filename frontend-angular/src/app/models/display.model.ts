@@ -36,6 +36,7 @@ export interface WeatherConfig {
   city?: string;
   units?: 'metric' | 'imperial';
   showForecast?: boolean;
+  showHourly?: boolean;
 }
 
 export interface CalendarFeed {
@@ -59,6 +60,7 @@ export interface PhotoConfig {
   fitMode?: 'cover' | 'contain';
   blurBackground?: boolean;
   showCaptions?: boolean;
+  kenBurns?: boolean;
 }
 
 export interface RssConfig {
