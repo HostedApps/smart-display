@@ -51,9 +51,17 @@ import { EmergencyService } from '../services/emergency.service';
         [style.opacity]="(displayConfig?.background?.opacity !== undefined ? displayConfig?.background?.opacity : 1)"
       ></iframe>
 
-      <!-- Offline Pill -->
-      <div class="offline-pill" *ngIf="!isOnline">
-        <span>Offline Mode</span>
+      <!-- Offline Diagnostic Pill -->
+      <div 
+        class="offline-pill" 
+        *ngIf="!isOnline" 
+        (click)="retrySync()"
+        [title]="'Click to retry sync. Diagnostic reason: ' + (offlineReason || 'Network or Server Unreachable')"
+      >
+        <span class="offline-dot"></span>
+        <span class="offline-text">Offline Mode</span>
+        <span class="offline-reason" *ngIf="offlineReason">: {{ offlineReason }}</span>
+        <button class="btn-retry-icon" title="Retry sync now">↻</button>
       </div>
 
       <!-- Brand Logo Watermark (Optional) -->
@@ -182,16 +190,57 @@ import { EmergencyService } from '../services/emergency.service';
       top: 16px;
       right: 16px;
       z-index: 99;
-      background: rgba(239, 68, 68, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(220, 38, 38, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.25);
       color: white;
       padding: 5px 12px;
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 700;
-      letter-spacing: 0.5px;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+      letter-spacing: 0.3px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s;
+    }
+    .offline-pill:hover {
+      transform: scale(1.02);
+      background: rgba(239, 68, 68, 0.95);
+    }
+    .offline-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fca5a5;
+      animation: blink-dot 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes blink-dot {
+      0% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+    .offline-reason {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #fecaca;
+    }
+    .btn-retry-icon {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: bold;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-left: 2px;
     }
     .kiosk-brand-watermark {
       position: absolute;
@@ -404,6 +453,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   activePageIndex: number = 0;
 
   isOnline: boolean = true;
+  offlineReason: string = '';
   isSleeping: boolean = false;
   currentTime: Date = new Date();
 
@@ -592,19 +642,43 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     }
   }
 
+  retrySync(): void {
+    this.offlineReason = 'Syncing...';
+    this.loadConfiguration();
+  }
+
   private loadConfiguration(): void {
+    if (!this.token || this.token === 'YOUR_TOKEN') {
+      this.isOnline = false;
+      this.offlineReason = 'Placeholder Token (YOUR_TOKEN)';
+      return;
+    }
+
     this.fetchDisplayData().subscribe({
       next: res => {
         if (res && res.success) {
           this.isOnline = true;
+          this.offlineReason = '';
           this.offlineCache.saveDisplay(this.token, res);
           this.handleData(res);
         } else {
           this.isOnline = false;
+          this.offlineReason = (res && (res as any).error) || 'Invalid server response';
         }
       },
-      error: () => {
+      error: (err) => {
         this.isOnline = false;
+        if (err.status === 404) {
+          this.offlineReason = 'Display Not Found (404)';
+        } else if (err.status === 401 || err.status === 403) {
+          this.offlineReason = 'Unauthorized (401/403)';
+        } else if (err.status === 0) {
+          this.offlineReason = 'Network or DNS Unreachable';
+        } else if (err.status >= 500) {
+          this.offlineReason = `Server Error (${err.status})`;
+        } else {
+          this.offlineReason = err.statusText || 'Connection Error';
+        }
         // Fast retry after 8 seconds in case Raspberry Pi booted before WiFi connected
         setTimeout(() => this.loadConfiguration(), 8000);
       }
