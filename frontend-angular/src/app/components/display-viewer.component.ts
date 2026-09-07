@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { interval, Subscription, switchMap } from 'rxjs';
+import { interval, Subscription, switchMap, catchError, of } from 'rxjs';
 import { DisplayResponse, Widget, DisplayConfig, DisplayPage, EmergencyBroadcast } from '../models/display.model';
 import { environment } from '../../environments/environment';
 import { OfflineCacheService } from '../services/offline-cache.service';
@@ -461,6 +461,12 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     this.token = this.route.snapshot.paramMap.get('token') || '';
     this.offlineCache.isOnline$.subscribe(status => this.isOnline = status);
 
+    // Re-check and sync immediately when network reconnects
+    window.addEventListener('online', () => {
+      this.isOnline = true;
+      this.loadConfiguration();
+    });
+
     // Keep screen awake 24/7 on iPad and Android/Fire TV
     this.wakeLock.requestWakeLock();
 
@@ -472,11 +478,22 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       }
       this.loadConfiguration();
 
-      this.pollSub = interval(120000)
-        .pipe(switchMap(() => this.fetchDisplayData()))
-        .subscribe({
-          next: res => this.handleData(res),
-          error: () => this.isOnline = false
+      // Periodic resync every 60s with error catch to keep subscription alive
+      this.pollSub = interval(60000)
+        .pipe(
+          switchMap(() => this.fetchDisplayData().pipe(
+            catchError(() => {
+              this.isOnline = false;
+              return of(null);
+            })
+          ))
+        )
+        .subscribe(res => {
+          if (res && res.success) {
+            this.isOnline = true;
+            this.offlineCache.saveDisplay(this.token, res);
+            this.handleData(res);
+          }
         });
 
       // Poll for 1-Click Emergency Takeover every 5 seconds
@@ -578,12 +595,18 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   private loadConfiguration(): void {
     this.fetchDisplayData().subscribe({
       next: res => {
-        this.isOnline = true;
-        this.offlineCache.saveDisplay(this.token, res);
-        this.handleData(res);
+        if (res && res.success) {
+          this.isOnline = true;
+          this.offlineCache.saveDisplay(this.token, res);
+          this.handleData(res);
+        } else {
+          this.isOnline = false;
+        }
       },
       error: () => {
         this.isOnline = false;
+        // Fast retry after 8 seconds in case Raspberry Pi booted before WiFi connected
+        setTimeout(() => this.loadConfiguration(), 8000);
       }
     });
   }
