@@ -161,6 +161,9 @@ import { environment } from '../../../environments/environment';
   `]
 })
 export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
+  // Global Static In-Memory Cache for Album URLs across page rotations & re-renders
+  private static albumCache = new Map<string, string[]>();
+
   @Input() config: any = {
     albumUrl: '',
     images: [],
@@ -180,6 +183,8 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   loadingAlbum: boolean = false;
   isGooglePhotos: boolean = false;
   currentIndex: number = 0;
+  private currentLoadedAlbumUrl: string = '';
+  private currentIntervalSec: number = 0;
   private timerSub?: Subscription;
   private albumPollSub?: Subscription;
 
@@ -196,22 +201,23 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get effectiveImages(): string[] {
-    let list: string[] = [];
-    if (this.googlePhotosList.length > 0) {
-      list = this.googlePhotosList;
-    } else if (this.config.images && Array.isArray(this.config.images) && this.config.images.length > 0) {
-      list = this.config.images;
-    } else if (typeof this.config.images === 'string' && this.config.images.trim()) {
-      const urls = this.config.images.split('\n').map((u: string) => u.trim()).filter((u: string) => !!u);
-      if (urls.length > 0) list = urls;
-    } else {
-      list = this.defaultImages;
+    if (this.isGooglePhotos) {
+      // Return cached/fetched Google Photos list (never flash default images while album is active)
+      return this.googlePhotosList.map(u => this.normalizeImageUrl(u));
     }
-    return list.map(u => this.normalizeImageUrl(u));
+    if (this.config.images && Array.isArray(this.config.images) && this.config.images.length > 0) {
+      return this.config.images.map((u: string) => this.normalizeImageUrl(u));
+    }
+    if (typeof this.config.images === 'string' && this.config.images.trim()) {
+      const urls = this.config.images.split('\n').map((u: string) => u.trim()).filter((u: string) => !!u);
+      if (urls.length > 0) return urls.map((u: string) => this.normalizeImageUrl(u));
+    }
+    return this.defaultImages;
   }
 
   get currentImageUrl(): string {
     const list = this.effectiveImages;
+    if (list.length === 0) return '';
     return list[this.currentIndex % list.length] || '';
   }
 
@@ -237,19 +243,33 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     
     if (albumUrl && (albumUrl.includes('photos.app.goo.gl') || albumUrl.includes('photos.google.com') || albumUrl.includes('drive.google.com') || albumUrl.includes('goo.gl'))) {
       this.isGooglePhotos = true;
+
+      // If already cached in memory, load immediately without network wait
+      if (PhotoWidgetComponent.albumCache.has(albumUrl)) {
+        this.googlePhotosList = PhotoWidgetComponent.albumCache.get(albumUrl)!;
+      }
+
+      // If already loaded for this exact album URL and we have photos, skip re-fetching
+      if (this.currentLoadedAlbumUrl === albumUrl && this.googlePhotosList.length > 0) {
+        return;
+      }
+
       this.fetchGooglePhotosAlbum(albumUrl);
 
       // Refresh Google Photos album every 30 minutes for newly added family photos
       this.albumPollSub?.unsubscribe();
-      this.albumPollSub = interval(30 * 60 * 1000).subscribe(() => this.fetchGooglePhotosAlbum(albumUrl));
+      this.albumPollSub = interval(30 * 60 * 1000).subscribe(() => this.fetchGooglePhotosAlbum(albumUrl, true));
     } else {
       this.isGooglePhotos = false;
+      this.currentLoadedAlbumUrl = '';
       this.googlePhotosList = [];
     }
   }
 
-  private fetchGooglePhotosAlbum(url: string): void {
-    this.loadingAlbum = true;
+  private fetchGooglePhotosAlbum(url: string, isBackgroundRefresh: boolean = false): void {
+    if (!isBackgroundRefresh && this.googlePhotosList.length === 0) {
+      this.loadingAlbum = true;
+    }
     const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_google_photos&album_url=${encodeURIComponent(url)}`;
     
     this.http.get<any>(proxyUrl)
@@ -257,15 +277,27 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
       .subscribe(res => {
         this.loadingAlbum = false;
         if (res && res.success && Array.isArray(res.images) && res.images.length > 0) {
+          PhotoWidgetComponent.albumCache.set(url, res.images);
           this.googlePhotosList = res.images;
-          this.currentIndex = 0;
+          this.currentLoadedAlbumUrl = url;
+          // CRUCIAL: Do NOT reset currentIndex to 0 if album is already playing.
+          // Keep current progression through the album seamlessly.
+          if (this.currentIndex >= this.googlePhotosList.length) {
+            this.currentIndex = this.currentIndex % this.googlePhotosList.length;
+          }
         }
       });
   }
 
   private restartTimer(): void {
-    this.timerSub?.unsubscribe();
     const intervalSec = Math.max(3, Number(this.config.intervalSeconds) || 10);
+    // If timer is already running with the same interval, don't interrupt it
+    if (this.timerSub && this.currentIntervalSec === intervalSec) {
+      return;
+    }
+
+    this.timerSub?.unsubscribe();
+    this.currentIntervalSec = intervalSec;
     this.timerSub = interval(intervalSec * 1000).subscribe(() => {
       if (this.effectiveImages.length > 1) {
         this.currentIndex = (this.currentIndex + 1) % this.effectiveImages.length;

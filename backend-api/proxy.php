@@ -79,25 +79,22 @@ if ($action === 'fetch_google_photos') {
     // Unescape JSON slashes in JavaScript payload
     $cleanHtml = str_replace('\\/', '/', $html);
 
-    // Extract all googleusercontent photos (covers /pw/, /a-/, and standard root tokens)
-    preg_match_all('/https:\/\/[a-z0-9]+\.googleusercontent\.com\/(?:pw\/|a-\/)?[a-zA-Z0-9_\-]+/i', $cleanHtml, $matches);
+    // Extract all googleusercontent photo media assets (specifically /pw/ or long media tokens, excluding /a-/ and /a/ user profile avatars)
+    preg_match_all('/https:\/\/[a-z0-9]+\.googleusercontent\.com\/(?:pw\/[a-zA-Z0-9_\-]+|[a-zA-Z0-9_\-]{60,})/i', $cleanHtml, $matches);
 
     $rawUrls = $matches[0] ?? [];
     $seen = [];
     $photos = [];
 
-    // Also extract og:image if present
-    if (preg_match('/<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']/i', $html, $ogImgMatch)) {
-        $ogBase = preg_replace('/=.*$/', '', $ogImgMatch[1]);
-        if (strpos($ogBase, 'googleusercontent.com') !== false) {
-            $rawUrls[] = $ogBase;
-        }
-    }
-
     foreach ($rawUrls as $url) {
+        // Explicitly reject user avatars, profile photos, and Google system icons
+        if (strpos($url, '/a-/') !== false || strpos($url, '/a/') !== false || strpos($url, 'avatar') !== false) {
+            continue;
+        }
+
         $base = preg_replace('/=.*$/', '', $url);
-        // Exclude avatars / short icons (valid photos have hash keys > 45 characters)
-        if (strlen($base) > 50 && !isset($seen[$base]) && strpos($base, 'googleusercontent.com') !== false) {
+        // Valid high-res photos have keys > 50 chars
+        if (strlen($base) > 55 && !isset($seen[$base]) && strpos($base, 'googleusercontent.com') !== false) {
             $seen[$base] = true;
             $photos[] = $base . '=w1920-h1080-no';
         }
