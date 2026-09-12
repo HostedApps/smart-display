@@ -1,5 +1,8 @@
 import { Component, Input, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { TodoItem } from '../../models/display.model';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-todo-widget',
@@ -178,6 +181,8 @@ export class TodoWidgetComponent implements OnInit {
     allowToggle: true
   };
 
+  private displayToken: string = '';
+
   private defaultItems: TodoItem[] = [
     { id: '1', text: 'Water the garden plants', completed: false, priority: 'medium' },
     { id: '2', text: 'Groceries: Milk, Eggs, Sourdough', completed: false, priority: 'high', dueDate: 'Today' },
@@ -204,11 +209,29 @@ export class TodoWidgetComponent implements OnInit {
     return this.items.filter(i => i.completed).length;
   }
 
-  ngOnInit(): void {}
+  constructor(private http: HttpClient, private route: ActivatedRoute) {}
+
+  ngOnInit(): void {
+    this.displayToken = this.route.snapshot.paramMap.get('token') || '';
+  }
 
   toggleItem(item: TodoItem): void {
     if (this.config.allowToggle !== false) {
       item.completed = !item.completed;
+
+      // Sync completion status to backend
+      if (this.displayToken) {
+        this.http.post(`${environment.apiUrl}/tasks_sync.php`, {
+          token: this.displayToken,
+          taskId: item.id,
+          completed: item.completed,
+          text: item.text,
+          priority: item.priority
+        }).subscribe({
+          next: () => {},
+          error: () => {}
+        });
+      }
     }
   }
 }

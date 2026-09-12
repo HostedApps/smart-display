@@ -10,18 +10,24 @@ ACTION=$1
 case "$ACTION" in
   on)
     echo "[$(date)] Turning display ON..."
-    # 1. Try xset DPMS wakeup (X11)
+    # 1. Try HDMI-CEC TV wake (for connected TVs)
+    if command -v cec-client &>/dev/null; then
+      echo "on 0" | cec-client -s -d 1 2>/dev/null || true
+      echo "as" | cec-client -s -d 1 2>/dev/null || true
+    fi
+
+    # 2. Try xset DPMS wakeup (X11)
     export DISPLAY=:0
     xset dpms force on 2>/dev/null || true
     xset -dpms 2>/dev/null || true
     xset s off 2>/dev/null || true
 
-    # 2. Try vcgencmd (Raspberry Pi legacy firmware)
+    # 3. Try vcgencmd (Raspberry Pi legacy firmware)
     if command -v vcgencmd &>/dev/null; then
       vcgencmd display_power 1 2>/dev/null || true
     fi
 
-    # 3. Try wlr-randr (Wayland / Wayfire on Bookworm)
+    # 4. Try wlr-randr (Wayland / Wayfire on Bookworm)
     if command -v wlr-randr &>/dev/null; then
       wlr-randr --output HDMI-A-1 --on 2>/dev/null || true
     fi
@@ -29,17 +35,22 @@ case "$ACTION" in
 
   off)
     echo "[$(date)] Turning display OFF (Standby)..."
+    # 1. Try HDMI-CEC TV standby (for connected TVs)
+    if command -v cec-client &>/dev/null; then
+      echo "standby 0" | cec-client -s -d 1 2>/dev/null || true
+    fi
+
+    # 2. Try xset DPMS standby (X11)
     export DISPLAY=:0
-    # 1. Try xset DPMS standby (X11)
     xset +dpms 2>/dev/null || true
     xset dpms force off 2>/dev/null || true
 
-    # 2. Try vcgencmd (Raspberry Pi legacy firmware)
+    # 3. Try vcgencmd (Raspberry Pi legacy firmware)
     if command -v vcgencmd &>/dev/null; then
       vcgencmd display_power 0 2>/dev/null || true
     fi
 
-    # 3. Try wlr-randr (Wayland on Bookworm)
+    # 4. Try wlr-randr (Wayland on Bookworm)
     if command -v wlr-randr &>/dev/null; then
       wlr-randr --output HDMI-A-1 --off 2>/dev/null || true
     fi

@@ -360,9 +360,23 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   fetchCalendars(): void {
+    const customEvents: CalendarEvent[] = (this.config.customEvents && Array.isArray(this.config.customEvents))
+      ? this.config.customEvents.map((ev: any) => ({
+          title: ev.title,
+          startDate: new Date(ev.startDate),
+          endDate: ev.endDate ? new Date(ev.endDate) : new Date(new Date(ev.startDate).getTime() + 3600000),
+          isAllDay: !!ev.isAllDay,
+          location: ev.location,
+          description: ev.description,
+          color: ev.color || '#38bdf8',
+          feedName: ev.feedName || (ev.category ? `AI: ${ev.category}` : 'Flyer Event')
+        }))
+      : [];
+
     const feeds = this.activeFeeds.filter(f => !!f.url);
     if (feeds.length === 0) {
-      this.events = this.defaultEvents;
+      this.events = customEvents.length > 0 ? customEvents : this.defaultEvents;
+      this.events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       this.buildMonthGrid();
       return;
     }
@@ -375,7 +389,7 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     });
 
     forkJoin(requests).subscribe(results => {
-      let combined: CalendarEvent[] = [];
+      let combined: CalendarEvent[] = [...customEvents];
       results.forEach((rawIcal, idx) => {
         if (rawIcal) {
           const parsed = this.icalParser.parse(rawIcal, feeds[idx].name, feeds[idx].color);
@@ -384,7 +398,7 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
       });
 
       combined.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-      this.events = combined.length > 0 ? combined : this.defaultEvents;
+      this.events = combined.length > 0 ? combined : (customEvents.length > 0 ? customEvents : this.defaultEvents);
       this.buildMonthGrid();
     });
   }
