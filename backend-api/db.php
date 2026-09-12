@@ -91,6 +91,19 @@ function isSafeExternalUrl($url) {
         return false;
     }
 
+    // Trusted public API & content providers bypass DNS resolution checks
+    $trustedDomains = [
+        'photos.app.goo.gl', 'photos.google.com', 'drive.google.com',
+        'googleusercontent.com', 'google.com', 'goo.gl',
+        'yahoo.com', 'coingecko.com', 'openweathermap.org',
+        'unsplash.com', 'githubusercontent.com'
+    ];
+    foreach ($trustedDomains as $td) {
+        if ($host === $td || str_ends_with($host, '.' . $td)) {
+            return true;
+        }
+    }
+
     $ip = gethostbyname($host);
     if (!$ip || $ip === $host) {
         if (filter_var($host, FILTER_VALIDATE_IP)) {
