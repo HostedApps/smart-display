@@ -30,8 +30,10 @@ $BROWSER \
   --noerrdialogs \
   --disable-infobars \
   --kiosk \
+  --password-store=basic \
   --check-for-update-interval=31536000 \
   --disable-pinch \
   --overscroll-history-navigation=0 \
   --autoplay-policy=no-user-gesture-required \
+  --remote-debugging-port=9222 \
   "https://palevioletred-ibex-451966.hostingersite.com/#/display/living-room-display"
