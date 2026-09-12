@@ -29,6 +29,19 @@ if ($action === 'fetch_google_photos') {
         exit();
     }
 
+    // Server-side transient caching (30-minute TTL for fast boot & instant load)
+    $forceRefresh = !empty($_GET['force_refresh']) || !empty($_GET['refresh']);
+    $cacheFile = sys_get_temp_dir() . '/gphotos_' . md5($albumUrl) . '.json';
+    if (!$forceRefresh && file_exists($cacheFile) && (time() - filemtime($cacheFile) < 1800)) {
+        $cachedData = @file_get_contents($cacheFile);
+        if (!empty($cachedData)) {
+            header("Content-Type: application/json; charset=UTF-8");
+            header("X-Cache: HIT");
+            echo $cachedData;
+            exit();
+        }
+    }
+
     // Helper to fetch URL with full desktop browser simulation
     $fetchUrl = function($targetUrl) {
         $ch = curl_init();
@@ -100,12 +113,19 @@ if ($action === 'fetch_google_photos') {
         }
     }
 
-    header("Content-Type: application/json; charset=UTF-8");
-    echo json_encode([
+    $responsePayload = json_encode([
         "success" => true,
         "count" => count($photos),
         "images" => $photos
     ]);
+
+    if (!empty($photos)) {
+        @file_put_contents($cacheFile, $responsePayload);
+    }
+
+    header("Content-Type: application/json; charset=UTF-8");
+    header("X-Cache: MISS");
+    echo $responsePayload;
     exit();
 }
 

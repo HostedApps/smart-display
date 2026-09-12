@@ -161,8 +161,9 @@ import { environment } from '../../../environments/environment';
   `]
 })
 export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
-  // Global Static In-Memory Cache for Album URLs across page rotations & re-renders
+  // Global Static In-Memory Cache for Album URLs & Current Playback Indices across page rotations & re-renders
   private static albumCache = new Map<string, string[]>();
+  private static albumIndexMap = new Map<string, number>();
 
   @Input() config: any = {
     albumUrl: '',
@@ -187,8 +188,40 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   private currentIntervalSec: number = 0;
   private timerSub?: Subscription;
   private albumPollSub?: Subscription;
+  private retryTimeout?: any;
+  private onlineListener?: () => void;
+  private errorCount: number = 0;
+  private lastErrorTime: number = 0;
 
   constructor(private http: HttpClient) {}
+
+  private static getStorageKey(url: string): string {
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) {
+      hash = ((hash << 5) - hash) + url.charCodeAt(i);
+      hash |= 0;
+    }
+    return `gphotos_album_${Math.abs(hash)}`;
+  }
+
+  private static loadAlbumFromStorage(url: string): string[] | null {
+    try {
+      const raw = localStorage.getItem(PhotoWidgetComponent.getStorageKey(url));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  private static saveAlbumToStorage(url: string, images: string[]): void {
+    try {
+      localStorage.setItem(PhotoWidgetComponent.getStorageKey(url), JSON.stringify(images));
+    } catch (e) {}
+  }
 
   private normalizeImageUrl(url: string): string {
     if (!url) return '';
@@ -227,6 +260,15 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   ngOnInit(): void {
+    // Listen for network reconnect to immediately retry album download
+    this.onlineListener = () => {
+      const albumUrl = this.getAlbumUrl();
+      if (albumUrl && this.isGooglePhotos) {
+        this.fetchGooglePhotosAlbum(albumUrl, false, 0);
+      }
+    };
+    window.addEventListener('online', this.onlineListener);
+
     this.checkAndFetchGooglePhotos();
     this.restartTimer();
   }
@@ -238,27 +280,42 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  private getAlbumUrl(): string {
+    return this.config.albumUrl || (typeof this.config.images === 'string' && (this.config.images.includes('photos.') || this.config.images.includes('drive.google.com') || this.config.images.includes('goo.gl')) ? this.config.images.trim() : '');
+  }
+
   private checkAndFetchGooglePhotos(): void {
-    const albumUrl = this.config.albumUrl || (typeof this.config.images === 'string' && (this.config.images.includes('photos.') || this.config.images.includes('drive.google.com') || this.config.images.includes('goo.gl')) ? this.config.images.trim() : '');
+    const albumUrl = this.getAlbumUrl();
     
     if (albumUrl && (albumUrl.includes('photos.app.goo.gl') || albumUrl.includes('photos.google.com') || albumUrl.includes('drive.google.com') || albumUrl.includes('goo.gl'))) {
       this.isGooglePhotos = true;
 
-      // If already cached in memory, load immediately without network wait
+      // Restore saved progression index for this album
+      if (PhotoWidgetComponent.albumIndexMap.has(albumUrl)) {
+        this.currentIndex = PhotoWidgetComponent.albumIndexMap.get(albumUrl) || 0;
+      }
+
+      // Step 1: Check In-Memory Cache
       if (PhotoWidgetComponent.albumCache.has(albumUrl)) {
         this.googlePhotosList = PhotoWidgetComponent.albumCache.get(albumUrl)!;
+        this.currentLoadedAlbumUrl = albumUrl;
+      } else {
+        // Step 2: Check Persistent LocalStorage Cache (Instant 0ms boot loading)
+        const stored = PhotoWidgetComponent.loadAlbumFromStorage(albumUrl);
+        if (stored && stored.length > 0) {
+          PhotoWidgetComponent.albumCache.set(albumUrl, stored);
+          this.googlePhotosList = stored;
+          this.currentLoadedAlbumUrl = albumUrl;
+        }
       }
 
-      // If already loaded for this exact album URL and we have photos, skip re-fetching
-      if (this.currentLoadedAlbumUrl === albumUrl && this.googlePhotosList.length > 0) {
-        return;
-      }
-
-      this.fetchGooglePhotosAlbum(albumUrl);
+      // If already loaded in memory and we have photos, perform background sync instead of blocking spinner
+      const hasLocalPhotos = this.googlePhotosList.length > 0;
+      this.fetchGooglePhotosAlbum(albumUrl, hasLocalPhotos, 0);
 
       // Refresh Google Photos album every 30 minutes for newly added family photos
       this.albumPollSub?.unsubscribe();
-      this.albumPollSub = interval(30 * 60 * 1000).subscribe(() => this.fetchGooglePhotosAlbum(albumUrl, true));
+      this.albumPollSub = interval(30 * 60 * 1000).subscribe(() => this.fetchGooglePhotosAlbum(albumUrl, true, 0));
     } else {
       this.isGooglePhotos = false;
       this.currentLoadedAlbumUrl = '';
@@ -266,7 +323,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
-  private fetchGooglePhotosAlbum(url: string, isBackgroundRefresh: boolean = false): void {
+  private fetchGooglePhotosAlbum(url: string, isBackgroundRefresh: boolean = false, retryAttempt: number = 0): void {
     if (!isBackgroundRefresh && this.googlePhotosList.length === 0) {
       this.loadingAlbum = true;
     }
@@ -278,20 +335,51 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
         this.loadingAlbum = false;
         if (res && res.success && Array.isArray(res.images) && res.images.length > 0) {
           PhotoWidgetComponent.albumCache.set(url, res.images);
+          PhotoWidgetComponent.saveAlbumToStorage(url, res.images);
           this.googlePhotosList = res.images;
           this.currentLoadedAlbumUrl = url;
-          // CRUCIAL: Do NOT reset currentIndex to 0 if album is already playing.
-          // Keep current progression through the album seamlessly.
+          
+          // Preserve playback index seamlessly within bounds
           if (this.currentIndex >= this.googlePhotosList.length) {
             this.currentIndex = this.currentIndex % this.googlePhotosList.length;
+          }
+          PhotoWidgetComponent.albumIndexMap.set(url, this.currentIndex);
+          this.preloadNextImage();
+        } else {
+          // If fetch failed (e.g. Pi booted before Wi-Fi connected), retry with exponential backoff
+          if (retryAttempt < 5) {
+            const delay = Math.min(30000, 3000 * Math.pow(2, retryAttempt));
+            if (this.retryTimeout) clearTimeout(this.retryTimeout);
+            this.retryTimeout = setTimeout(() => {
+              this.fetchGooglePhotosAlbum(url, this.googlePhotosList.length > 0, retryAttempt + 1);
+            }, delay);
           }
         }
       });
   }
 
+  private saveCurrentIndex(): void {
+    const albumUrl = this.getAlbumUrl();
+    if (albumUrl) {
+      PhotoWidgetComponent.albumIndexMap.set(albumUrl, this.currentIndex);
+    }
+    this.preloadNextImage();
+  }
+
+  private preloadNextImage(): void {
+    const list = this.effectiveImages;
+    if (list.length > 1) {
+      const nextIdx = (this.currentIndex + 1) % list.length;
+      const nextUrl = list[nextIdx];
+      if (nextUrl) {
+        const img = new Image();
+        img.src = nextUrl;
+      }
+    }
+  }
+
   private restartTimer(): void {
     const intervalSec = Math.max(3, Number(this.config.intervalSeconds) || 10);
-    // If timer is already running with the same interval, don't interrupt it
     if (this.timerSub && this.currentIntervalSec === intervalSec) {
       return;
     }
@@ -301,17 +389,38 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     this.timerSub = interval(intervalSec * 1000).subscribe(() => {
       if (this.effectiveImages.length > 1) {
         this.currentIndex = (this.currentIndex + 1) % this.effectiveImages.length;
+        this.saveCurrentIndex();
       }
     });
   }
 
   handleImageError(): void {
+    const now = Date.now();
+    if (now - this.lastErrorTime < 500) {
+      this.errorCount++;
+    } else {
+      this.errorCount = 1;
+    }
+    this.lastErrorTime = now;
+
+    if (this.errorCount > 5) {
+      // Prevent infinite rotation spinning if offline
+      return;
+    }
+
     if (this.effectiveImages.length > 1) {
       this.currentIndex = (this.currentIndex + 1) % this.effectiveImages.length;
+      this.saveCurrentIndex();
     }
   }
 
   ngOnDestroy(): void {
+    if (this.onlineListener) {
+      window.removeEventListener('online', this.onlineListener);
+    }
+    if (this.retryTimeout) {
+      clearTimeout(this.retryTimeout);
+    }
     this.timerSub?.unsubscribe();
     this.albumPollSub?.unsubscribe();
   }

@@ -84,7 +84,7 @@ import { EmergencyService } from '../services/emergency.service';
       <!-- Active Screen Widgets Area -->
       <div class="widgets-container" *ngIf="!isSleeping">
         <div 
-          *ngFor="let widget of activeWidgets" 
+          *ngFor="let widget of activeWidgets; trackBy: trackWidgetById" 
           class="widget-wrapper"
           [style.left.px]="widget.position.x"
           [style.top.px]="widget.position.y"
@@ -689,10 +689,20 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     return this.http.get<DisplayResponse>(`${environment.apiUrl}/get_display.php?token=${this.token}`);
   }
 
+  trackWidgetById(index: number, widget: Widget): any {
+    return widget.id || index;
+  }
+
   private handleData(response: DisplayResponse): void {
     if (response && response.success) {
       this.displayConfig = response.display;
-      this.widgets = response.widgets;
+
+      // Smart diffing: only update widgets array reference if content actually changed
+      const currentWidgetsJson = JSON.stringify(this.widgets);
+      const newWidgetsJson = JSON.stringify(response.widgets);
+      if (currentWidgetsJson !== newWidgetsJson) {
+        this.widgets = response.widgets;
+      }
 
       if (response.display.pages && response.display.pages.length > 0) {
         this.pages = response.display.pages;
