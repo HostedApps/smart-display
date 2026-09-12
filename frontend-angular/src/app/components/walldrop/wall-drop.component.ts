@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { WalldropService } from '../../services/walldrop.service';
 import { WallDropItem } from '../../models/display.model';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-wall-drop',
@@ -11,13 +13,14 @@ import { WallDropItem } from '../../models/display.model';
         <div class="drop-header">
           <div class="beam-icon">📲</div>
           <h1>WallDrop Beam</h1>
-          <p class="drop-sub">Beam a live note or photo directly onto <strong>{{ displayName || 'the wall screen' }}</strong></p>
+          <p class="drop-sub">Beam a live note, photo, or scanned flyer onto <strong>{{ displayName || 'the wall screen' }}</strong></p>
         </div>
 
         <!-- Mode Switcher -->
         <div class="drop-tabs">
-          <button [class.active]="mode === 'note'" (click)="mode = 'note'">📝 Post a Sticky Note</button>
-          <button [class.active]="mode === 'photo'" (click)="mode = 'photo'">🖼️ Beam a Photo</button>
+          <button [class.active]="mode === 'note'" (click)="mode = 'note'">📝 Sticky Note</button>
+          <button [class.active]="mode === 'photo'" (click)="mode = 'photo'">🖼️ Photo</button>
+          <button [class.active]="mode === 'flyer'" (click)="mode = 'flyer'">✨ AI Flyer Scan</button>
         </div>
 
         <!-- Feedback Messages -->
@@ -115,6 +118,62 @@ import { WallDropItem } from '../../models/display.model';
             {{ beaming ? 'Beaming...' : '🖼️ Beam Photo to Wall' }}
           </button>
         </form>
+
+        <!-- AI MAGIC FLYER SCANNER FORM -->
+        <div *ngIf="mode === 'flyer'" class="flyer-scanner-wrap">
+          <div class="flyer-intro">
+            <p>Snap a photo of a school schedule, sports flyer, or party invitation. Gemini AI will automatically extract the events and add them to the family calendar.</p>
+          </div>
+
+          <div class="upload-box" (click)="fileInput.click()">
+            <input #fileInput type="file" accept="image/*" (change)="onFlyerFileSelected($event)" style="display:none" />
+            <div *ngIf="!flyerPreviewBase64" class="upload-placeholder">
+              <span class="upload-icon">📸</span>
+              <span class="upload-text">Tap to snap or upload flyer photo</span>
+            </div>
+            <img *ngIf="flyerPreviewBase64" [src]="flyerPreviewBase64" alt="Flyer Preview" class="flyer-img-preview" />
+          </div>
+
+          <button 
+            *ngIf="flyerPreviewBase64 && scannedEvents.length === 0" 
+            type="button" 
+            (click)="scanFlyer()" 
+            [disabled]="scanning" 
+            class="btn btn-beam scan-btn"
+          >
+            {{ scanning ? '✨ AI Analyzing Flyer...' : '✨ Extract Events with AI' }}
+          </button>
+
+          <!-- Scanned Events List -->
+          <div *ngIf="scannedEvents.length > 0" class="scanned-events-list">
+            <h4>Found {{ scannedEvents.length }} Events</h4>
+            <div *ngFor="let ev of scannedEvents; let idx = index" class="scanned-event-card">
+              <div class="event-card-header">
+                <input type="text" [(ngModel)]="ev.title" class="ev-input-title" />
+                <span class="ev-category-badge" [style.backgroundColor]="ev.color">{{ ev.category }}</span>
+              </div>
+              <div class="event-card-details">
+                <div class="ev-detail-row">
+                  <span class="ev-label">Date/Time:</span>
+                  <input type="text" [(ngModel)]="ev.startDate" class="ev-input-small" />
+                </div>
+                <div class="ev-detail-row" *ngIf="ev.location">
+                  <span class="ev-label">Location:</span>
+                  <input type="text" [(ngModel)]="ev.location" class="ev-input-small" />
+                </div>
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              (click)="saveScannedEventsToCalendar()" 
+              [disabled]="savingToCal" 
+              class="btn btn-beam save-cal-btn"
+            >
+              {{ savingToCal ? 'Adding to Calendar...' : '📅 Add All Events to Calendar' }}
+            </button>
+          </div>
+        </div>
 
         <!-- Recent Drops History -->
         <div *ngIf="recentDrops.length > 0" class="recent-drops-sec">
@@ -286,6 +345,124 @@ import { WallDropItem } from '../../models/display.model';
       transform: translateY(-1px);
     }
 
+    /* AI Flyer Scanner Styles */
+    .flyer-scanner-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .flyer-intro p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin: 0;
+      line-height: 1.4;
+    }
+    .upload-box {
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px dashed rgba(56, 189, 248, 0.4);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .upload-box:hover {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.05);
+    }
+    .upload-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .upload-icon { font-size: 2rem; }
+    .upload-text { font-size: 0.85rem; color: #38bdf8; font-weight: 600; }
+    .flyer-img-preview {
+      max-height: 160px;
+      max-width: 100%;
+      border-radius: 8px;
+      object-fit: contain;
+    }
+    .scan-btn {
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+      box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);
+    }
+    .scanned-events-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .scanned-events-list h4 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #38bdf8;
+      margin: 0;
+    }
+    .scanned-event-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .event-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .ev-input-title {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 2px 0;
+    }
+    .ev-category-badge {
+      font-size: 0.6rem;
+      font-weight: 800;
+      color: #0f172a;
+      padding: 2px 6px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .event-card-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ev-detail-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ev-label {
+      font-size: 0.68rem;
+      color: #94a3b8;
+      width: 60px;
+      flex-shrink: 0;
+    }
+    .ev-input-small {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      color: #e2e8f0;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+    }
+    .save-cal-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+
     .recent-drops-sec {
       margin-top: 24px;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -333,7 +510,7 @@ import { WallDropItem } from '../../models/display.model';
 export class WallDropComponent implements OnInit {
   token: string = '';
   displayName: string = '';
-  mode: 'note' | 'photo' = 'note';
+  mode: 'note' | 'photo' | 'flyer' = 'note';
 
   author: string = 'Mom';
   noteContent: string = '';
@@ -341,6 +518,12 @@ export class WallDropComponent implements OnInit {
 
   photoUrl: string = '';
   photoCaption: string = '';
+
+  // AI Flyer Scanner State
+  flyerPreviewBase64: string = '';
+  scanning: boolean = false;
+  savingToCal: boolean = false;
+  scannedEvents: any[] = [];
 
   beaming: boolean = false;
   successMessage: string = '';
@@ -358,7 +541,8 @@ export class WallDropComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private walldropService: WalldropService
+    private walldropService: WalldropService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -375,6 +559,69 @@ export class WallDropComponent implements OnInit {
           this.displayName = res.display?.name || '';
           this.recentDrops = res.items || [];
         }
+      }
+    });
+  }
+
+  onFlyerFileSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.flyerPreviewBase64 = e.target.result;
+        this.scannedEvents = [];
+        this.errorMessage = '';
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  scanFlyer(): void {
+    if (!this.flyerPreviewBase64) return;
+    this.scanning = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    this.http.post<any>(`${environment.apiUrl}/ai_flyer_scanner.php`, {
+      imageBase64: this.flyerPreviewBase64,
+      displayToken: this.token
+    }).subscribe({
+      next: (res: any) => {
+        this.scanning = false;
+        if (res && res.success && Array.isArray(res.events)) {
+          this.scannedEvents = res.events;
+          this.successMessage = `✨ Extracted ${res.events.length} events from flyer! Review and add to calendar below.`;
+        } else {
+          this.errorMessage = 'Could not extract events from flyer.';
+        }
+      },
+      error: () => {
+        this.scanning = false;
+        this.errorMessage = 'Failed to analyze flyer. Please check image and connection.';
+      }
+    });
+  }
+
+  saveScannedEventsToCalendar(): void {
+    if (this.scannedEvents.length === 0) return;
+    this.savingToCal = true;
+    this.errorMessage = '';
+
+    this.http.post<any>(`${environment.apiUrl}/ai_flyer_scanner.php`, {
+      imageBase64: this.flyerPreviewBase64,
+      displayToken: this.token,
+      autoSaveToCalendar: true
+    }).subscribe({
+      next: () => {
+        this.savingToCal = false;
+        this.successMessage = `📅 Successfully added ${this.scannedEvents.length} events to wall display calendar!`;
+        this.scannedEvents = [];
+        this.flyerPreviewBase64 = '';
+        setTimeout(() => this.successMessage = '', 5000);
+      },
+      error: () => {
+        this.savingToCal = false;
+        this.errorMessage = 'Failed to save events to calendar.';
       }
     });
   }

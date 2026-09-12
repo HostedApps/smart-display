@@ -83,4 +83,19 @@ export class ICalParserService {
 
     return { date: new Date(), isAllDay: false };
   }
+
+  /**
+   * Cleans and normalizes provider calendar links (Google, Apple iCloud, Outlook, Nextcloud)
+   */
+  normalizeCalendarUrl(url: string): string {
+    if (!url) return '';
+    let clean = url.trim();
+    // Convert webcal:// or webcals:// to https://
+    if (clean.startsWith('webcal://')) {
+      clean = 'https://' + clean.substring(9);
+    } else if (clean.startsWith('webcals://')) {
+      clean = 'https://' + clean.substring(10);
+    }
+    return clean;
+  }
 }
