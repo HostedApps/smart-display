@@ -15,7 +15,7 @@
 </IfModule>
 
 # Security: Prevent direct viewing of sensitive files
-<Files "db.php">
+<FilesMatch "(^\.env|db\.php|\.sql$)">
   Order allow,deny
   Deny from all
-</Files>
+</FilesMatch>

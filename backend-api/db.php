@@ -9,10 +9,60 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     exit();
 }
 
-$host = 'localhost';
-$db   = 'u528878684_smart_display';
-$user = 'u528878684_smart_user';
-$pass = '***REMOVED***';
+/**
+ * Lightweight, zero-dependency environment loader.
+ * Searches in order of priority:
+ * 1. Outside web root: dirname(__DIR__, 2) . '/.env' or dirname(__DIR__) . '/.env'
+ * 2. Current directory: __DIR__ . '/.env'
+ */
+function loadEnvironmentVariables() {
+    $candidates = [
+        dirname(__DIR__, 2) . '/.env',
+        dirname(__DIR__) . '/.env',
+        __DIR__ . '/.env'
+    ];
+
+    foreach ($candidates as $file) {
+        if (file_exists($file) && is_readable($file)) {
+            $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (empty($line) || str_starts_with($line, '#')) {
+                    continue;
+                }
+                if (strpos($line, '=') !== false) {
+                    list($key, $val) = explode('=', $line, 2);
+                    $key = trim($key);
+                    $val = trim($val);
+                    if ((str_starts_with($val, '"') && str_ends_with($val, '"')) ||
+                        (str_starts_with($val, "'") && str_ends_with($val, "'"))) {
+                        $val = substr($val, 1, -1);
+                    }
+                    if (!empty($key)) {
+                        putenv("{$key}={$val}");
+                        $_ENV[$key] = $val;
+                        $_SERVER[$key] = $val;
+                    }
+                }
+            }
+            break;
+        }
+    }
+}
+loadEnvironmentVariables();
+
+function getEnvValue($key, $default = '') {
+    $val = getenv($key);
+    if ($val !== false && $val !== '') return $val;
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') return $_ENV[$key];
+    if (isset($_SERVER[$key]) && $_SERVER[$key] !== '') return $_SERVER[$key];
+    return $default;
+}
+
+$host = getEnvValue('DB_HOST', 'localhost');
+$db   = getEnvValue('DB_NAME', 'u528878684_smart_display');
+$user = getEnvValue('DB_USER', 'u528878684_smart_user');
+$pass = getEnvValue('DB_PASS', '');
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

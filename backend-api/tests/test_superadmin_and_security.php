@@ -19,9 +19,10 @@ function run_superadmin_and_security_tests($pdo) {
     require_once __DIR__ . '/../captcha.php';
 
     // 1. TEST CAPTCHA GENERATION & VALIDATION
+    $secret = getEnvValue('CAPTCHA_SECRET', 'kiosk_captcha_default_salt_2026');
     $token = bin2hex(random_bytes(24));
     $answer = '15';
-    $answerHash = hash('sha256', $answer);
+    $answerHash = hash_hmac('sha256', $answer, $secret);
     $expiresAt = time() + 300;
 
     $ins = $pdo->prepare("INSERT INTO captcha_challenges (challenge_token, answer_hash, expires_at) VALUES (?, ?, ?)");
@@ -37,7 +38,7 @@ function run_superadmin_and_security_tests($pdo) {
 
     // Test wrong answer
     $token2 = bin2hex(random_bytes(24));
-    $ins->execute([$token2, hash('sha256', '20'), time() + 300]);
+    $ins->execute([$token2, hash_hmac('sha256', '20', $secret), time() + 300]);
     $isWrongValid = verifyCaptchaChallenge($pdo, $token2, '99');
     $assert($isWrongValid === false, "Captcha rejects incorrect answer '99'");
 
