@@ -91,11 +91,6 @@ import { AuthService } from '../../services/auth.service';
             {{ loading ? (mode === 'login' ? 'Signing in...' : 'Creating Account...') : (mode === 'login' ? 'Sign In' : 'Create Account') }}
           </button>
         </form>
-
-        <div class="login-footer" *ngIf="mode === 'login'">
-          <p>Default credentials:</p>
-          <code>admin&#64;smartdisplay.local / REMOVED-DEFAULT-PASSWORD</code>
-        </div>
       </div>
     </div>
   `,
@@ -258,32 +253,13 @@ import { AuthService } from '../../services/auth.service';
       opacity: 0.6;
       cursor: not-allowed;
     }
-    .login-footer {
-      margin-top: 22px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      text-align: center;
-      font-size: 0.72rem;
-      color: #64748b;
-    }
-    code {
-      display: inline-block;
-      margin-top: 4px;
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      padding: 2px 8px;
-      border-radius: 6px;
-      color: #38bdf8;
-      font-family: monospace;
-      font-size: 0.72rem;
-    }
   `]
 })
 export class LoginComponent implements OnInit {
   mode: 'login' | 'register' = 'login';
   name: string = '';
-  email: string = 'admin@smartdisplay.local';
-  password: string = 'REMOVED-DEFAULT-PASSWORD';
+  email: string = '';
+  password: string = '';
   confirmPassword: string = '';
   loading: boolean = false;
   errorMessage: string = '';
@@ -307,13 +283,9 @@ export class LoginComponent implements OnInit {
     this.mode = mode;
     this.errorMessage = '';
     this.successMessage = '';
-    if (mode === 'register') {
-      this.email = '';
-      this.password = '';
-    } else {
-      this.email = 'admin@smartdisplay.local';
-      this.password = 'REMOVED-DEFAULT-PASSWORD';
-    }
+    this.email = '';
+    this.password = '';
+    this.confirmPassword = '';
   }
 
   onSubmit(): void {
