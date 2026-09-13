@@ -23,10 +23,15 @@ export class AuthService {
     return this.http.get<CapacityStatus>(`${environment.apiUrl}/auth.php?action=capacity`);
   }
 
-  login(email: string, password: string, captchaToken?: string, captchaAnswer?: string): Observable<AuthResponse> {
+  getPublicConfig(): Observable<CapacityStatus> {
+    return this.http.get<CapacityStatus>(`${environment.apiUrl}/auth.php?action=public_config`);
+  }
+
+  login(email: string, password: string, recaptchaToken?: string, captchaToken?: string, captchaAnswer?: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${environment.apiUrl}/auth.php?action=login`, { 
       email, 
       password, 
+      recaptchaToken,
       captchaToken, 
       captchaAnswer 
     }).pipe(
@@ -40,11 +45,12 @@ export class AuthService {
     );
   }
 
-  register(name: string, email: string, password: string, captchaToken: string, captchaAnswer: string): Observable<AuthResponse> {
+  register(name: string, email: string, password: string, recaptchaToken?: string, captchaToken?: string, captchaAnswer?: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${environment.apiUrl}/auth.php?action=register`, { 
       name, 
       email, 
       password, 
+      recaptchaToken,
       captchaToken, 
       captchaAnswer 
     });

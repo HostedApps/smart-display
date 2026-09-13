@@ -5,6 +5,8 @@ echo " Smart Display - Automated Backend Test Suite \n";
 echo "====================================================\n\n";
 
 $startTime = microtime(true);
+$passed = 0;
+$failed = 0;
 
 require_once __DIR__ . '/test_ai_flyer_scanner.php';
 require_once __DIR__ . '/test_tasks_sync.php';

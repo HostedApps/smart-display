@@ -43,6 +43,8 @@ export interface CapacityStatus {
   maxCapacity: number;
   availableSlots: number;
   isFull: boolean;
+  recaptchaSiteKey?: string;
+  googleClientId?: string;
 }
 
 export interface SuperAdminStats {

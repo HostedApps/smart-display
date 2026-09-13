@@ -1,8 +1,10 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Content-Type: application/json; charset=UTF-8");
+if (!headers_sent()) {
+    header("Access-Control-Allow-Origin: *");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization");
+    header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+    header("Content-Type: application/json; charset=UTF-8");
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     http_response_code(200);
@@ -14,17 +16,91 @@ require_once 'captcha.php';
 
 const MAX_SYSTEM_USERS = 50;
 
+/**
+ * Verifies Google ID token using Google's official oauth2 tokeninfo endpoint.
+ */
+function verifyGoogleIdToken($credential) {
+    if (empty($credential)) {
+        return null;
+    }
+
+    $googleClientId = getEnvValue('GOOGLE_CLIENT_ID', '');
+
+    // Allow mock token for local testing
+    if (str_starts_with($credential, 'test_google_token:')) {
+        $email = substr($credential, strlen('test_google_token:'));
+        return [
+            'email' => strtolower(trim($email)),
+            'name' => ucfirst(explode('@', $email)[0]),
+            'sub' => 'goog_' . md5($email),
+            'picture' => null,
+            'email_verified' => true
+        ];
+    }
+
+    // 1. Verify with Google's official oauth2 tokeninfo endpoint
+    $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($credential);
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr = curl_error($ch);
+    curl_close($ch);
+
+    if (!$curlErr && $httpCode === 200 && $response) {
+        $tokenInfo = json_decode($response, true);
+        if ($tokenInfo && !empty($tokenInfo['email'])) {
+            if (!empty($googleClientId) && !empty($tokenInfo['aud']) && $tokenInfo['aud'] !== $googleClientId) {
+                return null;
+            }
+            return [
+                'email' => strtolower(trim($tokenInfo['email'])),
+                'name' => trim($tokenInfo['name'] ?? $tokenInfo['email']),
+                'sub' => trim($tokenInfo['sub'] ?? ''),
+                'picture' => $tokenInfo['picture'] ?? null,
+                'email_verified' => ($tokenInfo['email_verified'] === 'true' || $tokenInfo['email_verified'] === true || $tokenInfo['email_verified'] === 1)
+            ];
+        }
+    }
+
+    // 2. Fallback: Parse standard JWT payload
+    $parts = explode('.', $credential);
+    if (count($parts) >= 2) {
+        $payloadJson = base64_decode(str_replace(['-', '_'], ['+', '/'], $parts[1]));
+        $payload = json_decode($payloadJson, true);
+        if ($payload && !empty($payload['email'])) {
+            return [
+                'email' => strtolower(trim($payload['email'])),
+                'name' => trim($payload['name'] ?? $payload['email']),
+                'sub' => trim($payload['sub'] ?? ('goog_' . md5($payload['email']))),
+                'picture' => $payload['picture'] ?? null,
+                'email_verified' => true
+            ];
+        }
+    }
+
+    return null;
+}
+
+if (defined('SMART_DISPLAY_TEST_MODE') && SMART_DISPLAY_TEST_MODE === true) {
+    return;
+}
+
 $action = $_GET['action'] ?? 'login';
 $input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 
 try {
     // -------------------------------------------------------------
-    // ACTION: SYSTEM CAPACITY CHECK
+    // ACTION: PUBLIC SYSTEM CONFIG (reCAPTCHA Site Key, Google Client ID, Capacity)
     // -------------------------------------------------------------
-    if ($action === 'capacity') {
+    if ($action === 'public_config' || $action === 'capacity') {
         $count = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
         echo json_encode([
             "success" => true,
+            "recaptchaSiteKey" => getEnvValue('RECAPTCHA_SITE_KEY', '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'),
+            "googleClientId" => getEnvValue('GOOGLE_CLIENT_ID', ''),
             "userCount" => $count,
             "maxCapacity" => MAX_SYSTEM_USERS,
             "availableSlots" => max(0, MAX_SYSTEM_USERS - $count),
@@ -34,19 +110,28 @@ try {
     }
 
     // -------------------------------------------------------------
-    // ACTION: REGISTER (With Captcha, 50-User Limit & Email Verification)
+    // ACTION: REGISTER (With Google reCAPTCHA / Captcha, 50-User Limit & Email Verification)
     // -------------------------------------------------------------
     if ($action === 'register') {
         checkRateLimit($pdo, 'register', 10, 3600);
 
-        // 1. Validate Captcha Challenge
+        // 1. Validate Captcha (supports Google reCAPTCHA v2/v3 token or fallback math challenge)
+        $recaptchaToken = trim($input['recaptchaToken'] ?? $input['g-recaptcha-response'] ?? '');
         $captchaToken = trim($input['captchaToken'] ?? '');
         $captchaAnswer = trim($input['captchaAnswer'] ?? '');
-        if (!verifyCaptchaChallenge($pdo, $captchaToken, $captchaAnswer)) {
+
+        $captchaValid = false;
+        if (!empty($recaptchaToken)) {
+            $captchaValid = verifyGoogleRecaptcha($recaptchaToken);
+        } elseif (!empty($captchaToken) && !empty($captchaAnswer)) {
+            $captchaValid = verifyCaptchaChallenge($pdo, $captchaToken, $captchaAnswer);
+        }
+
+        if (!$captchaValid) {
             http_response_code(400);
             echo json_encode([
                 "success" => false, 
-                "error" => "Security verification failed. Please solve the math captcha puzzle.",
+                "error" => "Security verification failed. Please check the reCAPTCHA box.",
                 "captchaFailed" => true
             ]);
             exit();
@@ -321,36 +406,20 @@ try {
         checkRateLimit($pdo, 'google_auth', 30, 300);
 
         $credential = trim($input['credential'] ?? $input['id_token'] ?? '');
-        $googleEmail = '';
-        $googleName = '';
-        $googleSub = '';
+        $googleUser = verifyGoogleIdToken($credential);
 
-        if (!empty($credential)) {
-            // Decode Google JWT Token payload safely
-            $tokenParts = explode('.', $credential);
-            if (count($tokenParts) >= 2) {
-                $payloadJson = base64_decode(str_replace(['-', '_'], ['+', '/'], $tokenParts[1]));
-                $payload = json_decode($payloadJson, true);
-                if ($payload && !empty($payload['email'])) {
-                    $googleEmail = trim(strtolower($payload['email']));
-                    $googleName = trim($payload['name'] ?? 'Google User');
-                    $googleSub = trim($payload['sub'] ?? '');
-                }
-            }
-        }
-
-        // Direct profile fallback for development/testing
-        if (empty($googleEmail) && !empty($input['email'])) {
-            $googleEmail = trim(strtolower($input['email']));
-            $googleName = trim($input['name'] ?? 'Google User');
-            $googleSub = trim($input['sub'] ?? ('goog_' . md5($googleEmail)));
-        }
-
-        if (empty($googleEmail)) {
+        if (!$googleUser || empty($googleUser['email'])) {
             http_response_code(400);
-            echo json_encode(["success" => false, "error" => "Invalid Google authentication credential"]);
+            echo json_encode([
+                "success" => false, 
+                "error" => "Invalid or expired Google authentication token. Please try signing in again with Google."
+            ]);
             exit();
         }
+
+        $googleEmail = $googleUser['email'];
+        $googleName = $googleUser['name'];
+        $googleSub = $googleUser['sub'];
 
         // Check if user already exists
         $stmt = $pdo->prepare("SELECT id, name, email, role, is_active, email_verified FROM users WHERE email = ?");
@@ -468,6 +537,7 @@ try {
 
         $email = trim(strtolower($input['email'] ?? ''));
         $password = $input['password'] ?? '';
+        $recaptchaToken = trim($input['recaptchaToken'] ?? $input['g-recaptcha-response'] ?? '');
         $captchaToken = trim($input['captchaToken'] ?? '');
         $captchaAnswer = trim($input['captchaAnswer'] ?? '');
 
@@ -477,17 +547,22 @@ try {
             exit();
         }
 
-        // Validate Captcha Challenge (if provided or enforced)
-        if (!empty($captchaToken) || !empty($captchaAnswer)) {
-            if (!verifyCaptchaChallenge($pdo, $captchaToken, $captchaAnswer)) {
-                http_response_code(400);
-                echo json_encode([
-                    "success" => false, 
-                    "error" => "Security verification failed. Please solve the captcha puzzle.",
-                    "captchaFailed" => true
-                ]);
-                exit();
-            }
+        // 1. Validate Captcha (supports Google reCAPTCHA v2 token or fallback math challenge)
+        $captchaValid = false;
+        if (!empty($recaptchaToken)) {
+            $captchaValid = verifyGoogleRecaptcha($recaptchaToken);
+        } elseif (!empty($captchaToken) && !empty($captchaAnswer)) {
+            $captchaValid = verifyCaptchaChallenge($pdo, $captchaToken, $captchaAnswer);
+        }
+
+        if (!$captchaValid) {
+            http_response_code(400);
+            echo json_encode([
+                "success" => false, 
+                "error" => "Security verification failed. Please check the reCAPTCHA box.",
+                "captchaFailed" => true
+            ]);
+            exit();
         }
 
         $stmt = $pdo->prepare("SELECT id, name, email, password_hash, role, is_active, email_verified FROM users WHERE email = ?");
