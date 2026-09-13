@@ -2,6 +2,14 @@ export interface User {
   id: number;
   name: string;
   email: string;
+  role?: 'user' | 'admin' | 'superadmin';
+  is_active?: boolean;
+  email_verified?: boolean;
+  oauth_provider?: string;
+  created_at?: string;
+  last_login_at?: string;
+  display_count?: number;
+  widget_count?: number;
 }
 
 export interface AuthResponse {
@@ -9,6 +17,54 @@ export interface AuthResponse {
   token?: string;
   user?: User;
   error?: string;
+  message?: string;
+  requireVerification?: boolean;
+  emailUnverified?: boolean;
+  email?: string;
+  devVerificationCode?: string;
+  devVerificationLink?: string;
+  captchaFailed?: boolean;
+}
+
+export interface CaptchaChallenge {
+  success: boolean;
+  captchaToken: string;
+  question: string;
+  num1?: number;
+  op?: string;
+  num2?: number;
+  expiresInSeconds?: number;
+  error?: string;
+}
+
+export interface CapacityStatus {
+  success: boolean;
+  userCount: number;
+  maxCapacity: number;
+  availableSlots: number;
+  isFull: boolean;
+}
+
+export interface SuperAdminStats {
+  totalUsers: number;
+  maxCapacity: number;
+  capacityUsedPercent: number;
+  activeUsers: number;
+  verifiedUsers: number;
+  totalDisplays: number;
+  totalWidgets: number;
+  totalDevices: number;
+  recentActivities24h: number;
+}
+
+export interface UserActivityLog {
+  id: number;
+  user_id?: number;
+  user_email?: string;
+  action: string;
+  details?: any;
+  ip_address?: string;
+  created_at: string;
 }
 
 export interface WidgetPosition {

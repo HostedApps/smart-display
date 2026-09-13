@@ -32,6 +32,7 @@ import { CommuteWidgetComponent } from './components/widgets/commute-widget.comp
 import { YoutubeWidgetComponent } from './components/widgets/youtube-widget.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { InstallationGuideComponent } from './components/help/installation-guide.component';
+import { SuperAdminComponent } from './components/admin/super-admin.component';
 import { HelpDocsModalComponent } from './components/help/help-docs-modal.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
@@ -41,6 +42,7 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     DisplayViewerComponent,
     DashboardEditorComponent,
     DisplayListComponent,
+    SuperAdminComponent,
     DevicePairingComponent,
     LoginComponent,
     ClockWidgetComponent,

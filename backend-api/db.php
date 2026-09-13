@@ -4,7 +4,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
@@ -138,3 +138,15 @@ function sanitizeText($text) {
     if ($text === null) return '';
     return htmlspecialchars(strip_tags(trim($text)), ENT_QUOTES, 'UTF-8');
 }
+
+function logUserActivity($pdo, $userId, $userEmail, $action, $details = []) {
+    try {
+        $ip = getClientIp();
+        $detailsJson = !empty($details) ? json_encode($details, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null;
+        $stmt = $pdo->prepare("INSERT INTO user_activity_logs (user_id, user_email, action, details, ip_address) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $userEmail, $action, $detailsJson, $ip]);
+    } catch (\Exception $e) {
+        // Silently catch logging errors to never disrupt main user flows
+    }
+}
+

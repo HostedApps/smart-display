@@ -26,6 +26,9 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
         </div>
 
         <div class="user-actions">
+          <button *ngIf="currentUser?.role === 'superadmin'" (click)="openSuperAdmin()" class="btn-superadmin-header" title="Open Super Admin Fleet Hub & Security Monitor">
+            👑 Super Admin Hub
+          </button>
           <button (click)="showHelpModal = true" class="btn-help-header" title="Open Interactive Documentation & 19-Widget Catalog">
             📖 Help & Docs
           </button>
@@ -427,6 +430,26 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
     .user-email {
       font-size: 0.8rem;
       color: #cbd5e1;
+    }
+    .btn-superadmin-header {
+      background: linear-gradient(135deg, rgba(234, 179, 8, 0.2), rgba(245, 158, 11, 0.25));
+      border: 1px solid rgba(234, 179, 8, 0.5);
+      color: #fef08a;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 12px rgba(234, 179, 8, 0.25);
+      transition: all 0.2s;
+    }
+    .btn-superadmin-header:hover {
+      background: linear-gradient(135deg, #eab308, #ca8a04);
+      color: #000;
+      box-shadow: 0 0 18px rgba(234, 179, 8, 0.6);
     }
     .btn-help-header {
       background: rgba(56, 189, 248, 0.1);
@@ -1263,6 +1286,10 @@ export class DisplayListComponent implements OnInit {
         this.showAlert(err.error?.error || 'Failed to clear broadcasts.', 'error');
       }
     });
+  }
+
+  openSuperAdmin(): void {
+    this.router.navigate(['/admin/superadmin']);
   }
 
   logout(): void {
