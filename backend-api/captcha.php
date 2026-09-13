@@ -36,9 +36,10 @@ function verifyCaptchaChallenge($pdo, $token, $userAnswer) {
             return false;
         }
 
-        // Compare answer hash (or lowercase alphanumeric string)
+        // Compare answer hash using HMAC with server-side CAPTCHA_SECRET
+        $captchaSecret = getEnvValue('CAPTCHA_SECRET', 'kiosk_captcha_default_salt_2026');
         $expectedHash = $row['answer_hash'];
-        $computedHash = hash('sha256', $cleanAnswer);
+        $computedHash = hash_hmac('sha256', $cleanAnswer, $captchaSecret);
 
         // Delete token immediately so it cannot be reused (single-use nonce)
         $del = $pdo->prepare("DELETE FROM captcha_challenges WHERE challenge_token = ?");
@@ -83,7 +84,8 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'] ?? '')) {
 
     $token = bin2hex(random_bytes(24));
     $expiresAt = time() + 300; // 5 minute TTL
-    $answerHash = hash('sha256', (string)$answer);
+    $captchaSecret = getEnvValue('CAPTCHA_SECRET', 'kiosk_captcha_default_salt_2026');
+    $answerHash = hash_hmac('sha256', (string)$answer, $captchaSecret);
 
     try {
         $ins = $pdo->prepare("INSERT INTO captcha_challenges (challenge_token, answer_hash, expires_at) VALUES (?, ?, ?)");
