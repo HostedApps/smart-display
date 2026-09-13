@@ -36,4 +36,4 @@ $BROWSER \
   --overscroll-history-navigation=0 \
   --autoplay-policy=no-user-gesture-required \
   --remote-debugging-port=9222 \
-  "https://palevioletred-ibex-451966.hostingersite.com/#/display/living-room-display"
+  "https://smart-kiosk.online/#/display/living-room-display"

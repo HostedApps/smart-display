@@ -12,16 +12,16 @@ This guide provides step-by-step instructions to set up and deploy **Smart Displ
 ## 1. System Architecture & Endpoints
 
 Smart Display runs as a high-performance, web-native Progressive Web App (PWA) with responsive visual scaling:
-* **Admin Fleet Dashboard**: `https://palevioletred-ibex-451966.hostingersite.com/#/admin/displays`
-* **Hardware 6-Digit PIN Pairing Screen**: `https://palevioletred-ibex-451966.hostingersite.com/#/pair`
-* **Direct Kiosk Wall Display**: `https://palevioletred-ibex-451966.hostingersite.com/#/display/:token`
-* **Mobile "WallDrop" Note & Photo Beam**: `https://palevioletred-ibex-451966.hostingersite.com/#/drop/:token`
+* **Admin Fleet Dashboard**: `https://smart-kiosk.online/#/admin/displays`
+* **Hardware 6-Digit PIN Pairing Screen**: `https://smart-kiosk.online/#/pair`
+* **Direct Kiosk Wall Display**: `https://smart-kiosk.online/#/display/:token`
+* **Mobile "WallDrop" Note & Photo Beam**: `https://smart-kiosk.online/#/drop/:token`
 
 ---
 
 ## 2. Zero-Friction 6-Digit PIN Commissioning
 
-1. Launch your client browser on the physical TV, iPad, or Raspberry Pi and open `https://palevioletred-ibex-451966.hostingersite.com/#/pair`.
+1. Launch your client browser on the physical TV, iPad, or Raspberry Pi and open `https://smart-kiosk.online/#/pair`.
 2. The screen will display a large 6-digit PIN (e.g. `UP-5610`).
 3. From your phone or admin laptop, open **Fleet Hub** (`/#/admin/displays`) ➔ Click **"⚡ Pair Screen with PIN"**.
 4. Enter the 6-digit PIN and choose which screen configuration to bind to.
@@ -60,7 +60,7 @@ Create `~/.config/autostart/smartdisplay.desktop`:
 [Desktop Entry]
 Type=Application
 Name=Smart Display Kiosk
-Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required --incognito https://palevioletred-ibex-451966.hostingersite.com/#/display/YOUR_TOKEN
+Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required --incognito https://smart-kiosk.online/#/display/YOUR_TOKEN
 X-GNOME-Autostart-enabled=true
 ```
 
@@ -79,7 +79,7 @@ amixer set Master 100%
 
 ### Method A: Amazon Silk Browser (Zero Sideloading)
 1. Install **Amazon Silk Web Browser** from the Amazon Appstore.
-2. Open Silk and navigate to `https://palevioletred-ibex-451966.hostingersite.com/#/pair`.
+2. Open Silk and navigate to `https://smart-kiosk.online/#/pair`.
 3. Press the **Menu Button (☰)** on your Alexa Remote ➔ Select **"Fullscreen Mode"**.
 4. Bookmark the URL for quick access.
 
@@ -120,7 +120,7 @@ amixer set Master 100%
 1. Press `Win + R` ➔ Type `shell:startup` ➔ Press Enter.
 2. Create a shortcut with the following Target:
 ```cmd
-"C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required https://palevioletred-ibex-451966.hostingersite.com/#/display/YOUR_TOKEN
+"C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required https://smart-kiosk.online/#/display/YOUR_TOKEN
 ```
 
 ---

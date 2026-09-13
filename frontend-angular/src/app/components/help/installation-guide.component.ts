@@ -65,7 +65,7 @@ import { Router } from '@angular/router';
             
             <div class="meta-row">
               <div class="meta-item"><span class="meta-label">Document Version:</span> 2.5.0 (Enterprise)</div>
-              <div class="meta-item"><span class="meta-label">Target Cloud URL:</span> https://palevioletred-ibex-451966.hostingersite.com</div>
+              <div class="meta-item"><span class="meta-label">Target Cloud URL:</span> https://smart-kiosk.online</div>
               <div class="meta-item"><span class="meta-label">Protocol:</span> Web PWA / Chromium Kiosk / REST API</div>
             </div>
             <hr class="doc-divider" />
@@ -82,10 +82,10 @@ import { Router } from '@angular/router';
             <div class="info-card">
               <div class="info-card-header">🔑 Key Display Endpoints</div>
               <ul class="info-list">
-                <li><strong>Fleet & Admin Management Hub:</strong> <code>https://palevioletred-ibex-451966.hostingersite.com/#/admin/displays</code></li>
-                <li><strong>Hardware 6-Digit PIN Pairing Screen:</strong> <code>https://palevioletred-ibex-451966.hostingersite.com/#/pair</code></li>
-                <li><strong>Direct Kiosk Screen URL:</strong> <code>https://palevioletred-ibex-451966.hostingersite.com/#/display/YOUR_SCREEN_TOKEN</code></li>
-                <li><strong>Mobile WallDrop Portal:</strong> <code>https://palevioletred-ibex-451966.hostingersite.com/#/drop/YOUR_SCREEN_TOKEN</code></li>
+                <li><strong>Fleet & Admin Management Hub:</strong> <code>https://smart-kiosk.online/#/admin/displays</code></li>
+                <li><strong>Hardware 6-Digit PIN Pairing Screen:</strong> <code>https://smart-kiosk.online/#/pair</code></li>
+                <li><strong>Direct Kiosk Screen URL:</strong> <code>https://smart-kiosk.online/#/display/YOUR_SCREEN_TOKEN</code></li>
+                <li><strong>Mobile WallDrop Portal:</strong> <code>https://smart-kiosk.online/#/drop/YOUR_SCREEN_TOKEN</code></li>
               </ul>
             </div>
           </section>
@@ -160,7 +160,7 @@ xset s noblank</code></pre>
               <pre><code>[Desktop Entry]
 Type=Application
 Name=Smart Display Kiosk
-Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required --incognito https://palevioletred-ibex-451966.hostingersite.com/#/display/YOUR_TOKEN
+Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required --incognito https://smart-kiosk.online/#/display/YOUR_TOKEN
 X-GNOME-Autostart-enabled=true</code></pre>
             </div>
 
@@ -186,7 +186,7 @@ amixer set Master 100%</code></pre>
             <h3>Method A: Amazon Silk Web Browser (Zero Sideloading)</h3>
             <ol class="step-list">
               <li>Open the <strong>Amazon Silk Browser</strong> from the Fire TV App Store.</li>
-              <li>Navigate to your pairing URL: <code>https://palevioletred-ibex-451966.hostingersite.com/#/pair</code> (or direct screen link).</li>
+              <li>Navigate to your pairing URL: <code>https://smart-kiosk.online/#/pair</code> (or direct screen link).</li>
               <li>Press the <strong>Menu Button (☰)</strong> on your Alexa Voice Remote ➔ Select <strong>"Fullscreen Mode"</strong> to hide address bar and tabs.</li>
               <li>Add the URL to your Silk Bookmarks for 1-click launch.</li>
             </ol>
@@ -211,7 +211,7 @@ amixer set Master 100%</code></pre>
 
             <h3>Step 5.1: Install as a Fullscreen Web App (PWA)</h3>
             <ol class="step-list">
-              <li>Open <strong>Safari</strong> on your iPad and go to your display URL (e.g. <code>https://palevioletred-ibex-451966.hostingersite.com/#/display/YOUR_TOKEN</code>).</li>
+              <li>Open <strong>Safari</strong> on your iPad and go to your display URL (e.g. <code>https://smart-kiosk.online/#/display/YOUR_TOKEN</code>).</li>
               <li>Tap the <strong>Share Button</strong> (square with arrow) at the top of Safari.</li>
               <li>Scroll down and tap <strong>"Add to Home Screen"</strong>.</li>
               <li>Name it <em>"Smart Display"</em> and tap <strong>Add</strong>.</li>
@@ -252,7 +252,7 @@ amixer set Master 100%</code></pre>
             </div>
             <div class="code-box">
               <div class="code-title">Shortcut Target Line</div>
-              <pre><code>"C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required https://palevioletred-ibex-451966.hostingersite.com/#/display/YOUR_TOKEN</code></pre>
+              <pre><code>"C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required https://smart-kiosk.online/#/display/YOUR_TOKEN</code></pre>
             </div>
           </section>
 
