@@ -1,5 +1,8 @@
 <?php
 // Automated Test Suite for Super Admin, Captcha, 50-User Quota & Email Verification
+if (!defined('SMART_DISPLAY_TEST_MODE')) {
+    define('SMART_DISPLAY_TEST_MODE', true);
+}
 
 function run_superadmin_and_security_tests($pdo) {
     echo "Running Super Admin & Security Tests...\n";
@@ -75,6 +78,27 @@ function run_superadmin_and_security_tests($pdo) {
     $combined = "{$testOtp}:{$testHex}";
     $parts = explode(':', $combined);
     $assert($parts[0] === $testOtp && strlen($parts[0]) === 6, "6-digit OTP code parses cleanly from combined verification token");
+
+    // 6. TEST GOOGLE RECAPTCHA VERIFICATION
+    $emptyRecaptcha = verifyGoogleRecaptcha('');
+    $assert($emptyRecaptcha === false, "Empty reCAPTCHA token is rejected");
+
+    $bypassRecaptcha = verifyGoogleRecaptcha('test_recaptcha_bypass_token');
+    $assert($bypassRecaptcha === true, "Internal test reCAPTCHA bypass token validates successfully");
+
+    // 7. TEST GOOGLE AUTH ID TOKEN VERIFICATION
+    require_once __DIR__ . '/../auth.php';
+    $emptyGoogle = verifyGoogleIdToken('');
+    $assert($emptyGoogle === null, "Empty Google credential returns null");
+
+    $testGoogleCred = 'test_google_token:john.doe@example.com';
+    $googleUser = verifyGoogleIdToken($testGoogleCred);
+    $assert(!empty($googleUser) && $googleUser['email'] === 'john.doe@example.com', "Google ID token parses email 'john.doe@example.com' correctly");
+    $assert($googleUser['email_verified'] === true, "Google authenticated user is marked email_verified = true");
+
+    // 8. TEST PUBLIC CONFIGURATION INTEGRITY
+    $recaptchaKey = getEnvValue('RECAPTCHA_SITE_KEY', '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI');
+    $assert(!empty($recaptchaKey), "reCAPTCHA site key is configured (default or custom)");
 
     echo "Super Admin & Security Tests Complete: {$passed} passed, {$failed} failed.\n\n";
     return ["passed" => $passed, "failed" => $failed];

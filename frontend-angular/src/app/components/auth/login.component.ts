@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { CaptchaChallenge, CapacityStatus } from '../../models/display.model';
@@ -92,17 +92,26 @@ import { CaptchaChallenge, CapacityStatus } from '../../models/display.model';
 
         <!-- STATE 2: STANDARD LOGIN / REGISTER FORM -->
         <div *ngIf="!isVerifyingEmail">
-          <!-- Google OAuth 1-Click Button -->
+          <!-- Google Identity Services (GIS) / Google Sign-In -->
           <div class="google-auth-section">
-            <button type="button" (click)="signInWithGoogle()" class="btn-google">
-              <svg viewBox="0 0 24 24" class="google-icon">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>{{ mode === 'login' ? 'Sign in with Google' : 'Register with Google' }}</span>
-            </button>
+            <div id="googleBtnContainer" class="google-gis-btn-box" [style.display]="googleClientId ? 'flex' : 'none'"></div>
+
+            <div *ngIf="!googleClientId" class="google-placeholder-box">
+              <button type="button" (click)="onGooglePlaceholderClick()" class="btn-google">
+                <svg viewBox="0 0 24 24" class="google-icon">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span>{{ mode === 'login' ? 'Sign in with Google' : 'Register with Google' }}</span>
+              </button>
+
+              <div *ngIf="showGoogleConfigHelp" class="google-config-alert">
+                💡 <strong>Google Auth Ready</strong>: Google Identity Services is integrated! Set <code>GOOGLE_CLIENT_ID</code> in <code>.env</code> on the server to enable official 1-click Google Sign-In.
+              </div>
+            </div>
+
             <div class="divider-or">
               <span>or continue with email</span>
             </div>
@@ -153,8 +162,13 @@ import { CaptchaChallenge, CapacityStatus } from '../../models/display.model';
               />
             </div>
 
-            <!-- Captcha Verification Challenge -->
-            <div class="captcha-box">
+            <!-- Official Google reCAPTCHA Container -->
+            <div class="recaptcha-wrapper">
+              <div id="recaptchaContainer" class="recaptcha-box-container"></div>
+            </div>
+
+            <!-- Fallback Captcha (if Google reCAPTCHA is unavailable) -->
+            <div *ngIf="showFallbackCaptcha" class="captcha-box">
               <div class="captcha-label-row">
                 <label>Security Verification (Anti-Bot)</label>
                 <button type="button" (click)="loadCaptcha()" class="btn-refresh-captcha" title="New challenge">
@@ -169,14 +183,13 @@ import { CaptchaChallenge, CapacityStatus } from '../../models/display.model';
                   type="number" 
                   [(ngModel)]="captchaAnswer" 
                   name="captchaAnswer" 
-                  required 
                   placeholder="Answer"
                   class="input-control input-captcha"
                 />
               </div>
             </div>
 
-            <button type="submit" [disabled]="loading || !email || !password || !captchaAnswer" class="btn btn-primary">
+            <button type="submit" [disabled]="loading || !email || !password || (!recaptchaToken && !captchaAnswer)" class="btn btn-primary">
               {{ loading ? (mode === 'login' ? 'Signing in...' : 'Registering...') : (mode === 'login' ? 'Sign In' : 'Create Account') }}
             </button>
           </form>
@@ -508,17 +521,69 @@ import { CaptchaChallenge, CapacityStatus } from '../../models/display.model';
     .btn-link-cancel {
       color: #94a3b8;
     }
+    .recaptcha-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 14px 0 16px;
+      min-height: 78px;
+    }
+    .recaptcha-box-container {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+    .google-gis-btn-box {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      min-height: 44px;
+      margin-bottom: 12px;
+    }
+    .google-placeholder-box {
+      width: 100%;
+    }
+    .google-config-alert {
+      margin-top: 8px;
+      padding: 10px 14px;
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      border-radius: 10px;
+      font-size: 0.78rem;
+      color: #bae6fd;
+      line-height: 1.4;
+      text-align: left;
+    }
+    .google-config-alert code {
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #38bdf8;
+      font-weight: 600;
+    }
   `]
 })
-export class LoginComponent implements OnInit {
+export class LoginComponent implements OnInit, AfterViewInit {
   mode: 'login' | 'register' = 'login';
   name: string = '';
   email: string = '';
   password: string = '';
 
-  // Captcha
+  // Google reCAPTCHA & GIS Keys
+  recaptchaSiteKey: string = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
+  googleClientId: string = '';
+  recaptchaToken: string = '';
+  recaptchaWidgetId?: number;
+  recaptchaLoaded: boolean = false;
+  gisInitialized: boolean = false;
+
+  // Fallback Captcha
+  showFallbackCaptcha: boolean = false;
   captchaChallenge: CaptchaChallenge | null = null;
   captchaAnswer: string = '';
+
+  // Google Config Helper
+  showGoogleConfigHelp: boolean = false;
 
   // Capacity status
   capacity: CapacityStatus | null = null;
@@ -561,46 +626,135 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    this.loadCaptcha();
-    this.loadCapacity();
+    this.loadPublicConfig();
   }
 
-  loadCaptcha(): void {
-    this.captchaAnswer = '';
-    this.authService.getCaptchaChallenge().subscribe({
+  ngAfterViewInit(): void {
+    if (!this.isVerifyingEmail) {
+      this.initGoogleRecaptcha();
+      if (this.googleClientId) {
+        this.initGoogleAuth();
+      }
+    }
+  }
+
+  loadPublicConfig(): void {
+    this.authService.getPublicConfig().subscribe({
       next: (res) => {
-        if (res.success) this.captchaChallenge = res;
+        if (res.success) {
+          this.capacity = res;
+          if (res.recaptchaSiteKey) {
+            this.recaptchaSiteKey = res.recaptchaSiteKey;
+          }
+          if (res.googleClientId) {
+            this.googleClientId = res.googleClientId;
+            this.initGoogleAuth();
+          }
+          this.initGoogleRecaptcha();
+        }
+      },
+      error: () => {
+        this.initGoogleRecaptcha();
       }
     });
   }
 
-  loadCapacity(): void {
-    this.authService.getCapacityStatus().subscribe({
-      next: (res) => {
-        if (res.success) this.capacity = res;
+  initGoogleRecaptcha(): void {
+    const tryRender = () => {
+      const grecaptcha = (window as any).grecaptcha;
+      const container = document.getElementById('recaptchaContainer');
+      if (!container) return;
+
+      if (grecaptcha && grecaptcha.render) {
+        try {
+          if (this.recaptchaWidgetId === undefined && !container.hasChildNodes()) {
+            this.recaptchaWidgetId = grecaptcha.render('recaptchaContainer', {
+              sitekey: this.recaptchaSiteKey,
+              theme: 'dark',
+              callback: (token: string) => {
+                this.recaptchaToken = token;
+                this.errorMessage = '';
+              },
+              'expired-callback': () => {
+                this.recaptchaToken = '';
+              },
+              'error-callback': () => {
+                this.showFallbackCaptcha = true;
+                this.loadCaptcha();
+              }
+            });
+            this.recaptchaLoaded = true;
+          }
+        } catch (e) {
+          console.warn('Google reCAPTCHA render issue:', e);
+          this.showFallbackCaptcha = true;
+          this.loadCaptcha();
+        }
+      } else {
+        setTimeout(tryRender, 250);
       }
-    });
+    };
+
+    // If reCAPTCHA script fails to initialize after 3.5s, enable math puzzle fallback
+    setTimeout(() => {
+      if (!this.recaptchaLoaded) {
+        this.showFallbackCaptcha = true;
+        this.loadCaptcha();
+      }
+    }, 3500);
+
+    tryRender();
   }
 
-  setMode(mode: 'login' | 'register'): void {
-    this.mode = mode;
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.loadCaptcha();
+  initGoogleAuth(): void {
+    if (!this.googleClientId) return;
+
+    const tryInitGIS = () => {
+      const google = (window as any).google;
+      const btnContainer = document.getElementById('googleBtnContainer');
+
+      if (google && google.accounts && google.accounts.id && btnContainer) {
+        try {
+          google.accounts.id.initialize({
+            client_id: this.googleClientId,
+            callback: (resp: any) => this.handleGoogleCredentialResponse(resp),
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+
+          btnContainer.innerHTML = '';
+          google.accounts.id.renderButton(btnContainer, {
+            type: 'standard',
+            theme: 'filled_black',
+            size: 'large',
+            text: this.mode === 'login' ? 'signin_with' : 'signup_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: 376
+          });
+          this.gisInitialized = true;
+        } catch (e) {
+          console.warn('GIS render button error:', e);
+        }
+      } else {
+        setTimeout(tryInitGIS, 250);
+      }
+    };
+
+    tryInitGIS();
   }
 
-  signInWithGoogle(): void {
-    this.errorMessage = '';
-    this.loading = true;
-
-    // Simulate Google Identity Services login prompt
-    const simulatedGoogleEmail = prompt('Enter your Google Email to sign in with Google:', this.email || 'user@gmail.com');
-    if (!simulatedGoogleEmail) {
-      this.loading = false;
+  handleGoogleCredentialResponse(response: any): void {
+    if (!response || !response.credential) {
+      this.errorMessage = 'Google authentication response was empty.';
       return;
     }
 
-    this.authService.googleAuth(simulatedGoogleEmail).subscribe({
+    this.loading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    this.authService.googleAuth(response.credential).subscribe({
       next: (res) => {
         this.loading = false;
         if (res.success) {
@@ -616,6 +770,61 @@ export class LoginComponent implements OnInit {
     });
   }
 
+  onGooglePlaceholderClick(): void {
+    if (this.googleClientId) {
+      const google = (window as any).google;
+      if (google && google.accounts && google.accounts.id) {
+        google.accounts.id.prompt();
+      }
+    } else {
+      this.showGoogleConfigHelp = !this.showGoogleConfigHelp;
+    }
+  }
+
+  loadCaptcha(): void {
+    this.captchaAnswer = '';
+    this.authService.getCaptchaChallenge().subscribe({
+      next: (res) => {
+        if (res.success) this.captchaChallenge = res;
+      }
+    });
+  }
+
+  setMode(mode: 'login' | 'register'): void {
+    this.mode = mode;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.recaptchaToken = '';
+
+    const grecaptcha = (window as any).grecaptcha;
+    if (grecaptcha && this.recaptchaWidgetId !== undefined) {
+      try {
+        grecaptcha.reset(this.recaptchaWidgetId);
+      } catch (e) {}
+    }
+
+    if (this.showFallbackCaptcha) {
+      this.loadCaptcha();
+    }
+
+    if (this.googleClientId) {
+      this.initGoogleAuth();
+    }
+  }
+
+  resetCaptcha(): void {
+    this.recaptchaToken = '';
+    const grecaptcha = (window as any).grecaptcha;
+    if (grecaptcha && this.recaptchaWidgetId !== undefined) {
+      try {
+        grecaptcha.reset(this.recaptchaWidgetId);
+      } catch (e) {}
+    }
+    if (this.showFallbackCaptcha) {
+      this.loadCaptcha();
+    }
+  }
+
   onSubmit(): void {
     this.errorMessage = '';
     this.successMessage = '';
@@ -625,8 +834,8 @@ export class LoginComponent implements OnInit {
       return;
     }
 
-    if (!this.captchaAnswer || !this.captchaChallenge) {
-      this.errorMessage = 'Please solve the anti-bot verification challenge.';
+    if (!this.recaptchaToken && !this.captchaAnswer) {
+      this.errorMessage = 'Please complete the security verification (reCAPTCHA) below.';
       return;
     }
 
@@ -643,7 +852,8 @@ export class LoginComponent implements OnInit {
         this.name, 
         this.email, 
         this.password, 
-        this.captchaChallenge.captchaToken, 
+        this.recaptchaToken,
+        this.captchaChallenge?.captchaToken, 
         this.captchaAnswer
       ).subscribe({
         next: (res) => {
@@ -656,13 +866,13 @@ export class LoginComponent implements OnInit {
             this.startResendTimer();
           } else {
             this.errorMessage = res.error || 'Registration failed.';
-            this.loadCaptcha();
+            this.resetCaptcha();
           }
         },
         error: (err) => {
           this.loading = false;
           this.errorMessage = err.error?.error || 'Registration failed. Please try again.';
-          this.loadCaptcha();
+          this.resetCaptcha();
         }
       });
     } else {
@@ -670,7 +880,8 @@ export class LoginComponent implements OnInit {
       this.authService.login(
         this.email, 
         this.password, 
-        this.captchaChallenge.captchaToken, 
+        this.recaptchaToken,
+        this.captchaChallenge?.captchaToken, 
         this.captchaAnswer
       ).subscribe({
         next: (res) => {
@@ -679,7 +890,7 @@ export class LoginComponent implements OnInit {
             this.router.navigateByUrl(this.returnUrl);
           } else {
             this.errorMessage = res.error || 'Invalid credentials';
-            this.loadCaptcha();
+            this.resetCaptcha();
           }
         },
         error: (err) => {
@@ -691,7 +902,7 @@ export class LoginComponent implements OnInit {
             this.resendCode();
           } else {
             this.errorMessage = err.error?.error || 'Authentication failed.';
-            this.loadCaptcha();
+            this.resetCaptcha();
           }
         }
       });
@@ -755,6 +966,11 @@ export class LoginComponent implements OnInit {
     this.verificationCode = '';
     this.errorMessage = '';
     this.successMessage = '';
-    this.loadCaptcha();
+    setTimeout(() => {
+      this.initGoogleRecaptcha();
+      if (this.googleClientId) {
+        this.initGoogleAuth();
+      }
+    }, 100);
   }
 }
