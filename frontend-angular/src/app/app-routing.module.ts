@@ -7,7 +7,9 @@ import { DevicePairingComponent } from './components/pairing/device-pairing.comp
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { LoginComponent } from './components/auth/login.component';
 import { InstallationGuideComponent } from './components/help/installation-guide.component';
+import { SuperAdminComponent } from './components/admin/super-admin.component';
 import { AuthGuard } from './guards/auth.guard';
+import { SuperAdminGuard } from './guards/super-admin.guard';
 
 const routes: Routes = [
   // Public Kiosk Display route
@@ -32,6 +34,13 @@ const routes: Routes = [
     path: 'admin/displays', 
     component: DisplayListComponent,
     canActivate: [AuthGuard]
+  },
+
+  // Protected Super Admin Hub
+  {
+    path: 'admin/superadmin',
+    component: SuperAdminComponent,
+    canActivate: [AuthGuard, SuperAdminGuard]
   },
 
   // Protected Canvas & Widget Editor

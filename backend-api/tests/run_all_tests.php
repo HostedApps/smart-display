@@ -8,6 +8,12 @@ $startTime = microtime(true);
 
 require_once __DIR__ . '/test_ai_flyer_scanner.php';
 require_once __DIR__ . '/test_tasks_sync.php';
+require_once __DIR__ . '/test_superadmin_and_security.php';
+
+require_once __DIR__ . '/../db.php';
+$secResults = run_superadmin_and_security_tests($pdo);
+$passed += $secResults['passed'];
+$failed += $secResults['failed'];
 
 $duration = round((microtime(true) - $startTime) * 1000, 2);
 
