@@ -43,7 +43,17 @@ try {
     $theme = in_array($input['theme'] ?? '', ['dark', 'light', 'glass', 'minimal']) ? $input['theme'] : 'dark';
     $orientation = $input['orientation'] ?? 'landscape_720p';
     $refreshInterval = max(10, (int)($input['refresh_interval'] ?? 60));
-    $background = isset($input['background']) ? json_encode($input['background']) : null;
+    $backgroundArr = isset($input['background']) && is_array($input['background']) ? $input['background'] : [];
+    if (isset($input['font_family'])) {
+        $backgroundArr['font_family'] = sanitizeText($input['font_family']);
+    }
+    if (isset($input['weather_alerts_enabled'])) {
+        $backgroundArr['weather_alerts_enabled'] = (bool)$input['weather_alerts_enabled'];
+    }
+    if (isset($input['weather_alert'])) {
+        $backgroundArr['weather_alert'] = is_string($input['weather_alert']) ? sanitizeText($input['weather_alert']) : $input['weather_alert'];
+    }
+    $background = !empty($backgroundArr) ? json_encode($backgroundArr) : null;
     $sleepSchedule = isset($input['sleep_schedule']) ? json_encode($input['sleep_schedule']) : null;
     $pages = isset($input['pages']) ? json_encode($input['pages']) : null;
     $logoUrl = (!empty($input['logo_url']) && isSafeExternalUrl($input['logo_url'])) ? trim($input['logo_url']) : null;

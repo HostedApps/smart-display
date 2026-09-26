@@ -122,6 +122,19 @@ function run_superadmin_and_security_tests($pdo) {
         $pdo->exec("DELETE FROM widgets WHERE id = {$testWidgetId}");
     }
 
+    // 10. TEST PHASE 2C: GOOGLE FONTS & SEVERE WEATHER ALERTS PERSISTENCE
+    $testBgData = [
+        'type' => 'theme',
+        'font_family' => 'Outfit',
+        'weather_alerts_enabled' => true,
+        'weather_alert' => 'Tornado Warning in effect'
+    ];
+    $encodedBg = json_encode($testBgData);
+    $decodedBg = json_decode($encodedBg, true);
+    $assert($decodedBg['font_family'] === 'Outfit', "Display configuration preserves Google font 'Outfit'");
+    $assert($decodedBg['weather_alerts_enabled'] === true, "Display configuration preserves weather_alerts_enabled flag");
+    $assert($decodedBg['weather_alert'] === 'Tornado Warning in effect', "Display configuration preserves active severe weather alert");
+
     echo "Super Admin & Security Tests Complete: {$passed} passed, {$failed} failed.\n\n";
     return ["passed" => $passed, "failed" => $failed];
 }

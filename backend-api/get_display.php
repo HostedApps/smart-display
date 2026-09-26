@@ -49,17 +49,21 @@ try {
         exit();
     }
     // Decode JSON fields if present
+    $bgData = !empty($display['background_json']) ? json_decode($display['background_json'], true) : [];
     $displayData = [
         'id' => (int)$display['id'],
         'name' => $display['name'] ?? 'Main Display',
         'theme' => $display['theme'] ?? 'dark',
         'orientation' => $display['orientation'] ?? 'landscape_720p',
         'refresh_interval' => (int)($display['refresh_interval'] ?? 60),
-        'background' => !empty($display['background_json']) ? json_decode($display['background_json'], true) : null,
+        'background' => $bgData,
         'sleep_schedule' => !empty($display['sleep_schedule_json']) ? json_decode($display['sleep_schedule_json'], true) : null,
         'pages' => !empty($display['pages_json']) ? json_decode($display['pages_json'], true) : null,
         'logo_url' => $display['logo_url'] ?? null,
-        'show_logo_kiosk' => (bool)($display['show_logo_kiosk'] ?? false)
+        'show_logo_kiosk' => (bool)($display['show_logo_kiosk'] ?? false),
+        'font_family' => $bgData['font_family'] ?? null,
+        'weather_alerts_enabled' => $bgData['weather_alerts_enabled'] ?? true,
+        'weather_alert' => $bgData['weather_alert'] ?? null
     ];
 
     // Fetch Widgets

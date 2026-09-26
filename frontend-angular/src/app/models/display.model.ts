@@ -82,6 +82,7 @@ export interface WidgetStyle {
   backdropBlur?: boolean;
   backgroundColor?: string;
   textColor?: string;
+  fontFamily?: string;
 }
 
 export interface ClockConfig {
@@ -375,6 +376,9 @@ export interface DisplayConfig {
   pages?: DisplayPage[];
   logo_url?: string;
   show_logo_kiosk?: boolean;
+  font_family?: string;
+  weather_alerts_enabled?: boolean;
+  weather_alert?: { title?: string; message: string; severity?: string } | string;
 }
 
 export interface DisplaySummary {
