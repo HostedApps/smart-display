@@ -97,7 +97,7 @@ function run_superadmin_and_security_tests($pdo) {
     $assert($googleUser['email_verified'] === true, "Google authenticated user is marked email_verified = true");
 
     // 8. TEST PUBLIC CONFIGURATION INTEGRITY
-    $recaptchaKey = getEnvValue('RECAPTCHA_SITE_KEY', '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI');
+    $recaptchaKey = getEnvValue('RECAPTCHA_SITE_KEY', '6Lf-yrgtAAAAAGsEyEOe0lrAU6pde04hOnQVe_yO');
     $assert(!empty($recaptchaKey), "reCAPTCHA site key is configured (default or custom)");
 
     echo "Super Admin & Security Tests Complete: {$passed} passed, {$failed} failed.\n\n";
