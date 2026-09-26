@@ -15,6 +15,9 @@ import {
 } from '../../models/display.model';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
+import { AVAILABLE_FONTS, loadGoogleFont, getFontFamilyString, FontOption } from '../../utils/font-loader.util';
+import { DASHBOARD_TEMPLATES, DashboardTemplate } from '../../utils/dashboard-templates.util';
+import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.component';
 
 @Component({
   selector: 'app-dashboard-editor',
@@ -82,20 +85,31 @@ import { AuthService } from '../../services/auth.service';
 
           <hr class="divider" />
 
-          <button 
-            class="btn-auto-arrange"
-            (click)="openAutoArrangeModal()"
-            [disabled]="pageWidgets.length < 2"
-            title="Auto-arrange widgets into aesthetic layouts"
-          >
-            ✨ Auto Arrange
-          </button>
+          <div class="layout-action-row">
+            <button 
+              type="button"
+              class="btn-templates"
+              (click)="openTemplatesModal()"
+              title="Explore pre-built starter templates for the canvas"
+            >
+              🎨 Templates
+            </button>
+            <button 
+              type="button"
+              class="btn-auto-arrange"
+              (click)="openAutoArrangeModal()"
+              [disabled]="pageWidgets.length < 2"
+              title="Auto-arrange widgets into aesthetic layouts"
+            >
+              ✨ Auto Arrange
+            </button>
+          </div>
 
           <hr class="divider" />
 
           <div class="palette-header">
             <h3>Add Widget</h3>
-            <span class="palette-badge">27 Widgets</span>
+            <span class="palette-badge">29 Widgets</span>
           </div>
           <div class="widget-palette">
             <button (click)="addWidget('youtube')" class="palette-item" title="Embed ambient YouTube videos or live news/music streams with auto-play and loop">
@@ -255,6 +269,14 @@ import { AuthService } from '../../services/auth.service';
             <div class="form-group">
               <label>Corner Radius ({{ selectedWidget.style?.borderRadius || 12 }}px)</label>
               <input type="range" min="0" max="28" step="2" [ngModel]="selectedWidget.style?.borderRadius || 12" (ngModelChange)="setWidgetRadius($event)" class="slider-control" />
+            </div>
+
+            <div class="form-group">
+              <label>Widget Font Override</label>
+              <select [ngModel]="selectedWidget.style?.fontFamily || ''" (ngModelChange)="setWidgetFont($event)" class="input-control">
+                <option value="">Default Canvas Font</option>
+                <option *ngFor="let font of availableFonts" [value]="font.id">{{ font.name }}</option>
+              </select>
             </div>
 
             <!-- Layer Properties (Rename, Lock, Hide) -->
@@ -1309,6 +1331,15 @@ import { AuthService } from '../../services/auth.service';
             </select>
           </div>
 
+          <div class="form-group">
+            <label>Typography & Font Family</label>
+            <select [(ngModel)]="displayConfig.font_family" (ngModelChange)="onFontChange()" class="input-control font-picker-select">
+              <option *ngFor="let font of availableFonts" [value]="font.id">
+                {{ font.name }} ({{ font.sample }})
+              </option>
+            </select>
+          </div>
+
           <hr class="divider" />
 
           <h4>Sleep & Night Mode Schedule</h4>
@@ -1333,6 +1364,33 @@ import { AuthService } from '../../services/auth.service';
               <label>
                 <input type="checkbox" [(ngModel)]="sleepSchedule.nightMode" /> Ambient Night Clock (Red Minimal Mode)
               </label>
+            </div>
+          </div>
+
+          <hr class="divider" />
+
+          <h4>⚠️ Severe Weather Auto-Alerts</h4>
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" [(ngModel)]="weatherAlertsEnabled" /> Screen-Wide Emergency Alert Banner
+            </label>
+          </div>
+          <p class="tab-desc">Displays a prominent warning banner across the display when NWS or Open-Meteo detects severe weather.</p>
+          
+          <div class="form-group" *ngIf="weatherAlertsEnabled">
+            <label>Broadcast / Test Weather Alert</label>
+            <input 
+              type="text" 
+              [(ngModel)]="weatherAlertText" 
+              (ngModelChange)="onWeatherAlertChange()"
+              placeholder="e.g. Severe Thunderstorm Warning until 8:00 PM" 
+              class="input-control" 
+            />
+            <div class="alert-preset-chips">
+              <button type="button" class="btn-chip" (click)="setWeatherAlertPreset('⚡ Severe Thunderstorm Warning with 60mph gusts')">⚡ Thunderstorm</button>
+              <button type="button" class="btn-chip" (click)="setWeatherAlertPreset('🌪️ Tornado Watch issued for region until 10 PM')">🌪️ Tornado</button>
+              <button type="button" class="btn-chip" (click)="setWeatherAlertPreset('🌊 Flash Flood Warning: Move to higher ground')">🌊 Flood</button>
+              <button type="button" class="btn-chip" (click)="clearWeatherAlert()">✕ Clear</button>
             </div>
           </div>
 
@@ -1457,6 +1515,7 @@ import { AuthService } from '../../services/auth.service';
             [style.height.px]="canvasHeight"
             [style.transform]="'scale(' + zoomLevel + ')'"
             [style.background]="getCanvasBackgroundStyle()"
+            [style.fontFamily]="canvasFontFamily"
             (click)="$event.stopPropagation()"
           >
             <!-- Background image layer -->
@@ -1485,6 +1544,13 @@ import { AuthService } from '../../services/auth.service';
               [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
             ></iframe>
 
+            <!-- Severe Weather Banner Preview in Editor Canvas -->
+            <app-severe-weather-alert-banner 
+              *ngIf="weatherAlertText" 
+              [alert]="getEditorWeatherAlert()" 
+              [dismissable]="false"
+            ></app-severe-weather-alert-banner>
+
             <div 
               *ngFor="let widget of pageWidgets; let i = index"
               class="draggable-widget"
@@ -1497,6 +1563,7 @@ import { AuthService } from '../../services/auth.service';
               [style.height.px]="widget.position.height"
               [style.opacity]="widget.hidden ? 0.35 : (widget.style?.opacity !== undefined ? widget.style?.opacity : 1)"
               [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
+              [style.fontFamily]="getWidgetFont(widget)"
               (mousedown)="startDrag($event, widget)"
               (click)="selectWidget(widget, $event)"
             >
@@ -1609,7 +1676,7 @@ import { AuthService } from '../../services/auth.service';
                   [style.height.%]="(pos.height / canvasHeight) * 100"
                   [style.background]="layoutColorPalette[j % layoutColorPalette.length]"
                 >
-                  <span class="preview-widget-label">{{ pageWidgets[j]?.type }}</span>
+                  <span class="preview-widget-label">{{ pageWidgets[j] ? pageWidgets[j].type : '' }}</span>
                 </div>
               </div>
               <div class="layout-card-footer">
@@ -1631,6 +1698,59 @@ import { AuthService } from '../../services/auth.service';
               Apply Layout
             </button>
             <button class="btn btn-secondary" (click)="showAutoArrangeModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Starter Templates Gallery Modal -->
+      <div class="templates-overlay" *ngIf="showTemplatesModal" (click)="showTemplatesModal = false">
+        <div class="templates-modal" (click)="$event.stopPropagation()">
+          <div class="templates-header">
+            <div>
+              <h2>🎨 Starter Dashboard Templates</h2>
+              <p class="templates-subtitle">Jumpstart your display with pre-built, pixel-perfect curated layouts</p>
+            </div>
+            <button type="button" class="templates-close" (click)="showTemplatesModal = false">✕</button>
+          </div>
+
+          <div class="templates-grid">
+            <div 
+              *ngFor="let tmpl of dashboardTemplates" 
+              class="template-card"
+              [style.border-top-color]="tmpl.accentColor"
+            >
+              <div class="template-card-top">
+                <div class="template-badge-pill" [style.backgroundColor]="tmpl.accentColor">{{ tmpl.badge }}</div>
+                <div class="template-icon-large">{{ tmpl.icon }}</div>
+                <h3 class="template-title">{{ tmpl.name }}</h3>
+                <span class="template-cat">{{ tmpl.category }}</span>
+              </div>
+
+              <p class="template-description">{{ tmpl.description }}</p>
+
+              <div class="template-actions">
+                <button 
+                  type="button" 
+                  class="btn-tmpl-apply" 
+                  (click)="applyTemplateToCurrentPage(tmpl)"
+                  title="Replace widgets on the active page with this template"
+                >
+                  ⚡ Apply to This Page
+                </button>
+                <button 
+                  type="button" 
+                  class="btn-tmpl-new-page" 
+                  (click)="applyTemplateAsNewPage(tmpl)"
+                  title="Create a new page and populate with this template"
+                >
+                  ➕ Add as New Page
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="templates-footer">
+            <button type="button" class="btn btn-secondary" (click)="showTemplatesModal = false">Close</button>
           </div>
         </div>
       </div>
@@ -3068,6 +3188,226 @@ import { AuthService } from '../../services/auth.service';
       font-size: 0.7rem;
       margin-left: 4px;
     }
+
+    /* --- Action Row & Templates Button --- */
+    .layout-action-row {
+      display: flex;
+      gap: 8px;
+    }
+    .layout-action-row .btn-auto-arrange {
+      flex: 1;
+      margin: 0;
+    }
+    .btn-templates {
+      flex: 1;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 12px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+    .btn-templates:hover {
+      background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.45);
+      transform: translateY(-1px);
+    }
+
+    /* --- Alert Preset Chips --- */
+    .alert-preset-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .btn-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      color: #cbd5e1;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-chip:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    /* --- Templates Modal --- */
+    .templates-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      animation: fadeIn 0.2s ease-out;
+    }
+    .templates-modal {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 1100px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+    }
+    .templates-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 28px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .templates-header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .templates-subtitle {
+      margin: 4px 0 0 0;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    .templates-close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .templates-close:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .templates-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      padding: 24px 28px;
+      overflow-y: auto;
+      max-height: calc(90vh - 170px);
+    }
+    @media (max-width: 900px) {
+      .templates-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .template-card {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-top: 4px solid var(--accent-color, #6366f1);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .template-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+    .template-card-top {
+      position: relative;
+      margin-bottom: 12px;
+    }
+    .template-badge-pill {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .template-icon-large {
+      font-size: 2.2rem;
+      margin-bottom: 6px;
+    }
+    .template-title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .template-cat {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .template-description {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      line-height: 1.45;
+      margin: 0 0 16px 0;
+      flex: 1;
+    }
+    .template-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .btn-tmpl-apply {
+      width: 100%;
+      padding: 9px 12px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-tmpl-apply:hover {
+      background: #2563eb;
+    }
+    .btn-tmpl-new-page {
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-tmpl-new-page:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+    .templates-footer {
+      padding: 16px 28px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: flex-end;
+    }
   `]
 })
 export class DashboardEditorComponent implements OnInit, AfterViewInit {
@@ -3156,6 +3496,127 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     '#fbbf24', '#34d399', '#f472b6', '#22d3ee', '#a78bfa'
   ];
 
+  // Typography & Google Fonts
+  availableFonts: FontOption[] = AVAILABLE_FONTS;
+
+  // Starter Templates Gallery
+  dashboardTemplates: DashboardTemplate[] = DASHBOARD_TEMPLATES;
+  showTemplatesModal: boolean = false;
+
+  // Severe Weather Alerts
+  weatherAlertsEnabled: boolean = true;
+  weatherAlertText: string = '';
+
+  get canvasFontFamily(): string {
+    return getFontFamilyString(this.displayConfig.font_family);
+  }
+
+  getWidgetFont(widget: Widget): string {
+    return widget.style?.fontFamily ? getFontFamilyString(widget.style.fontFamily) : 'inherit';
+  }
+
+  onFontChange(): void {
+    if (this.displayConfig.font_family) {
+      loadGoogleFont(this.displayConfig.font_family);
+    }
+  }
+
+  setWidgetFont(fontId: string): void {
+    if (!this.selectedWidget) return;
+    if (!this.selectedWidget.style) {
+      this.selectedWidget.style = { opacity: 1, borderRadius: 12, backdropBlur: true };
+    }
+    this.selectedWidget.style.fontFamily = fontId || undefined;
+    if (fontId) {
+      loadGoogleFont(fontId);
+    }
+    this.pushHistory();
+  }
+
+  getEditorWeatherAlert(): SevereWeatherAlertData | null {
+    if (!this.weatherAlertText) return null;
+    return {
+      title: 'Severe Weather Warning',
+      message: this.weatherAlertText,
+      severity: 'warning'
+    };
+  }
+
+  onWeatherAlertChange(): void {
+    this.displayConfig.weather_alert = this.weatherAlertText ? this.weatherAlertText : undefined;
+  }
+
+  setWeatherAlertPreset(text: string): void {
+    this.weatherAlertText = text;
+    this.weatherAlertsEnabled = true;
+    this.displayConfig.weather_alerts_enabled = true;
+    this.displayConfig.weather_alert = text;
+  }
+
+  clearWeatherAlert(): void {
+    this.weatherAlertText = '';
+    this.displayConfig.weather_alert = undefined;
+  }
+
+  openTemplatesModal(): void {
+    this.showTemplatesModal = true;
+  }
+
+  applyTemplateToCurrentPage(tmpl: DashboardTemplate): void {
+    if (this.pageWidgets.length > 0) {
+      if (!confirm(`Apply "${tmpl.name}"? This will replace the ${this.pageWidgets.length} widgets on the current page.`)) {
+        return;
+      }
+    }
+    const targetPageId = this.activePageId || 'default';
+    this.widgets = this.widgets.filter(w => (w.page_id || 'default') !== targetPageId);
+    
+    const newWidgets = tmpl.generateWidgets(this.canvasWidth, this.canvasHeight, targetPageId);
+    let nextId = Date.now();
+    newWidgets.forEach(pw => {
+      this.widgets.push({
+        id: nextId++,
+        type: pw.type!,
+        page_id: targetPageId,
+        customName: pw.customName,
+        position: pw.position!,
+        config: pw.config || {},
+        style: pw.style || { borderRadius: 16 }
+      });
+    });
+    this.selectedWidget = null;
+    this.showTemplatesModal = false;
+    this.pushHistory();
+  }
+
+  applyTemplateAsNewPage(tmpl: DashboardTemplate): void {
+    const pageId = 'page_' + Date.now().toString(36);
+    const newPage: DisplayPage = {
+      id: pageId,
+      name: tmpl.name,
+      duration_seconds: 30
+    };
+    this.pages.push(newPage);
+    this.activePageId = pageId;
+
+    const newWidgets = tmpl.generateWidgets(this.canvasWidth, this.canvasHeight, pageId);
+    let nextId = Date.now();
+    newWidgets.forEach(pw => {
+      this.widgets.push({
+        id: nextId++,
+        type: pw.type!,
+        page_id: pageId,
+        customName: pw.customName,
+        position: pw.position!,
+        config: pw.config || {},
+        style: pw.style || { borderRadius: 16 }
+      });
+    });
+    this.selectedWidget = null;
+    this.showTemplatesModal = false;
+    this.pushHistory();
+  }
+
   constructor(
     private route: ActivatedRoute, 
     private router: Router,
@@ -3203,6 +3664,21 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
             if (res.display.background) {
               this.backgroundConfig = res.display.background;
             }
+
+            if (res.display.font_family) {
+              loadGoogleFont(res.display.font_family);
+            }
+            if (res.display.weather_alerts_enabled !== undefined) {
+              this.weatherAlertsEnabled = !!res.display.weather_alerts_enabled;
+            }
+            if (res.display.weather_alert) {
+              this.weatherAlertText = typeof res.display.weather_alert === 'string'
+                ? res.display.weather_alert
+                : (res.display.weather_alert.message || '');
+            }
+            (res.widgets || []).forEach(w => {
+              if (w.style?.fontFamily) loadGoogleFont(w.style.fontFamily);
+            });
 
             this.updateOrientation();
           }
@@ -4239,6 +4715,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       pages: this.pages,
       logo_url: this.logoUrl,
       show_logo_kiosk: this.showLogoKiosk,
+      font_family: this.displayConfig.font_family,
+      weather_alerts_enabled: this.weatherAlertsEnabled,
+      weather_alert: this.weatherAlertText ? this.weatherAlertText : null,
       widgets: this.widgets
     };
 

@@ -8,6 +8,8 @@ import { environment } from '../../environments/environment';
 import { OfflineCacheService } from '../services/offline-cache.service';
 import { WakeLockService } from '../services/wake-lock.service';
 import { EmergencyService } from '../services/emergency.service';
+import { loadGoogleFont, getFontFamilyString } from '../utils/font-loader.util';
+import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.component';
 
 @Component({
   selector: 'app-display-viewer',
@@ -16,6 +18,7 @@ import { EmergencyService } from '../services/emergency.service';
       class="display-canvas" 
       [ngClass]="[displayConfig?.theme || 'dark', displayConfig?.orientation || 'landscape_720p']"
       [style.background]="canvasBackgroundStyle"
+      [style.fontFamily]="canvasFontFamily"
     >
       <!-- Background Image Overlay if Configured -->
       <div 
@@ -69,6 +72,13 @@ import { EmergencyService } from '../services/emergency.service';
         <img [src]="displayConfig?.logo_url" alt="Logo" class="watermark-logo-img" />
       </div>
 
+      <!-- Severe Weather Auto-Alert Banner -->
+      <app-severe-weather-alert-banner 
+        *ngIf="activeSevereAlert && !isSevereAlertDismissed" 
+        [alert]="activeSevereAlert" 
+        (dismissed)="isSevereAlertDismissed = true"
+      ></app-severe-weather-alert-banner>
+
       <!-- Ambient Night Mode Clock Overlay -->
       <div class="night-mode-overlay" *ngIf="isSleeping && displayConfig?.sleep_schedule?.nightMode">
         <div class="night-clock">
@@ -92,6 +102,7 @@ import { EmergencyService } from '../services/emergency.service';
           [style.height.px]="widget.position.height"
           [style.opacity]="widget.style?.opacity !== undefined ? widget.style?.opacity : 1"
           [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
+          [style.fontFamily]="getWidgetFont(widget)"
         >
           <app-clock-widget *ngIf="widget.type === 'clock'" [config]="widget.config"></app-clock-widget>
           <app-weather-widget *ngIf="widget.type === 'weather'" [config]="widget.config"></app-weather-widget>
@@ -475,6 +486,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   currentTime: Date = new Date();
 
   activeEmergency?: EmergencyBroadcast;
+  activeSevereAlert: SevereWeatherAlertData | null = null;
+  isSevereAlertDismissed: boolean = false;
   private pollSub?: Subscription;
   private carouselTimerSub?: Subscription;
   private clockTimerSub?: Subscription;
@@ -498,6 +511,56 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     const videoId = id || 'jfKfPfyJRdk';
     const url = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}&playsinline=1`;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  }
+
+  get canvasFontFamily(): string {
+    return getFontFamilyString(this.displayConfig?.font_family);
+  }
+
+  getWidgetFont(widget: Widget): string {
+    return widget.style?.fontFamily ? getFontFamilyString(widget.style.fontFamily) : 'inherit';
+  }
+
+  detectSevereWeatherAlerts(): void {
+    if (this.displayConfig?.weather_alerts_enabled === false) {
+      this.activeSevereAlert = null;
+      return;
+    }
+
+    // 1. DisplayConfig manual/emergency alert
+    if (this.displayConfig?.weather_alert) {
+      const wa = this.displayConfig.weather_alert;
+      if (typeof wa === 'string' && wa.trim()) {
+        this.activeSevereAlert = {
+          title: 'Severe Weather Warning',
+          message: wa.trim(),
+          severity: 'warning'
+        };
+        return;
+      } else if (typeof wa === 'object' && wa.message) {
+        this.activeSevereAlert = {
+          title: wa.title || 'Severe Weather Warning',
+          message: wa.message,
+          severity: (wa.severity as any) || 'warning'
+        };
+        return;
+      }
+    }
+
+    // 2. Weather widget alerts
+    const weatherWidgets = this.widgets.filter(w => w.type === 'weather');
+    for (const w of weatherWidgets) {
+      const alert = (w.config as any)?.alert;
+      if (alert && alert.trim()) {
+        this.activeSevereAlert = {
+          title: 'Active Weather Advisory',
+          message: alert.trim(),
+          city: (w.config as any)?.city,
+          severity: 'warning'
+        };
+        return;
+      }
+    }
   }
 
   get activeWidgets(): Widget[] {
@@ -790,6 +853,14 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       } else {
         this.pages = [{ id: 'default', name: 'Main Dashboard', duration_seconds: 30 }];
       }
+
+      if (this.displayConfig?.font_family) {
+        loadGoogleFont(this.displayConfig.font_family);
+      }
+      this.widgets.forEach(w => {
+        if (w.style?.fontFamily) loadGoogleFont(w.style.fontFamily);
+      });
+      this.detectSevereWeatherAlerts();
 
       this.startCarousel();
       this.checkSleepSchedule();
