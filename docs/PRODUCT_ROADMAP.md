@@ -45,26 +45,48 @@ This document outlines:
 * **Multi-Page Carousels**: Timed page rotations with independent durations, carousel navigation dots, touch swipe gestures, and TV remote arrow navigation.
 * **Zero-Friction Commissioning**: 6-digit hardware PIN pairing screen (`/#/pair`) with instant database bonding from the Fleet Hub.
 
-### 🧩 Core Widget Suite (19 Interactive Widgets)
-1. **Clock & Date**: Digital and analog visual options with seconds toggle and time zone selection.
-2. **Weather & Forecast**: Real-time conditions, 5-day daily forecast, and interactive 12-hour hourly timeline with weather icons and temperature curves.
-3. **Multi-Feed Family Calendar**: Agenda view and monthly grid view with color-coded family members and live iCal/.ics parsing.
-4. **Photo Slideshow & Google Photos Stream**: Unlimited photo extraction from Google Photos shared albums, Google Drive file/folder CDNs, Unsplash nature collections, and custom image feeds with cinematic Ken Burns pan-zoom animations.
-5. **Live Stock & Crypto Market Ticker**: Real-time price tracking, 24-hour delta percentage, sparkline graphs, and 1-click ticker additions (AAPL, NVDA, TSLA, BTC, ETH, SOL).
-6. **Live Rain Radar**: High-resolution interactive weather radar maps powered by RainViewer API with animated precipitation overlays and color presets.
-7. **AI Morning Briefing & Voice Synthesis**: Local text-to-speech audio reader providing personalized morning overviews of calendar events, weather, and headlines.
-8. **Chores & Gamified Rewards**: Interactive chore checklists, kid avatars, star point rewards, and streak tracking.
-9. **Meal Planner**: 7-day breakfast, lunch, dinner, and snack calendar with dietary tags.
+### 🧩 Full Widget Suite (33 Production Widgets Shipped)
+
+#### Original Core Suite (19 Widgets)
+1. **Clock & Date**: Digital options with seconds toggle and time zone selection.
+2. **Weather & Forecast**: Zero-config Open-Meteo current stats, EPA AQI, UV index, 5-day daily forecast, and 12-hour hourly timeline curve.
+3. **Multi-Feed Family Calendar**: Agenda and monthly grid views with category tags, custom colors, on-screen `+ Add Event`, and WebCal/Outlook/iCal support.
+4. **Photo Slideshow & Google Photos Stream**: Unlimited photo streaming from Google Photos shared albums, Drive CDN, and Unsplash with cinematic Ken Burns effect.
+5. **Live Stock & Crypto Market Ticker**: Real-time prices, 24h percentage delta, and smooth SVG sparklines (AAPL, NVDA, TSLA, BTC, ETH, SOL).
+6. **Live Rain Radar**: High-resolution Doppler precipitation overlay from RainViewer on inverted OpenStreetMap dark tiles (no watermark).
+7. **AI Morning Briefing & Voice Synthesis**: Gemini-powered LLM summary with Web Speech API read-aloud.
+8. **Chores & Gamified Rewards**: Kid avatars, star points, streaks, and celebratory confetti particle bursts.
+9. **Meal Planner**: 7-day breakfast, lunch, dinner, and snack meal planner.
 10. **Smart Home Assistant**: IoT entity status cards with direct toggle controls via Home Assistant REST API.
-11. **Mobile WallDrop**: Instant QR-code beam portal for family members to drop sticky notes and photos onto the wall display from their phones.
-12. **Spotify Now Playing**: Live music player card with album art, track progress bar, and simulated playback controls.
-13. **YouTube Video & Live Streams**: URL parser supporting live YouTube streams, relaxing lofi streams, and video playback with kiosk autoplay.
-14. **Camera PiP / RTSP Video Stream**: Security camera viewer for driveways, front doors, or baby monitors.
-15. **Morning Commute & Traffic**: Real-time transit duration, route names, and traffic delay indicators.
+11. **Mobile WallDrop**: Instant QR-code portal for family members to beam sticky notes and photos directly to the display.
+12. **Spotify Interactive Controller**: Album art, track progress, interactive play/pause/skip, seek scrubber, volume slider, mute, and device indicator.
+13. **YouTube Video & Live Streams**: Kiosk autoplay for ambient video, nature scenes, or lo-fi radio streams.
+14. **Camera PiP / RTSP Video Stream**: Security camera live viewer for driveways, front doors, or baby monitors.
+15. **Morning Commute & Traffic**: Real-time travel duration, route names, and traffic delay indicators.
 16. **Countdown Timer**: Target date countdown with days/hours/minutes cards.
 17. **Daily Quotes**: Rotating motivational and inspirational quotes with author attribution.
-18. **RSS News Feed**: Multi-source news marquee with title headlines and source badges.
-19. **Interactive Todo List**: Quick-add touch tasks with priority tags.
+18. **RSS News Feed**: Multi-source news ticker with headlines and source badges.
+19. **Interactive Todo List**: Quick-add touch tasks with priority tags, inline deletion, and backend sync.
+
+#### Phase 1: Quick Wins (8 Widgets)
+20. **Text / Announcement**: Rich static text with size, alignment, and gradient header.
+21. **QR Code Generator**: Scannable dynamic QR codes for WiFi, URLs, and guest access.
+22. **World Clocks**: Multi-city timezone array with local clock offsets.
+23. **Shapes & Dividers**: Decorative rectangles, circles, and horizontal/vertical dividers.
+24. **Scheduled Text**: Time-sensitive announcements that auto-show/hide based on time and day.
+25. **Button / Link**: Interactive touch buttons for navigating between pages or external URLs.
+26. **Sun & Moon Phases**: Geocoded sunrise, sunset, golden hour, and lunar illumination phase.
+27. **Analog Clock**: Classic rotating SVG dial with hour, minute, and second hands.
+
+#### Phase 2: Data Platform (2 Widgets)
+28. **External Data / REST Fetch**: Generic JSON polling widget with custom auth headers and JSONPath extraction.
+29. **Radial Gauge Meter**: Semicircular SVG dial with warning/critical color thresholds and inbound webhook push (`/api/push_widget.php`).
+
+#### Phase 3: Interactivity & Integrations (4 Widgets)
+30. **Whiteboard / Drawing Canvas**: Touch and stylus HTML5 canvas with pen, highlighter, eraser, 6 chalk colors, and auto-syncing vector strokes.
+31. **Google Maps Embed**: Interactive and aerial satellite maps with location search, zoom slider, and live traffic badge.
+32. **Slack Channel Feed**: Real-time channel announcements feed with user avatars, handles, and timestamps.
+33. **Gmail Inbox Unread Badge**: Prominent badge counter with subject/sender preview snippets.
 
 ### 🛡️ Hardened Security & Kiosk Architecture
 * **SSRF Protection Shield**: Strict IP subnet resolution blocking RFC-1918 private subnets, loopback, and cloud metadata endpoints.
@@ -75,44 +97,48 @@ This document outlines:
 
 ---
 
-## 3. Phased Strategic Roadmap (2026 – 2027)
+## 3. Phased Strategic Roadmap & Current State
 
 ```mermaid
 timeline
-    title Smart Display Product Evolution
-    section Horizon 1 (Q4 2026) : AI Magic Flyer Import : Apple / Outlook Direct OAuth : 2-Way Todoist / Google Tasks : Severe Weather Alerts : HDMI-CEC Power Control
-    section Horizon 2 (Q1 2027) : Voice Assistant & Whisper : Gamified Chore Store : Facial Recognition Profiles : PIR Motion & Gesture Flip : Video Doorbell Pop-Up
-    section Horizon 3 (Q2 2027) : Remote Fleet Telemetry : Widget Marketplace SDK : Conditional Rules Engine : Multi-Tenant Enterprise RBAC : Smart Display OS Image
+    title Smart Display Product Evolution & Implementation Status
+    section Phase 1 (Shipped) : 8 New Widgets : Screen Backup JSON : Custom Aspect Ratios : Auto-Arrange Engine
+    section Phase 2 (Shipped) : Block Scheduling : Screen Scheduling : REST Fetch & Inbound Webhooks : Gauge Meter : Severe Weather Banner : Block Layers : 11 Google Fonts : 6 Starter Templates
+    section Phase 3 (Shipped) : On-Screen Calendar : On-Screen Tasks : Interactive Spotify Controls : Whiteboard Canvas : Google Maps : Slack Feed : Gmail Badge : Rules Engine : Web Audio Chimes : Custom CSS
+    section Phase 4 (Next Up) : Android Play Store App : Fire TV / Android TV App : TouchHub Navigation Dock : Sonos Controller : SmartThings : Nest SDM : Apple iCloud Photos : TradingView Embed
 ```
 
 ---
 
-### 🚀 Horizon 1: Near-Term (Q4 2026) — Ecosystem, AI Ingestion & Smart Integrations
+### ✅ Completed Horizons (Phases 1, 2, and 3 — 100% Shipped)
 
-*Target Goal: Match and exceed Skylight & DAKboard's top calendar and task workflows.*
+#### 1.1: AI Vision Flyer & Schedule Scanner (Shipped)
+* **Shipped**: Vision heuristic and Gemini scanner parsing paper schedule flyers, announcements, and invitations into structured calendar events via WallDrop.
 
-#### 1.1: AI "Magic Flyer" Photo-to-Calendar Scanner (Skylight Magic Import Alternative)
-* **Description**: Allow users to snap a photo of a paper school schedule, sports flyer, birthday invitation, or doctor appointment card from the mobile WallDrop page.
-* **Implementation**: Send the photo to Gemini Vision API / GPT-4o Vision to extract dates, times, event titles, and locations, automatically adding them to the display's calendar feed with confirmation.
+#### 1.2: Microsoft 365 & Outlook WebCal Support (Shipped)
+* **Shipped**: Full WebCal (`webcal://`) and iCal parsing with Outlook/Exchange recurring RRULE expansion and all-day event formatting.
 
-#### 1.2: Native Direct OAuth2 Integrations (Google, Apple iCloud, Microsoft Outlook)
-* **Description**: Direct 1-click OAuth login for Google Calendar, Apple iCloud Calendar, and Microsoft 365 / Outlook without copying raw `.ics` secret URLs.
-* **Implementation**: Secure token exchange stored in encrypted database credentials, supporting two-way event synchronization.
+#### 1.3: Two-Way Interactive Task Synchronization & Creation (Shipped)
+* **Shipped**: On-screen `+ Add Task` drawer, priority tags, instant check-off, deletion, and backend API sync (`tasks_sync.php`).
 
-#### 1.3: Two-Way Interactive Task Synchronization (Todoist & Google Tasks)
-* **Description**: Enable checking off tasks directly on wall touchscreens and having the check-off status immediately sync back to Todoist and Google Tasks.
-* **Implementation**: Webhook and REST polling integration with Todoist Sync API v9 and Google Tasks API.
+#### 1.4: On-Screen Calendar Event Creation (Shipped)
+* **Shipped**: On-screen `+ Add Event` modal with date/time pickers, category tagging, month grid day tap, and backend sync (`calendar_sync.php`).
 
-#### 1.4: Air Quality Index (AQI), UV Index & Severe Weather Warnings
-* **Description**: Weather widget enhancements showing EPA Air Quality Index (PM2.5, Ozone), UV Index forecast, and pulsating National Weather Service (NWS) thunderstorm/tornado alert banners.
+#### 1.5: Air Quality Index (AQI), UV Index & Severe Weather Auto-Alerts (Shipped)
+* **Shipped**: EPA AQI and UV index integrated into the weather widget via Open-Meteo, plus screen-wide pulsing emergency warning banner with automatic NWS detection.
 
-#### 1.5: HDMI-CEC Raspberry Pi Screen Power Automation
-* **Description**: Turn physical TV/monitor screens on and off over HDMI rather than just displaying a black image during scheduled sleep hours.
-* **Implementation**: Background service calling `vcgencmd display_power 0/1` or `cec-client` based on the display's configured `sleep_schedule`.
+#### 1.6: Interactive Spotify Media Controller (Shipped)
+* **Shipped**: Play/pause/skip tactile controls, seek scrubber slider, volume slider, mute toggle, and active Spotify Connect device indicator.
+
+#### 1.7: Rules Engine & Web Audio Chimes (Shipped)
+* **Shipped**: Data rule threshold engine with 4 neon alert glow presets, plus client-side Web Audio API synthesizer for doorbell, marimba, hourly gong, and alert beep.
+
+#### 1.8: Whiteboard & Modern Integrations (Shipped)
+* **Shipped**: HTML5 Canvas drawing board with pen/highlighter/eraser and stroke sync, Google Maps embed with live traffic badge, Slack channel feed, and Gmail unread counter.
 
 ---
 
-### 🧠 Horizon 2: Mid-Term (Q1 2027) — Advanced Family Hub & Contextual Intelligence
+### 🧠 Horizon 2 / Phase 4: Next Priorities (Platform, TV Apps & Contextual Intelligence)
 
 *Target Goal: Exceed Hearth Display with smart family routines, voice, and presence automation.*
 
@@ -185,6 +211,10 @@ timeline
 
 ## 5. Summary & Next Steps
 
-With the completion of **Security Hardening**, the **2K/4K Canvas Power Editor**, **19 Specialized Widgets**, and **Google Photos Album Streaming**, Smart Display currently matches or exceeds DAKboard in layout flexibility while offering family hub capabilities like Hearth and Skylight without proprietary hardware lock-in.
+With the completion of **Phase 1 (Quick Wins)**, **Phase 2 (Intelligent Scheduling & Data Platform)**, and **Phase 3 (Interactivity & Integration Expansion)**, Smart Display now boasts **33 production widgets**, full touch interactivity (calendar, tasks, Spotify, and whiteboard), comprehensive block-level and screen scheduling, a real-time rules engine, Web Audio API chimes, and custom CSS injection. Smart Display matches or exceeds DAKboard, Hearth, and Skylight across custom visual freedom, family productivity, and IoT integrations without proprietary hardware lock-in or subscription fees.
 
-Executing **Horizon 1** (AI Magic Flyer import, Direct Calendar OAuth2, and HDMI-CEC power automation) will solidify Smart Display as the most comprehensive self-hosted and cloud-ready wall display platform available.
+Moving into **Phase 4**, key focus areas are:
+1. Native Android and Fire TV application wrappers for Google Play Store and Amazon Fire TV Appstore distribution.
+2. TouchHub navigation dock for touchscreens.
+3. Expanded smart home controls (Sonos, SmartThings, Nest SDM).
+4. Additional photo sources (Apple iCloud, Dropbox, OneDrive, Immich).
