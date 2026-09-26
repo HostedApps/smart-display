@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { 
   Widget, 
+  WidgetSchedule,
   DisplayConfig, 
   DisplayResponse, 
   DisplayPage, 
@@ -53,9 +54,10 @@ import { AuthService } from '../../services/auth.service';
         </div>
 
         <div class="sidebar-tabs">
-          <button [class.active]="activeTab === 'layout'" (click)="activeTab = 'layout'" title="Widget Palette & Canvas Layout">Layout & Widgets</button>
-          <button [class.active]="activeTab === 'pages'" (click)="activeTab = 'pages'" title="Multi-Screen Rotating Pages">Pages</button>
-          <button [class.active]="activeTab === 'settings'" (click)="activeTab = 'settings'" title="Screen Resolution, Theme, Sleep Schedule">Display Settings</button>
+          <button [class.active]="activeTab === 'layout'" (click)="activeTab = 'layout'" title="Widget Palette & Canvas Layout">Layout</button>
+          <button [class.active]="activeTab === 'layers'" (click)="activeTab = 'layers'" title="Block Layers & Z-Index Stack">Layers</button>
+          <button [class.active]="activeTab === 'pages'" (click)="activeTab = 'pages'" title="Multi-Screen Rotating Pages & Scheduling">Pages</button>
+          <button [class.active]="activeTab === 'settings'" (click)="activeTab = 'settings'" title="Screen Resolution, Theme, Sleep Schedule">Settings</button>
         </div>
 
         <!-- TAB 1: LAYOUT & WIDGETS -->
@@ -245,6 +247,76 @@ import { AuthService } from '../../services/auth.service';
             <div class="form-group">
               <label>Corner Radius ({{ selectedWidget.style?.borderRadius || 12 }}px)</label>
               <input type="range" min="0" max="28" step="2" [ngModel]="selectedWidget.style?.borderRadius || 12" (ngModelChange)="setWidgetRadius($event)" class="slider-control" />
+            </div>
+
+            <!-- Layer Properties (Rename, Lock, Hide) -->
+            <div class="form-group">
+              <label>Layer Nickname</label>
+              <input type="text" [(ngModel)]="selectedWidget.customName" [placeholder]="getWidgetTypeLabel(selectedWidget.type)" class="input-control" />
+            </div>
+            <div class="form-row layer-quick-toggles">
+              <button 
+                type="button"
+                class="btn-layer-pill" 
+                [class.active]="selectedWidget.locked" 
+                (click)="selectedWidget.locked = !selectedWidget.locked"
+                [title]="selectedWidget.locked ? 'Unlock Widget' : 'Lock Widget to canvas position'"
+              >
+                {{ selectedWidget.locked ? '🔒 Locked' : '🔓 Unlocked' }}
+              </button>
+              <button 
+                type="button"
+                class="btn-layer-pill" 
+                [class.active]="selectedWidget.hidden" 
+                (click)="selectedWidget.hidden = !selectedWidget.hidden"
+                [title]="selectedWidget.hidden ? 'Show on canvas' : 'Hide from canvas'"
+              >
+                {{ selectedWidget.hidden ? '🕶️ Hidden' : '👁️ Visible' }}
+              </button>
+            </div>
+
+            <!-- Active Schedule Section -->
+            <div class="schedule-config-box">
+              <div class="schedule-header" (click)="toggleWidgetScheduleEnabled()">
+                <div class="schedule-title-wrap">
+                  <span class="schedule-icon">🕒</span>
+                  <span class="schedule-title">Active Schedule</span>
+                </div>
+                <input type="checkbox" [checked]="isWidgetScheduleEnabled(selectedWidget)" (click)="$event.stopPropagation(); toggleWidgetScheduleEnabled()" />
+              </div>
+
+              <div class="schedule-body" *ngIf="isWidgetScheduleEnabled(selectedWidget)">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Start Time</label>
+                    <input type="time" [(ngModel)]="getOrCreateWidgetSchedule(selectedWidget).startTime" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>End Time</label>
+                    <input type="time" [(ngModel)]="getOrCreateWidgetSchedule(selectedWidget).endTime" class="input-control" />
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Active Days</label>
+                  <div class="days-pill-row">
+                    <button 
+                      *ngFor="let day of weekDays; let dIdx = index" 
+                      type="button" 
+                      class="day-pill"
+                      [class.active]="isDaySelected(getOrCreateWidgetSchedule(selectedWidget), dIdx)"
+                      (click)="toggleDay(getOrCreateWidgetSchedule(selectedWidget), dIdx)"
+                    >
+                      {{ day }}
+                    </button>
+                  </div>
+                  <div class="day-presets">
+                    <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'all')">Everyday</button>
+                    <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'weekdays')">Weekdays</button>
+                    <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'weekends')">Weekends</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Widget Specific Configs -->
@@ -934,10 +1006,94 @@ import { AuthService } from '../../services/auth.service';
           </div>
         </div>
 
+        <!-- TAB: LAYERS & Z-INDEX -->
+        <div *ngIf="activeTab === 'layers'" class="tab-content">
+          <div class="layers-header">
+            <h3>Canvas Layers</h3>
+            <span class="layers-count">{{ pageWidgets.length }} widgets</span>
+          </div>
+          <p class="tab-desc">Manage z-index stacking order, rename layers, lock positions, and toggle visibility on canvas.</p>
+
+          <div *ngIf="pageWidgets.length === 0" class="empty-layers">
+            <span>No widgets on this page yet.</span>
+          </div>
+
+          <div class="layers-list" *ngIf="pageWidgets.length > 0">
+            <div 
+              *ngFor="let w of pageWidgetsReversed; let i = index" 
+              class="layer-item"
+              [class.selected]="selectedWidget === w"
+              [class.locked]="w.locked"
+              [class.hidden-layer]="w.hidden"
+              (click)="selectWidget(w, $event)"
+            >
+              <div class="layer-drag-order">
+                <button 
+                  type="button"
+                  class="btn-layer-order" 
+                  [disabled]="i === 0" 
+                  (click)="moveLayerUp(w, $event)" 
+                  title="Bring Forward (Higher Z-Index)"
+                >▲</button>
+                <button 
+                  type="button"
+                  class="btn-layer-order" 
+                  [disabled]="i === pageWidgetsReversed.length - 1" 
+                  (click)="moveLayerDown(w, $event)" 
+                  title="Send Backward (Lower Z-Index)"
+                >▼</button>
+              </div>
+
+              <div class="layer-info">
+                <div class="layer-type-row">
+                  <span class="layer-type-tag">{{ w.type }}</span>
+                  <span *ngIf="w.schedule?.enabled" class="layer-sched-tag" title="Active Schedule Configured">🕒</span>
+                </div>
+                <input 
+                  type="text" 
+                  [(ngModel)]="w.customName" 
+                  [placeholder]="getWidgetTypeLabel(w.type)" 
+                  (click)="$event.stopPropagation()"
+                  class="layer-name-input"
+                />
+              </div>
+
+              <div class="layer-actions">
+                <button 
+                  type="button"
+                  class="btn-layer-action" 
+                  [class.active]="w.locked" 
+                  (click)="toggleWidgetLock(w, $event)" 
+                  [title]="w.locked ? 'Unlock Widget' : 'Lock Widget'"
+                >
+                  {{ w.locked ? '🔒' : '🔓' }}
+                </button>
+                <button 
+                  type="button"
+                  class="btn-layer-action" 
+                  [class.active]="w.hidden" 
+                  (click)="toggleWidgetVisibility(w, $event)" 
+                  [title]="w.hidden ? 'Show on canvas' : 'Hide from canvas'"
+                >
+                  {{ w.hidden ? '🕶️' : '👁️' }}
+                </button>
+                <button 
+                  type="button"
+                  class="btn-layer-action btn-del" 
+                  (click)="deleteWidgetFromLayer(w, $event)" 
+                  title="Delete Widget"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- TAB 2: PAGES MANAGER -->
         <div *ngIf="activeTab === 'pages'" class="tab-content">
           <h3>Multi-Screen Pages</h3>
-          <p class="tab-desc">Auto-rotate between different dashboard layouts on a timed carousel.</p>
+          <p class="tab-desc">Auto-rotate between different dashboard layouts on a timed carousel or active time-of-day schedules.</p>
 
           <div class="pages-list">
             <div *ngFor="let page of pages; let i = index" class="page-item" [class.selected]="page.id === activePageId">
@@ -950,6 +1106,37 @@ import { AuthService } from '../../services/auth.service';
                 <input type="number" [(ngModel)]="page.duration_seconds" min="5" class="input-control duration-input" />
                 <span>sec</span>
                 <button *ngIf="pages.length > 1" (click)="deletePage(i)" class="btn-icon-danger">✕</button>
+              </div>
+
+              <!-- Page Schedule Section -->
+              <div class="page-schedule-box">
+                <div class="page-schedule-header" (click)="togglePageSchedule(page)">
+                  <span class="page-sched-label">⏰ Schedule Page</span>
+                  <input type="checkbox" [checked]="page.schedule?.enabled" (click)="$event.stopPropagation(); togglePageSchedule(page)" />
+                </div>
+                <div *ngIf="page.schedule?.enabled" class="page-schedule-body">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>From</label>
+                      <input type="time" [(ngModel)]="getOrCreatePageSchedule(page).startTime" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Until</label>
+                      <input type="time" [(ngModel)]="getOrCreatePageSchedule(page).endTime" class="input-control" />
+                    </div>
+                  </div>
+                  <div class="days-pill-row mini">
+                    <button 
+                      *ngFor="let day of weekDays; let dIdx = index" 
+                      type="button" 
+                      class="day-pill"
+                      [class.active]="isDaySelected(page.schedule, dIdx)"
+                      (click)="toggleDay(page.schedule, dIdx)"
+                    >
+                      {{ day }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1186,11 +1373,13 @@ import { AuthService } from '../../services/auth.service';
               *ngFor="let widget of pageWidgets; let i = index"
               class="draggable-widget"
               [class.selected]="selectedWidget === widget"
+              [class.widget-locked]="widget.locked"
+              [class.widget-hidden]="widget.hidden"
               [style.left.px]="widget.position.x"
               [style.top.px]="widget.position.y"
               [style.width.px]="widget.position.width"
               [style.height.px]="widget.position.height"
-              [style.opacity]="widget.style?.opacity !== undefined ? widget.style?.opacity : 1"
+              [style.opacity]="widget.hidden ? 0.35 : (widget.style?.opacity !== undefined ? widget.style?.opacity : 1)"
               [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
               (mousedown)="startDrag($event, widget)"
               (click)="selectWidget(widget, $event)"
@@ -1201,7 +1390,12 @@ import { AuthService } from '../../services/auth.service';
               </div>
 
               <div class="widget-header">
-                <span class="widget-badge">{{ widget.type | uppercase }}</span>
+                <span class="widget-badge">
+                  {{ widget.customName || (widget.type | uppercase) }}
+                  <span *ngIf="widget.locked" class="badge-icon-tag" title="Layer is Locked">🔒</span>
+                  <span *ngIf="widget.hidden" class="badge-icon-tag" title="Hidden on Canvas">🕶️</span>
+                  <span *ngIf="widget.schedule?.enabled" class="badge-icon-tag" title="Active Schedule Configured">🕒</span>
+                </span>
                 <span class="widget-size">{{ widget.position.width }}×{{ widget.position.height }}</span>
               </div>
 
@@ -1236,7 +1430,7 @@ import { AuthService } from '../../services/auth.service';
               </div>
 
               <!-- 8-Point Visual Resize Handles -->
-              <ng-container *ngIf="selectedWidget === widget">
+              <ng-container *ngIf="selectedWidget === widget && !widget.locked">
                 <div class="resize-handle handle-nw" (mousedown)="startResize($event, widget, 'nw')"></div>
                 <div class="resize-handle handle-n"  (mousedown)="startResize($event, widget, 'n')"></div>
                 <div class="resize-handle handle-ne" (mousedown)="startResize($event, widget, 'ne')"></div>
@@ -2438,12 +2632,331 @@ import { AuthService } from '../../services/auth.service';
       background: rgba(255, 255, 255, 0.1);
       color: #e2e8f0;
     }
+
+    /* --- Block Layers Panel Styles --- */
+    .layers-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .layers-header h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .layers-count {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .empty-layers {
+      padding: 28px 16px;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.85rem;
+      border: 1px dashed rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+    }
+    .layers-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: calc(100vh - 280px);
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .layer-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+    .layer-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .layer-item.selected {
+      background: rgba(14, 165, 233, 0.12);
+      border-color: rgba(14, 165, 233, 0.5);
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
+    }
+    .layer-item.locked {
+      border-left: 3px solid #f59e0b;
+    }
+    .layer-item.hidden-layer {
+      opacity: 0.45;
+    }
+    .layer-drag-order {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .btn-layer-order {
+      width: 20px;
+      height: 16px;
+      padding: 0;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      color: #94a3b8;
+      font-size: 0.55rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.12s;
+    }
+    .btn-layer-order:hover:not(:disabled) {
+      background: rgba(14, 165, 233, 0.3);
+      color: #38bdf8;
+    }
+    .btn-layer-order:disabled {
+      opacity: 0.2;
+      cursor: not-allowed;
+    }
+    .layer-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .layer-type-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .layer-type-tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #38bdf8;
+    }
+    .layer-sched-tag {
+      font-size: 0.65rem;
+    }
+    .layer-name-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid transparent;
+      color: #f8fafc;
+      font-size: 0.82rem;
+      padding: 1px 0;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .layer-name-input:focus {
+      border-bottom-color: #0ea5e9;
+    }
+    .layer-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-layer-action {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .btn-layer-action:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .btn-layer-action.active {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+    .btn-layer-action.btn-del:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    /* --- Schedule Controls & Day Pills --- */
+    .schedule-config-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 6px;
+    }
+    .schedule-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .schedule-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .schedule-icon {
+      font-size: 1rem;
+    }
+    .schedule-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .schedule-body {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .days-pill-row {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .days-pill-row.mini .day-pill {
+      padding: 3px 6px;
+      font-size: 0.65rem;
+    }
+    .day-pill {
+      flex: 1;
+      min-width: 32px;
+      padding: 5px 6px;
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .day-pill:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+    }
+    .day-pill.active {
+      background: #0ea5e9;
+      color: #ffffff;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
+    }
+    .day-presets {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .btn-preset-mini {
+      padding: 2px 8px;
+      font-size: 0.68rem;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-preset-mini:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
+    /* --- Layer Inspector Quick Toggles --- */
+    .layer-quick-toggles {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .btn-layer-pill {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #94a3b8;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .btn-layer-pill:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+    }
+    .btn-layer-pill.active {
+      background: rgba(245, 158, 11, 0.18);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    /* --- Page Schedule Box in Pages Tab --- */
+    .page-schedule-box {
+      margin-top: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    .page-schedule-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .page-sched-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .page-schedule-body {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* --- Canvas Widget Lock & Hidden States --- */
+    .draggable-widget.widget-locked {
+      cursor: not-allowed !important;
+      border-color: rgba(245, 158, 11, 0.35) !important;
+    }
+    .draggable-widget.widget-hidden {
+      border: 1px dashed rgba(255, 255, 255, 0.25) !important;
+    }
+    .badge-icon-tag {
+      font-size: 0.7rem;
+      margin-left: 4px;
+    }
   `]
 })
 export class DashboardEditorComponent implements OnInit, AfterViewInit {
   token: string = '';
   saving: boolean = false;
-  activeTab: 'layout' | 'pages' | 'settings' = 'layout';
+  activeTab: 'layout' | 'layers' | 'pages' | 'settings' = 'layout';
+  weekDays: string[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   displayConfig: DisplayConfig = {
     id: 0,
@@ -3121,7 +3634,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   }
 
   startDrag(event: MouseEvent, widget: Widget): void {
-    if (this.isResizing) return;
+    if (this.isResizing || widget.locked) return;
     this.isDragging = true;
     this.selectedWidget = widget;
     this.dragStartX = event.clientX;
@@ -3132,6 +3645,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   startResize(event: MouseEvent, widget: Widget, handle: string): void {
     event.stopPropagation();
+    if (widget.locked) return;
     this.isResizing = true;
     this.isDragging = false;
     this.selectedWidget = widget;
@@ -3139,6 +3653,194 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     this.resizeStartX = event.clientX;
     this.resizeStartY = event.clientY;
     this.initPos = { ...widget.position };
+  }
+
+  // --- Block Layers & Z-Index Management ---
+  get pageWidgetsReversed(): Widget[] {
+    // Top-most layer is last in DOM array, so reversed shows top layer on top
+    return [...this.pageWidgets].reverse();
+  }
+
+  moveLayerUp(widget: Widget, event: MouseEvent): void {
+    event.stopPropagation();
+    this.pushHistory();
+    const idx = this.widgets.indexOf(widget);
+    if (idx < 0) return;
+    let nextIdx = -1;
+    for (let i = idx + 1; i < this.widgets.length; i++) {
+      if (this.isWidgetOnActivePage(this.widgets[i])) {
+        nextIdx = i;
+        break;
+      }
+    }
+    if (nextIdx !== -1) {
+      const temp = this.widgets[idx];
+      this.widgets[idx] = this.widgets[nextIdx];
+      this.widgets[nextIdx] = temp;
+    }
+  }
+
+  moveLayerDown(widget: Widget, event: MouseEvent): void {
+    event.stopPropagation();
+    this.pushHistory();
+    const idx = this.widgets.indexOf(widget);
+    if (idx <= 0) return;
+    let prevIdx = -1;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (this.isWidgetOnActivePage(this.widgets[i])) {
+        prevIdx = i;
+        break;
+      }
+    }
+    if (prevIdx !== -1) {
+      const temp = this.widgets[idx];
+      this.widgets[idx] = this.widgets[prevIdx];
+      this.widgets[prevIdx] = temp;
+    }
+  }
+
+  toggleWidgetLock(widget: Widget, event: MouseEvent): void {
+    event.stopPropagation();
+    widget.locked = !widget.locked;
+  }
+
+  toggleWidgetVisibility(widget: Widget, event: MouseEvent): void {
+    event.stopPropagation();
+    widget.hidden = !widget.hidden;
+  }
+
+  deleteWidgetFromLayer(widget: Widget, event: MouseEvent): void {
+    event.stopPropagation();
+    this.pushHistory();
+    const idx = this.widgets.indexOf(widget);
+    if (idx !== -1) {
+      this.widgets.splice(idx, 1);
+      if (this.selectedWidget === widget) {
+        this.selectedWidget = null;
+      }
+    }
+  }
+
+  isWidgetOnActivePage(widget: Widget): boolean {
+    if (this.pages.length <= 1) return true;
+    return !widget.page_id || widget.page_id === this.activePageId || widget.page_id === 'default';
+  }
+
+  // --- Scheduling Helpers ---
+  isWidgetScheduleEnabled(widget: Widget): boolean {
+    return !!widget?.schedule?.enabled;
+  }
+
+  toggleWidgetScheduleEnabled(): void {
+    if (!this.selectedWidget) return;
+    const sched = this.getOrCreateWidgetSchedule(this.selectedWidget);
+    sched.enabled = !sched.enabled;
+  }
+
+  getOrCreateWidgetSchedule(widget: Widget): WidgetSchedule {
+    if (!widget.schedule) {
+      widget.schedule = {
+        enabled: false,
+        startTime: '08:00',
+        endTime: '18:00',
+        days: [1, 2, 3, 4, 5]
+      };
+    }
+    if (!widget.schedule.days) {
+      widget.schedule.days = [1, 2, 3, 4, 5];
+    }
+    return widget.schedule;
+  }
+
+  isDaySelected(sched: WidgetSchedule | undefined, day: number): boolean {
+    if (!sched || !sched.days) return false;
+    return sched.days.includes(day);
+  }
+
+  toggleDay(sched: WidgetSchedule | undefined, day: number): void {
+    if (!sched) return;
+    if (!sched.days) sched.days = [];
+    const idx = sched.days.indexOf(day);
+    if (idx !== -1) {
+      sched.days.splice(idx, 1);
+    } else {
+      sched.days.push(day);
+      sched.days.sort((a, b) => a - b);
+    }
+  }
+
+  setDayPreset(sched: WidgetSchedule | undefined, preset: 'all' | 'weekdays' | 'weekends'): void {
+    if (!sched) return;
+    if (preset === 'all') {
+      sched.days = [0, 1, 2, 3, 4, 5, 6];
+    } else if (preset === 'weekdays') {
+      sched.days = [1, 2, 3, 4, 5];
+    } else if (preset === 'weekends') {
+      sched.days = [0, 6];
+    }
+  }
+
+  getOrCreatePageSchedule(page: DisplayPage): WidgetSchedule {
+    if (!page.schedule) {
+      page.schedule = {
+        enabled: false,
+        startTime: '08:00',
+        endTime: '17:00',
+        days: [1, 2, 3, 4, 5]
+      };
+    }
+    if (!page.schedule.days) {
+      page.schedule.days = [1, 2, 3, 4, 5];
+    }
+    return page.schedule;
+  }
+
+  togglePageSchedule(page: DisplayPage): void {
+    if (!page.schedule) {
+      page.schedule = {
+        enabled: true,
+        startTime: '08:00',
+        endTime: '17:00',
+        days: [1, 2, 3, 4, 5]
+      };
+    } else {
+      page.schedule.enabled = !page.schedule.enabled;
+    }
+  }
+
+  getWidgetTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      clock: 'Digital Clock',
+      weather: 'Weather Forecast',
+      calendar: 'Calendar Events',
+      photo: 'Photo Album',
+      rss: 'News RSS Feed',
+      todo: 'Tasks & Chores',
+      homeassistant: 'Home Assistant',
+      spotify: 'Spotify Player',
+      stock_crypto: 'Stocks & Crypto',
+      sticky_note: 'Sticky Note',
+      countdown: 'Event Countdown',
+      meal_planner: 'Meal Planner',
+      radar: 'Weather Radar',
+      quote: 'Daily Quote',
+      ai_briefing: 'AI Ambient Briefing',
+      chores: 'Gamified Chores',
+      camera_pip: 'Live Camera PIP',
+      commute: 'Commute Traffic',
+      youtube: 'YouTube Stream',
+      text: 'Announcement Banner',
+      qrcode: 'Scannable QR Code',
+      world_clocks: 'World Clocks',
+      shapes: 'Shape / Divider',
+      scheduled_text: 'Scheduled Text',
+      button: 'Action Button',
+      sun_moon: 'Sun & Moon Phases',
+      analog_clock: 'Analog Clock',
+      rest_fetch: 'REST Data Fetch',
+      gauge: 'Radial Gauge'
+    };
+    return labels[type] || (type ? type.toUpperCase() : 'Widget');
   }
 
   onMouseMove(event: MouseEvent): void {
