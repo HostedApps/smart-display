@@ -246,6 +246,14 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
               <span class="palette-icon">✉️</span>
               <span class="palette-title">Gmail Inbox</span>
             </button>
+            <button (click)="addWidget('tradingview')" class="palette-item" title="Interactive TradingView financial candlestick and area charts">
+              <span class="palette-icon">📈</span>
+              <span class="palette-title">TradingView</span>
+            </button>
+            <button (click)="addWidget('reddit')" class="palette-item" title="Live Reddit photo slideshow from curated photography subreddits">
+              <span class="palette-icon">📸</span>
+              <span class="palette-title">Reddit Media</span>
+            </button>
           </div>
 
           <hr class="divider" />
@@ -463,17 +471,17 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
               </div>
             </ng-container>
 
-            <!-- Photo Slideshow & Google Photos Album -->
+            <!-- Photo Slideshow, Google Photos & Apple iCloud Albums -->
             <ng-container *ngIf="selectedWidget.type === 'photo'">
               <div class="form-group">
-                <label>Google Photos Shared Album URL</label>
+                <label>Google Photos or Apple iCloud Shared Album URL</label>
                 <input 
                   type="text" 
                   [(ngModel)]="selectedWidget.config.albumUrl" 
-                  placeholder="https://photos.app.goo.gl/... or https://photos.google.com/share/..." 
+                  placeholder="https://photos.app.goo.gl/... or https://www.icloud.com/sharedalbum/#..." 
                   class="input-control" 
                 />
-                <small style="font-size:0.65rem; color:#38bdf8;">Paste any Google Photos shared album link to automatically stream family photos.</small>
+                <small style="font-size:0.65rem; color:#38bdf8;">Paste any Google Photos or Apple iCloud public shared album link to automatically stream photos.</small>
               </div>
 
               <div class="form-group">
@@ -1248,6 +1256,94 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
               </div>
             </ng-container>
 
+            <!-- TradingView Interactive Financial Charts -->
+            <ng-container *ngIf="selectedWidget.type === 'tradingview'">
+              <div class="form-group">
+                <label>Symbol / Ticker</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.symbol" placeholder="NASDAQ:AAPL, BINANCE:BTCUSDT" class="input-control" />
+                <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8;">Supports stocks, crypto, forex, indices (e.g. NASDAQ:AAPL, BINANCE:BTCUSDT, FX:EURUSD, SPY)</span>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Chart Interval</label>
+                  <select [(ngModel)]="selectedWidget.config.interval" class="input-control">
+                    <option value="1">1 Minute</option>
+                    <option value="5">5 Minutes</option>
+                    <option value="15">15 Minutes</option>
+                    <option value="60">1 Hour</option>
+                    <option value="1D">1 Day (Daily)</option>
+                    <option value="1W">1 Week</option>
+                    <option value="1M">1 Month</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Color Theme</label>
+                  <select [(ngModel)]="selectedWidget.config.theme" class="input-control">
+                    <option value="dark">Dark Theme</option>
+                    <option value="light">Light Theme</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Chart Style</label>
+                  <select [(ngModel)]="selectedWidget.config.chartStyle" class="input-control">
+                    <option value="1">Candlesticks</option>
+                    <option value="2">Line Chart</option>
+                    <option value="3">Area Chart</option>
+                    <option value="8">Heikin Ashi</option>
+                  </select>
+                </div>
+                <div class="form-group checkbox-group" style="margin-top: 24px;">
+                  <label>
+                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showVolume" /> Show Volume Indicator
+                  </label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Custom Title (Optional)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Tech Portfolio, Bitcoin Tracker" class="input-control" />
+              </div>
+            </ng-container>
+
+            <!-- Reddit Curated Photography & Media Feed -->
+            <ng-container *ngIf="selectedWidget.type === 'reddit'">
+              <div class="form-group">
+                <label>Subreddit</label>
+                <div style="display: flex; gap: 8px;">
+                  <span style="display: flex; align-items: center; color: #94a3b8; font-weight: 600;">r/</span>
+                  <input type="text" [(ngModel)]="selectedWidget.config.subreddit" placeholder="EarthPorn, space, wallpapers, aww" class="input-control" />
+                </div>
+                <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8;">Curated suggestions: EarthPorn, space, CityPorn, wallpapers, art, aww, ITAP</span>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Sort Feed By</label>
+                  <select [(ngModel)]="selectedWidget.config.sort" class="input-control">
+                    <option value="hot">🔥 Hot Posts</option>
+                    <option value="top">⭐ Top Rated</option>
+                    <option value="new">✨ New Posts</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Slide Interval (Seconds)</label>
+                  <input type="number" min="5" max="300" [(ngModel)]="selectedWidget.config.intervalSeconds" class="input-control" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group checkbox-group">
+                  <label>
+                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showScore" /> Show Upvote Count
+                  </label>
+                </div>
+                <div class="form-group checkbox-group">
+                  <label>
+                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showTitle" /> Show Post Title & Author
+                  </label>
+                </div>
+              </div>
+            </ng-container>
+
             <hr class="divider" />
 
             <!-- Phase 3: Linked Widget Interaction -->
@@ -1644,6 +1740,32 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
 
           <hr class="divider" />
 
+          <h4>📱 TouchHub Navigation Dock</h4>
+          <p class="tab-desc">Floating touch navigation dock on kiosk screens for switching pages, quick drawing whiteboard, task lists, and sleep toggle.</p>
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" [(ngModel)]="displayConfig.touchhub_enabled" /> Enable TouchHub Dock on Kiosk
+            </label>
+          </div>
+          <div *ngIf="displayConfig.touchhub_enabled">
+            <div class="form-row">
+              <div class="form-group checkbox-group">
+                <label>
+                  <input type="checkbox" [(ngModel)]="touchHubAutoHide" (ngModelChange)="onTouchHubConfigChange()" /> Auto-hide after inactivity (4s)
+                </label>
+              </div>
+              <div class="form-group">
+                <label>Dock Position</label>
+                <select [(ngModel)]="touchHubPosition" (ngModelChange)="onTouchHubConfigChange()" class="input-control">
+                  <option value="bottom">Bottom Edge (Recommended)</option>
+                  <option value="top">Top Edge</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider" />
+
           <h4>🎨 Custom CSS Overrides</h4>
           <p class="tab-desc">Inject custom CSS directly into your kiosk viewer for bespoke styling, typography, glow effects, or component layout tweaks.</p>
           <div class="form-group">
@@ -1827,6 +1949,8 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
                 <app-whiteboard-widget *ngIf="widget.type === 'whiteboard'" [config]="widget.config"></app-whiteboard-widget>
                 <app-slack-widget *ngIf="widget.type === 'slack'" [config]="widget.config"></app-slack-widget>
                 <app-gmail-widget *ngIf="widget.type === 'gmail'" [config]="widget.config"></app-gmail-widget>
+                <app-tradingview-widget *ngIf="widget.type === 'tradingview'" [config]="widget.config"></app-tradingview-widget>
+                <app-reddit-widget *ngIf="widget.type === 'reddit'" [config]="widget.config"></app-reddit-widget>
               </div>
 
               <!-- 8-Point Visual Resize Handles -->
@@ -3786,6 +3910,23 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   audioChimesEnabled: boolean = false;
   hourlyChime: boolean = false;
 
+  // Phase 4: TouchHub Navigation Dock
+  touchHubAutoHide: boolean = true;
+  touchHubPosition: 'bottom' | 'top' = 'bottom';
+
+  onTouchHubConfigChange(): void {
+    if (!this.displayConfig.touchhub_config) {
+      this.displayConfig.touchhub_config = {
+        enabled: !!this.displayConfig.touchhub_enabled,
+        autoHide: this.touchHubAutoHide,
+        position: this.touchHubPosition
+      };
+    } else {
+      this.displayConfig.touchhub_config.autoHide = this.touchHubAutoHide;
+      this.displayConfig.touchhub_config.position = this.touchHubPosition;
+    }
+  }
+
   get canvasFontFamily(): string {
     return getFontFamilyString(this.displayConfig.font_family);
   }
@@ -3997,6 +4138,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
             }
             if (res.display.hourly_chime !== undefined) {
               this.hourlyChime = !!res.display.hourly_chime;
+            }
+            if (res.display.touchhub_enabled !== undefined) {
+              this.displayConfig.touchhub_enabled = !!res.display.touchhub_enabled;
+            }
+            if (res.display.touchhub_config) {
+              this.touchHubAutoHide = res.display.touchhub_config.autoHide !== false;
+              this.touchHubPosition = res.display.touchhub_config.position || 'bottom';
             }
             (res.widgets || []).forEach(w => {
               if (w.style?.fontFamily) loadGoogleFont(w.style.fontFamily);
@@ -4483,6 +4631,27 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
           ]
         };
         initialSize = { width: 360, height: 280 };
+        break;
+      case 'tradingview':
+        initialConfig = {
+          symbol: 'NASDAQ:AAPL',
+          interval: '1D',
+          theme: 'dark',
+          chartStyle: '1',
+          showVolume: true,
+          title: 'Apple Inc. (AAPL)'
+        };
+        initialSize = { width: 480, height: 320 };
+        break;
+      case 'reddit':
+        initialConfig = {
+          subreddit: 'EarthPorn',
+          sort: 'hot',
+          intervalSeconds: 30,
+          showScore: true,
+          showTitle: true
+        };
+        initialSize = { width: 440, height: 320 };
         break;
     }
 
@@ -5090,6 +5259,12 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       custom_css: this.customCss,
       audio_chimes_enabled: this.audioChimesEnabled,
       hourly_chime: this.hourlyChime,
+      touchhub_enabled: this.displayConfig.touchhub_enabled,
+      touchhub_config: {
+        enabled: !!this.displayConfig.touchhub_enabled,
+        autoHide: this.touchHubAutoHide !== false,
+        position: this.touchHubPosition || 'bottom'
+      },
       widgets: this.widgets
     };
 

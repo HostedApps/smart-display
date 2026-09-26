@@ -139,6 +139,8 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
           <app-whiteboard-widget *ngIf="widget.type === 'whiteboard'" [config]="widget.config"></app-whiteboard-widget>
           <app-slack-widget *ngIf="widget.type === 'slack'" [config]="widget.config"></app-slack-widget>
           <app-gmail-widget *ngIf="widget.type === 'gmail'" [config]="widget.config"></app-gmail-widget>
+          <app-tradingview-widget *ngIf="widget.type === 'tradingview'" [config]="widget.config"></app-tradingview-widget>
+          <app-reddit-widget *ngIf="widget.type === 'reddit'" [config]="widget.config"></app-reddit-widget>
         </div>
       </div>
 
@@ -173,6 +175,61 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
           (click)="goToPage(idx)"
           [title]="page.name + (!isPageScheduledActive(page) ? ' (Resting on schedule)' : '')"
         ></span>
+      </div>
+
+      <!-- TouchHub Navigation Dock -->
+      <app-touchhub-dock
+        *ngIf="displayConfig?.touchhub_enabled && !isSleeping"
+        [config]="displayConfig?.touchhub_config"
+        [pages]="pages"
+        [activePageId]="activePageId"
+        (navigatePage)="goToPageById($event)"
+        (openWhiteboard)="openWhiteboardOverlay()"
+        (toggleTasks)="toggleTasksDrawer()"
+        (toggleSpotify)="toggleSpotifyMiniPlayer()"
+        (toggleNightMode)="toggleNightModeManual()"
+      ></app-touchhub-dock>
+
+      <!-- TouchHub Whiteboard Interactive Modal -->
+      <div class="touch-whiteboard-modal" *ngIf="showTouchWhiteboard">
+        <div class="modal-backdrop-blur" (click)="showTouchWhiteboard = false"></div>
+        <div class="modal-content-card">
+          <div class="modal-header">
+            <h3>🎨 Quick Whiteboard</h3>
+            <button class="btn-close" (click)="showTouchWhiteboard = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <app-whiteboard-widget [config]="{ title: 'Interactive Notes' }"></app-whiteboard-widget>
+          </div>
+        </div>
+      </div>
+
+      <!-- TouchHub Quick Tasks Modal -->
+      <div class="touch-whiteboard-modal" *ngIf="showTouchTasks">
+        <div class="modal-backdrop-blur" (click)="showTouchTasks = false"></div>
+        <div class="modal-content-card">
+          <div class="modal-header">
+            <h3>✅ Family Tasks & Reminders</h3>
+            <button class="btn-close" (click)="showTouchTasks = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <app-todo-widget [config]="{ title: 'Family Tasks' }"></app-todo-widget>
+          </div>
+        </div>
+      </div>
+
+      <!-- TouchHub Quick Spotify Modal -->
+      <div class="touch-whiteboard-modal" *ngIf="showTouchSpotify">
+        <div class="modal-backdrop-blur" (click)="showTouchSpotify = false"></div>
+        <div class="modal-content-card">
+          <div class="modal-header">
+            <h3>🎵 Music Player</h3>
+            <button class="btn-close" (click)="showTouchSpotify = false">✕</button>
+          </div>
+          <div class="modal-body">
+            <app-spotify-widget [config]="{}"></app-spotify-widget>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -508,6 +565,69 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
       from { opacity: 0.7; }
       to { opacity: 1; }
     }
+    .touch-whiteboard-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .modal-backdrop-blur {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(12px);
+    }
+    .modal-content-card {
+      position: relative;
+      z-index: 1;
+      width: 90%;
+      max-width: 960px;
+      height: 80vh;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+    }
+    .modal-header {
+      padding: 12px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #f8fafc;
+    }
+    .modal-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .btn-close:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .modal-body {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      padding: 12px;
+    }
   `]
 })
 export class DisplayViewerComponent implements OnInit, OnDestroy {
@@ -515,6 +635,10 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   widgets: Widget[] = [];
   pages: DisplayPage[] = [];
   activePageIndex: number = 0;
+
+  showTouchWhiteboard: boolean = false;
+  showTouchTasks: boolean = false;
+  showTouchSpotify: boolean = false;
 
   isOnline: boolean = true;
   offlineReason: string = '';
@@ -940,6 +1064,48 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   goToPage(idx: number): void {
     this.activePageIndex = idx;
     this.startCarousel();
+  }
+
+  get activePageId(): string {
+    return this.pages[this.activePageIndex]?.id || 'default';
+  }
+
+  goToPageById(pageId: string): void {
+    const idx = this.pages.findIndex(p => p.id === pageId);
+    if (idx !== -1) {
+      this.goToPage(idx);
+    }
+  }
+
+  openWhiteboardOverlay(): void {
+    const wbWidget = this.widgets.find(w => w.type === 'whiteboard');
+    if (wbWidget && wbWidget.page_id && wbWidget.page_id !== this.activePageId) {
+      this.goToPageById(wbWidget.page_id);
+    } else {
+      this.showTouchWhiteboard = !this.showTouchWhiteboard;
+    }
+  }
+
+  toggleTasksDrawer(): void {
+    const todoWidget = this.widgets.find(w => w.type === 'todo');
+    if (todoWidget && todoWidget.page_id && todoWidget.page_id !== this.activePageId) {
+      this.goToPageById(todoWidget.page_id);
+    } else {
+      this.showTouchTasks = !this.showTouchTasks;
+    }
+  }
+
+  toggleSpotifyMiniPlayer(): void {
+    const spotWidget = this.widgets.find(w => w.type === 'spotify');
+    if (spotWidget && spotWidget.page_id && spotWidget.page_id !== this.activePageId) {
+      this.goToPageById(spotWidget.page_id);
+    } else {
+      this.showTouchSpotify = !this.showTouchSpotify;
+    }
+  }
+
+  toggleNightModeManual(): void {
+    this.isSleeping = !this.isSleeping;
   }
 
   goToNextPage(): void {

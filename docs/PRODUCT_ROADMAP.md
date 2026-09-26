@@ -209,12 +209,17 @@ timeline
 
 ---
 
-## 5. Summary & Next Steps
+## 5. Summary & Current Implementation Status
 
-With the completion of **Phase 1 (Quick Wins)**, **Phase 2 (Intelligent Scheduling & Data Platform)**, and **Phase 3 (Interactivity & Integration Expansion)**, Smart Display now boasts **33 production widgets**, full touch interactivity (calendar, tasks, Spotify, and whiteboard), comprehensive block-level and screen scheduling, a real-time rules engine, Web Audio API chimes, and custom CSS injection. Smart Display matches or exceeds DAKboard, Hearth, and Skylight across custom visual freedom, family productivity, and IoT integrations without proprietary hardware lock-in or subscription fees.
+With the completion of **Phase 1 (Quick Wins)**, **Phase 2 (Intelligent Scheduling & Data Platform)**, **Phase 3 (Interactivity & Integration Expansion)**, and **Phase 4 Milestone 4A (TouchHub Navigation, Financial & Media Feeds, iCloud Photos)**, Smart Display now boasts **35 production widgets**:
+1. **TouchHub Navigation Dock**: Touchscreen dock for quick page switching, drawing whiteboard overlay, family task list, Spotify mini-player, and sleep toggle.
+2. **TradingView Financial Charts Widget**: Real-time candlestick, line, area, and Heikin-Ashi charts with custom interval, dark/light themes, and volume indicators.
+3. **Reddit Curated Media Widget**: High-res photo slideshows from top subreddits (e.g. `r/EarthPorn`, `r/space`, `r/CityPorn`) with score and author badges.
+4. **Apple iCloud Shared Album Support**: Stream photos directly from iCloud public shared albums with automatic server-side parsing and transient caching.
+5. **Full Test Suite & Zero-Defect Kiosk Build**: 55/55 automated backend tests passing on production server, deployed to `smart-kiosk.online`, and verified on target Raspberry Pi kiosk hardware (`corelabel-infraRA`).
 
-Moving into **Phase 4**, key focus areas are:
+Moving into remaining Phase 4 deliverables:
 1. Native Android and Fire TV application wrappers for Google Play Store and Amazon Fire TV Appstore distribution.
-2. TouchHub navigation dock for touchscreens.
-3. Expanded smart home controls (Sonos, SmartThings, Nest SDM).
-4. Additional photo sources (Apple iCloud, Dropbox, OneDrive, Immich).
+2. Expanded smart home controls (Sonos, SmartThings, Nest SDM).
+3. Additional cloud photo sources (Dropbox, OneDrive, Immich).
+
