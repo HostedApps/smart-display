@@ -63,7 +63,10 @@ try {
         'show_logo_kiosk' => (bool)($display['show_logo_kiosk'] ?? false),
         'font_family' => $bgData['font_family'] ?? null,
         'weather_alerts_enabled' => $bgData['weather_alerts_enabled'] ?? true,
-        'weather_alert' => $bgData['weather_alert'] ?? null
+        'weather_alert' => $bgData['weather_alert'] ?? null,
+        'custom_css' => $bgData['custom_css'] ?? null,
+        'audio_chimes_enabled' => (bool)($bgData['audio_chimes_enabled'] ?? false),
+        'hourly_chime' => (bool)($bgData['hourly_chime'] ?? false)
     ];
 
     // Fetch Widgets

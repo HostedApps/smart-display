@@ -53,6 +53,17 @@ try {
     if (isset($input['weather_alert'])) {
         $backgroundArr['weather_alert'] = is_string($input['weather_alert']) ? sanitizeText($input['weather_alert']) : $input['weather_alert'];
     }
+    if (isset($input['custom_css'])) {
+        // Strip script tags for security, preserve CSS
+        $cleanCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', $input['custom_css']);
+        $backgroundArr['custom_css'] = $cleanCss;
+    }
+    if (isset($input['audio_chimes_enabled'])) {
+        $backgroundArr['audio_chimes_enabled'] = (bool)$input['audio_chimes_enabled'];
+    }
+    if (isset($input['hourly_chime'])) {
+        $backgroundArr['hourly_chime'] = (bool)$input['hourly_chime'];
+    }
     $background = !empty($backgroundArr) ? json_encode($backgroundArr) : null;
     $sleepSchedule = isset($input['sleep_schedule']) ? json_encode($input['sleep_schedule']) : null;
     $pages = isset($input['pages']) ? json_encode($input['pages']) : null;

@@ -312,14 +312,81 @@ export interface WidgetSchedule {
   days?: number[];    // [0, 1, 2, 3, 4, 5, 6] (0=Sun, 6=Sat)
 }
 
+export interface WidgetRule {
+  id: string;
+  field: string; // 'temperature' | 'state' | 'value' | 'stock_change' | 'custom'
+  operator: 'gt' | 'lt' | 'eq' | 'neq' | 'contains';
+  threshold: any;
+  action: 'set_style' | 'set_class';
+  className?: 'alert-glow-red' | 'alert-glow-amber' | 'highlight-green' | 'pulse-border';
+  style?: Partial<WidgetStyle>;
+}
+
+export interface GoogleMapsConfig {
+  address?: string;
+  zoom?: number;
+  mapType?: 'roadmap' | 'satellite' | 'terrain';
+  showTraffic?: boolean;
+  title?: string;
+}
+
+export interface WhiteboardStroke {
+  color: string;
+  width: number;
+  tool: 'pen' | 'highlighter' | 'eraser';
+  points: { x: number; y: number }[];
+}
+
+export interface WhiteboardConfig {
+  title?: string;
+  canvasBackground?: 'chalkboard' | 'whiteboard' | 'grid';
+  strokes?: WhiteboardStroke[];
+  allowTouchDraw?: boolean;
+}
+
+export interface SlackMessage {
+  id: string;
+  user: string;
+  avatar?: string;
+  text: string;
+  timestamp: string;
+  channel?: string;
+}
+
+export interface SlackConfig {
+  title?: string;
+  channelName?: string;
+  webhookUrl?: string;
+  messages?: SlackMessage[];
+  maxItems?: number;
+}
+
+export interface GmailEmailPreview {
+  id: string;
+  from: string;
+  subject: string;
+  snippet: string;
+  timeAgo: string;
+  unread: boolean;
+}
+
+export interface GmailConfig {
+  title?: string;
+  accountEmail?: string;
+  unreadCount?: number;
+  emails?: GmailEmailPreview[];
+}
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge';
+  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge' | 'google_maps' | 'whiteboard' | 'slack' | 'gmail';
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
   schedule?: WidgetSchedule;
+  rules?: WidgetRule[];
+  linkedWidgetId?: number;
   locked?: boolean;
   hidden?: boolean;
   customName?: string;
@@ -379,6 +446,9 @@ export interface DisplayConfig {
   font_family?: string;
   weather_alerts_enabled?: boolean;
   weather_alert?: { title?: string; message: string; severity?: string } | string;
+  custom_css?: string;
+  audio_chimes_enabled?: boolean;
+  hourly_chime?: boolean;
 }
 
 export interface DisplaySummary {

@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { interval, Subscription, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { ICalParserService, CalendarEvent } from '../../services/ical-parser.service';
@@ -30,12 +31,59 @@ interface MonthDay {
           <h3 class="widget-title">{{ config.title || (config.viewMode === 'month_grid' ? (currentDate | date:'MMMM yyyy') : 'Schedule') }}</h3>
         </div>
         
-        <!-- Multi-Calendar Legend Dots -->
-        <div class="calendar-legend" *ngIf="activeFeeds.length > 1">
-          <span *ngFor="let f of activeFeeds" class="legend-chip">
-            <span class="dot" [style.backgroundColor]="f.color"></span>
-            <span class="legend-name">{{ f.name }}</span>
-          </span>
+        <div class="header-right">
+          <!-- Multi-Calendar Legend Dots -->
+          <div class="calendar-legend" *ngIf="activeFeeds.length > 1 && !showAddModal">
+            <span *ngFor="let f of activeFeeds" class="legend-chip">
+              <span class="dot" [style.backgroundColor]="f.color"></span>
+              <span class="legend-name">{{ f.name }}</span>
+            </span>
+          </div>
+
+          <button class="add-event-btn" (click)="openAddModal($event)" title="Add Event on Screen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="plus-icon">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Event Creation Drawer/Modal -->
+      <div class="add-event-panel" *ngIf="showAddModal" (click)="$event.stopPropagation()">
+        <input 
+          type="text" 
+          class="event-input" 
+          placeholder="Event title..." 
+          [(ngModel)]="newEventTitle"
+          (keyup.enter)="submitNewEvent()"
+          autofocus
+        />
+        <div class="event-fields-row">
+          <input type="date" class="date-input" [(ngModel)]="newEventDate" />
+          <input type="time" class="time-input" [(ngModel)]="newEventTime" *ngIf="!newEventIsAllDay" />
+          <label class="all-day-label">
+            <input type="checkbox" [(ngModel)]="newEventIsAllDay" /> All Day
+          </label>
+        </div>
+        <div class="add-panel-footer">
+          <div class="category-picker">
+            <button 
+              type="button" 
+              *ngFor="let cat of eventCategories" 
+              class="cat-chip" 
+              [class.active]="newEventCategory.name === cat.name"
+              [style.borderColor]="newEventCategory.name === cat.name ? cat.color : 'transparent'"
+              (click)="newEventCategory = cat">
+              <span class="dot" [style.backgroundColor]="cat.color"></span>
+              {{ cat.name }}
+            </button>
+          </div>
+          <div class="panel-buttons">
+            <button class="btn-cancel" (click)="closeAddModal()">Cancel</button>
+            <button class="btn-save" (click)="submitNewEvent()" [disabled]="!newEventTitle.trim()">Save</button>
+          </div>
         </div>
       </div>
 
@@ -73,6 +121,7 @@ interface MonthDay {
             class="day-matrix-cell" 
             [class.other-month]="!cell.isCurrentMonth"
             [class.today]="cell.isToday"
+            (click)="openAddModal($event, cell.date)"
           >
             <span class="cell-num">{{ cell.dayNum }}</span>
             <div class="cell-events" *ngIf="cell.events.length > 0">
@@ -305,7 +354,136 @@ interface MonthDay {
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .more-dots { font-size: 0.5rem; color: #94a3b8; line-height: 1; }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .add-event-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      border-radius: 8px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .add-event-btn:hover {
+      background: rgba(56, 189, 248, 0.3);
+      border-color: #38bdf8;
+    }
+    .plus-icon {
+      width: 12px;
+      height: 12px;
+    }
+    .add-event-panel {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .event-input {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: #ffffff;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .event-input:focus {
+      border-color: #38bdf8;
+    }
+    .event-fields-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .date-input, .time-input {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: #ffffff;
+      padding: 4px 6px;
+      font-size: 0.75rem;
+      outline: none;
+    }
+    .all-day-label {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .add-panel-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2px;
+    }
+    .category-picker {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .cat-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid transparent;
+      color: #cbd5e1;
+      font-size: 0.65rem;
+      font-weight: 600;
+      border-radius: 4px;
+      padding: 2px 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .cat-chip.active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .cat-chip .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .panel-buttons {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-cancel {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.7rem;
+      cursor: pointer;
+      padding: 3px 6px;
+    }
+    .btn-save {
+      background: #0284c7;
+      border: none;
+      color: #ffffff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 5px;
+      padding: 3px 10px;
+      cursor: pointer;
+    }
+    .btn-save:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
     .empty-state { color: #94a3b8; font-size: 0.8rem; margin-top: 16px; text-align: center; }
   `]
 })
@@ -322,6 +500,21 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
   monthGrid: MonthDay[] = [];
   currentDate: Date = new Date();
   private pollSub?: Subscription;
+  private displayToken: string = '';
+
+  showAddModal: boolean = false;
+  newEventTitle: string = '';
+  newEventDate: string = '';
+  newEventTime: string = '12:00';
+  newEventIsAllDay: boolean = false;
+
+  eventCategories = [
+    { name: 'Family', color: '#10b981' },
+    { name: 'Work', color: '#3b82f6' },
+    { name: 'Kids', color: '#ec4899' },
+    { name: 'Home', color: '#f59e0b' }
+  ];
+  newEventCategory = this.eventCategories[0];
 
   private defaultEvents: CalendarEvent[] = [
     { title: 'Soccer Practice', startDate: new Date(Date.now() + 3600000 * 4), endDate: new Date(Date.now() + 3600000 * 6), isAllDay: false, color: '#ec4899', feedName: 'Kids' },
@@ -344,12 +537,78 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     ];
   }
 
-  constructor(private http: HttpClient, private icalParser: ICalParserService) {}
+  constructor(
+    private http: HttpClient, 
+    private icalParser: ICalParserService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit(): void {
+    this.displayToken = this.route.snapshot.paramMap.get('token') || '';
     this.fetchCalendars();
     this.buildMonthGrid();
     this.pollSub = interval(900000).subscribe(() => this.fetchCalendars());
+  }
+
+  openAddModal(e?: MouseEvent, datePrefill?: Date): void {
+    if (e) e.stopPropagation();
+    this.showAddModal = true;
+    this.newEventTitle = '';
+    const d = datePrefill || new Date();
+    this.newEventDate = d.toISOString().substring(0, 10);
+    this.newEventTime = '12:00';
+    this.newEventIsAllDay = false;
+  }
+
+  closeAddModal(): void {
+    this.showAddModal = false;
+    this.newEventTitle = '';
+  }
+
+  submitNewEvent(): void {
+    const title = this.newEventTitle.trim();
+    if (!title) return;
+
+    let start: Date;
+    let end: Date;
+
+    if (this.newEventIsAllDay) {
+      start = new Date(`${this.newEventDate}T00:00:00`);
+      end = new Date(`${this.newEventDate}T23:59:59`);
+    } else {
+      start = new Date(`${this.newEventDate}T${this.newEventTime || '12:00'}:00`);
+      end = new Date(start.getTime() + 3600000);
+    }
+
+    const newEv: CalendarEvent = {
+      title,
+      startDate: start,
+      endDate: end,
+      isAllDay: this.newEventIsAllDay,
+      color: this.newEventCategory.color,
+      feedName: this.newEventCategory.name
+    };
+
+    this.events.push(newEv);
+    this.events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+    this.buildMonthGrid();
+    this.closeAddModal();
+
+    if (this.displayToken) {
+      this.http.post(`${environment.apiUrl}/calendar_sync.php`, {
+        action: 'add',
+        token: this.displayToken,
+        title,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        isAllDay: this.newEventIsAllDay,
+        color: this.newEventCategory.color,
+        feedName: this.newEventCategory.name
+      }).subscribe({
+        next: () => {},
+        error: () => {}
+      });
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {

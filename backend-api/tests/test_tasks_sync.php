@@ -54,4 +54,24 @@ $validPriorities = ['high', 'medium', 'low'];
 $testPriority = 'high';
 assertTrue(in_array($testPriority, $validPriorities), "Priority tag 'high' is recognized");
 
+// Test 4: Task addition logic
+$newTask = [
+    "id" => "task_" . time(),
+    "text" => "Pick up kids from school",
+    "completed" => false,
+    "priority" => "high",
+    "dueDate" => "3:30 PM"
+];
+$items[] = $newTask;
+assertTrue(count($items) === 3, "New task successfully appended to items list");
+assertTrue($items[2]['text'] === "Pick up kids from school", "New task text verified");
+
+// Test 5: Task deletion logic
+$deleteId = $items[0]['id'];
+$items = array_values(array_filter($items, function($i) use ($deleteId) {
+    return $i['id'] !== $deleteId;
+}));
+assertTrue(count($items) === 2, "Task successfully deleted by ID");
+assertTrue($items[0]['id'] !== $deleteId, "Deleted task no longer exists in array");
+
 echo "Tasks Sync Tests Complete: $passed passed, $failed failed.\n\n";
