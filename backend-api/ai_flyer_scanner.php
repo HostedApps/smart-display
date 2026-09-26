@@ -75,7 +75,8 @@ if (!empty($apiKey) && !empty($cleanBase64)) {
             . "If no year is specified on the document, assume the current or upcoming year (2026). "
             . "Return ONLY the JSON array, with no Markdown formatting, backticks, or extra prose.";
 
-        $geminiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($apiKey);
+        $modelInfo = resolveGeminiModel($apiKey);
+        $geminiUrl = "https://generativelanguage.googleapis.com/{$modelInfo['apiVersion']}/models/{$modelInfo['model']}:generateContent?key=" . urlencode($apiKey);
         $payload = [
             "contents" => [
                 [
@@ -116,6 +117,38 @@ if (!empty($apiKey) && !empty($cleanBase64)) {
             if (is_array($parsedEvents) && count($parsedEvents) > 0) {
                 $events = $parsedEvents;
                 $provider = 'gemini_vision';
+            }
+        } else {
+            $errData = json_decode($res, true);
+            $errMessage = $errData['error']['message'] ?? '';
+            if (stripos($errMessage, 'no longer available') !== false || stripos($errMessage, 'models/') !== false) {
+                $retryModel = 'gemini-3.6-flash';
+                if (preg_match('/models\/(gemini-[a-zA-Z0-9\.\-]+)/i', $errMessage, $suggMatch)) {
+                    if ($suggMatch[1] !== $modelInfo['model']) {
+                        $retryModel = $suggMatch[1];
+                    }
+                }
+                $retryUrl = "https://generativelanguage.googleapis.com/{$modelInfo['apiVersion']}/models/{$retryModel}:generateContent?key=" . urlencode($apiKey);
+                $ch2 = curl_init($retryUrl);
+                curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch2, CURLOPT_POST, true);
+                curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode($payload));
+                curl_setopt($ch2, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch2, CURLOPT_TIMEOUT, 15);
+                $res2 = curl_exec($ch2);
+                $httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+                curl_close($ch2);
+
+                if ($httpCode2 === 200 && $res2) {
+                    $data2 = json_decode($res2, true);
+                    $rawText2 = $data2['candidates'][0]['content']['parts'][0]['text'] ?? '';
+                    $rawText2 = trim(preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $rawText2));
+                    $parsedEvents2 = json_decode($rawText2, true);
+                    if (is_array($parsedEvents2) && count($parsedEvents2) > 0) {
+                        $events = $parsedEvents2;
+                        $provider = 'gemini_vision';
+                    }
+                }
             }
         }
     } catch (\Exception $e) {

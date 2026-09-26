@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, DoCheck } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { interval, Subscription } from 'rxjs';
 import { CameraPipConfig } from '../../models/display.model';
@@ -58,20 +58,18 @@ import { CameraPipConfig } from '../../models/display.model';
       height: 100%;
       position: relative;
       background: #090d16;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
     .camera-iframe {
       width: 100%;
       height: 100%;
       border: none;
-      pointer-events: none;
+      object-fit: cover;
     }
     .camera-img {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
     }
     .camera-hud-top {
       position: absolute;
@@ -82,40 +80,46 @@ import { CameraPipConfig } from '../../models/display.model';
       align-items: center;
       justify-content: space-between;
       z-index: 10;
-      background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
-      padding: 4px 8px;
-      border-radius: 6px;
     }
     .live-tag {
-      display: inline-flex;
+      background: rgba(220, 38, 38, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: flex;
       align-items: center;
-      gap: 5px;
-      background: rgba(239, 68, 68, 0.85);
-      color: #fff;
+      gap: 6px;
       font-size: 0.65rem;
       font-weight: 800;
       letter-spacing: 0.5px;
-      padding: 2px 6px;
-      border-radius: 4px;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.4);
     }
     .pulse-dot {
       width: 6px;
       height: 6px;
-      background: #fff;
       border-radius: 50%;
-      animation: blink 1s infinite;
+      background: #ffffff;
+      animation: pulse 1.5s infinite;
     }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1); }
+    }
     .camera-title {
       font-size: 0.75rem;
-      font-weight: 700;
-      color: #f8fafc;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      font-weight: 600;
+      color: #ffffff;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      padding: 3px 8px;
+      border-radius: 6px;
     }
 
     .camera-hud-bottom {
       position: absolute;
-      bottom: 8px;
+      bottom: 10px;
       left: 10px;
       right: 10px;
       display: flex;
@@ -133,7 +137,7 @@ import { CameraPipConfig } from '../../models/display.model';
     }
   `]
 })
-export class CameraPipWidgetComponent implements OnInit, OnDestroy {
+export class CameraPipWidgetComponent implements OnInit, OnDestroy, DoCheck {
   @Input() config: CameraPipConfig = {};
 
   timestamp: Date = new Date();
@@ -142,19 +146,15 @@ export class CameraPipWidgetComponent implements OnInit, OnDestroy {
   isIframeStream: boolean = false;
   private pollSub?: Subscription;
 
+  private lastStreamUrl?: string;
+  private lastSnapshotUrl?: string;
+
   constructor(private sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
-    if (this.config.streamUrl) {
-      if (this.config.streamUrl.includes('http') || this.config.streamUrl.includes('rtsp')) {
-        this.safeStreamUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.config.streamUrl);
-        this.isIframeStream = true;
-      }
-    }
-
-    if (this.config.snapshotUrl) {
-      this.currentSnapshotUrl = this.config.snapshotUrl;
-    }
+    this.lastStreamUrl = this.config?.streamUrl;
+    this.lastSnapshotUrl = this.config?.snapshotUrl;
+    this.updateStreamConfig();
 
     // Periodic refresh
     const intervalSec = this.config.refreshSeconds || 4;
@@ -165,6 +165,32 @@ export class CameraPipWidgetComponent implements OnInit, OnDestroy {
         this.currentSnapshotUrl = this.config.snapshotUrl + (this.config.snapshotUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
       }
     });
+  }
+
+  ngDoCheck(): void {
+    if (this.config?.streamUrl !== this.lastStreamUrl || this.config?.snapshotUrl !== this.lastSnapshotUrl) {
+      this.lastStreamUrl = this.config?.streamUrl;
+      this.lastSnapshotUrl = this.config?.snapshotUrl;
+      this.updateStreamConfig();
+    }
+  }
+
+  private updateStreamConfig(): void {
+    if (this.config.streamUrl) {
+      if (this.config.streamUrl.includes('http') || this.config.streamUrl.includes('rtsp')) {
+        this.safeStreamUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.config.streamUrl);
+        this.isIframeStream = true;
+      }
+    } else {
+      this.isIframeStream = false;
+      this.safeStreamUrl = undefined;
+    }
+
+    if (this.config.snapshotUrl) {
+      this.currentSnapshotUrl = this.config.snapshotUrl;
+    } else if (!this.isIframeStream) {
+      this.currentSnapshotUrl = 'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80';
+    }
   }
 
   handleImageError(): void {

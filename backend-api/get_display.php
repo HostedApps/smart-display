@@ -20,7 +20,34 @@ try {
         echo json_encode(["error" => "Display not found"]);
         exit();
     }
-
+    // Authenticate the request (Security feature)
+    $headers = getallheaders();
+    $deviceTokenHeader = $headers['X-Device-Token'] ?? $headers['x-device-token'] ?? '';
+    $user = getAuthenticatedUser($pdo);
+    
+    $isAuthorized = false;
+    
+    // 1. Is it the owner or superadmin?
+    if ($user) {
+        if ((int)$display['user_id'] === (int)$user['id'] || $user['role'] === 'superadmin') {
+            $isAuthorized = true;
+        }
+    }
+    
+    // 2. Is it a paired device?
+    if (!$isAuthorized && !empty($deviceTokenHeader)) {
+        $devStmt = $pdo->prepare("SELECT id FROM devices WHERE display_id = ? AND device_token = ?");
+        $devStmt->execute([$display['id'], $deviceTokenHeader]);
+        if ($devStmt->fetch()) {
+            $isAuthorized = true;
+        }
+    }
+    
+    if (!$isAuthorized) {
+        http_response_code(401);
+        echo json_encode(["error" => "Unauthorized access to display"]);
+        exit();
+    }
     // Decode JSON fields if present
     $displayData = [
         'id' => (int)$display['id'],

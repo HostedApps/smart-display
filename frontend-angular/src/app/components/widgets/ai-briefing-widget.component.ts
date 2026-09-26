@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, DoCheck } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { AIBriefingConfig } from '../../models/display.model';
@@ -17,9 +17,14 @@ import { environment } from '../../../environments/environment';
           <span class="ai-badge">DAILY INTELLIGENCE</span>
           <span class="ai-time-label">{{ greeting }}</span>
         </div>
-        <button (click)="toggleSpeak()" class="btn-speech" [class.speaking]="isSpeaking" title="Read Aloud">
-          {{ isSpeaking ? '🔊' : '🔈' }}
-        </button>
+        <div style="display: flex; gap: 6px;">
+          <button (click)="fetchBriefing()" class="btn-action" title="Regenerate Briefing">
+            🔄
+          </button>
+          <button (click)="toggleSpeak()" class="btn-action" [class.speaking]="isSpeaking" title="Read Aloud">
+            {{ isSpeaking ? '🔊' : '🔈' }}
+          </button>
+        </div>
       </div>
 
       <div class="ai-content">
@@ -29,8 +34,12 @@ import { environment } from '../../../environments/environment';
       </div>
 
       <div class="ai-footer">
-        <span class="provider-pill">✨ Ambient Gemini Engine</span>
-        <span class="synced-time">Updated just now</span>
+        <span class="provider-pill" [class.is-gemini]="provider === 'gemini'" [class.has-error]="!!geminiError" [title]="geminiError || (provider === 'gemini' ? 'Synthesized via Google Gemini 1.5 Flash' : 'Using contextual rule-based ambient engine')">
+          <ng-container *ngIf="provider === 'gemini'">✨ Powered by Google Gemini</ng-container>
+          <ng-container *ngIf="provider !== 'gemini' && geminiError">⚠️ Gemini Error (Fallback Active)</ng-container>
+          <ng-container *ngIf="provider !== 'gemini' && !geminiError">⚡ Ambient Offline Engine</ng-container>
+        </span>
+        <span class="synced-time">{{ lastSync }}</span>
       </div>
     </div>
   `,
@@ -107,17 +116,20 @@ import { environment } from '../../../environments/environment';
       font-weight: 700;
       color: #ffffff;
     }
-    .btn-speech {
+    .btn-action {
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 8px;
       padding: 4px 8px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       cursor: pointer;
       color: #94a3b8;
       transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
-    .btn-speech:hover, .btn-speech.speaking {
+    .btn-action:hover, .btn-action.speaking {
       background: rgba(168, 85, 247, 0.2);
       border-color: #a855f7;
       color: #fff;
@@ -127,13 +139,15 @@ import { environment } from '../../../environments/environment';
       margin: 10px 0;
       flex: 1;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
+      overflow-y: auto;
+      max-height: 100%;
     }
     .briefing-text {
       font-family: var(--font-editorial, 'Newsreader', serif);
-      font-size: 1.15rem;
+      font-size: 1.12rem;
       font-style: italic;
-      line-height: 1.45;
+      line-height: 1.5;
       color: #e2e8f0;
       margin: 0;
     }
@@ -153,23 +167,43 @@ import { environment } from '../../../environments/environment';
       padding-top: 8px;
     }
     .provider-pill {
-      color: #a855f7;
+      color: #94a3b8;
       font-weight: 600;
+      transition: all 0.2s;
+    }
+    .provider-pill.is-gemini {
+      color: #38bdf8;
+      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+    .provider-pill.has-error {
+      color: #fbbf24;
+      cursor: help;
     }
   `]
 })
-export class AIBriefingWidgetComponent implements OnInit, OnDestroy {
+export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
   @Input() config: AIBriefingConfig = {};
 
   greeting: string = 'Daily Executive Briefing';
   displayedText: string = '';
   loading: boolean = true;
   isSpeaking: boolean = false;
+  provider: string = 'ambient_engine';
+  geminiError: string = '';
+  lastSync: string = 'Updated just now';
   private pollSub?: Subscription;
+
+  private lastApiKey: string = '';
+  private lastUserName: string = '';
+  private lastTone: string = '';
 
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
+    this.lastApiKey = this.config?.apiKey || '';
+    this.lastUserName = this.config?.userName || '';
+    this.lastTone = this.config?.tone || '';
+
     this.updateGreeting();
     this.fetchBriefing();
 
@@ -178,6 +212,19 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy {
       this.updateGreeting();
       this.fetchBriefing();
     });
+  }
+
+  ngDoCheck(): void {
+    const key = this.config?.apiKey || '';
+    const user = this.config?.userName || '';
+    const tone = this.config?.tone || '';
+
+    if (key !== this.lastApiKey || user !== this.lastUserName || tone !== this.lastTone) {
+      this.lastApiKey = key;
+      this.lastUserName = user;
+      this.lastTone = tone;
+      this.fetchBriefing();
+    }
   }
 
   updateGreeting(): void {
@@ -200,13 +247,20 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy {
         this.loading = false;
         if (res && res.success && res.briefing) {
           this.displayedText = res.briefing;
+          this.provider = res.provider || 'ambient_engine';
+          this.geminiError = res.geminiError || '';
+          this.lastSync = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         } else {
           this.displayedText = "Good day! Everything is currently running smoothly on your schedule and home systems.";
+          this.provider = 'ambient_engine';
+          this.geminiError = res?.geminiError || '';
         }
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
         this.displayedText = "Welcome to your day! All calendar appointments and ambient notifications are synced.";
+        this.provider = 'ambient_engine';
+        this.geminiError = err?.error?.error || 'Network error';
       }
     });
   }

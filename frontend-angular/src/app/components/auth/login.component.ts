@@ -167,29 +167,7 @@ import { CaptchaChallenge, CapacityStatus } from '../../models/display.model';
               <div id="recaptchaContainer" class="recaptcha-box-container"></div>
             </div>
 
-            <!-- Fallback Captcha (if Google reCAPTCHA is unavailable) -->
-            <div *ngIf="showFallbackCaptcha" class="captcha-box">
-              <div class="captcha-label-row">
-                <label>Security Verification (Anti-Bot)</label>
-                <button type="button" (click)="loadCaptcha()" class="btn-refresh-captcha" title="New challenge">
-                  🔄
-                </button>
-              </div>
-              <div class="captcha-challenge-row">
-                <div class="captcha-question-badge">
-                  {{ captchaChallenge?.question || 'Loading challenge...' }}
-                </div>
-                <input 
-                  type="number" 
-                  [(ngModel)]="captchaAnswer" 
-                  name="captchaAnswer" 
-                  placeholder="Answer"
-                  class="input-control input-captcha"
-                />
-              </div>
-            </div>
-
-            <button type="submit" [disabled]="loading || !email || !password || (!recaptchaToken && !captchaAnswer)" class="btn btn-primary">
+            <button type="submit" [disabled]="loading || !email || !password || !recaptchaToken" class="btn btn-primary">
               {{ loading ? (mode === 'login' ? 'Signing in...' : 'Registering...') : (mode === 'login' ? 'Sign In' : 'Create Account') }}
             </button>
           </form>
@@ -577,10 +555,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   recaptchaLoaded: boolean = false;
   gisInitialized: boolean = false;
 
-  // Fallback Captcha
-  showFallbackCaptcha: boolean = false;
-  captchaChallenge: CaptchaChallenge | null = null;
-  captchaAnswer: string = '';
+
 
   // Google Config Helper
   showGoogleConfigHelp: boolean = false;
@@ -679,30 +654,19 @@ export class LoginComponent implements OnInit, AfterViewInit {
                 this.recaptchaToken = '';
               },
               'error-callback': () => {
-                this.showFallbackCaptcha = true;
-                this.loadCaptcha();
+                this.errorMessage = 'reCAPTCHA error. Please reload the page.';
               }
             });
             this.recaptchaLoaded = true;
           }
         } catch (e) {
           console.warn('Google reCAPTCHA render issue:', e);
-          this.showFallbackCaptcha = true;
-          this.loadCaptcha();
+          this.errorMessage = 'reCAPTCHA failed to load. Please reload the page.';
         }
       } else {
         setTimeout(tryRender, 250);
       }
     };
-
-    // If reCAPTCHA script fails to initialize after 3.5s, enable math puzzle fallback
-    setTimeout(() => {
-      if (!this.recaptchaLoaded) {
-        this.showFallbackCaptcha = true;
-        this.loadCaptcha();
-      }
-    }, 3500);
-
     tryRender();
   }
 
@@ -781,14 +745,6 @@ export class LoginComponent implements OnInit, AfterViewInit {
     }
   }
 
-  loadCaptcha(): void {
-    this.captchaAnswer = '';
-    this.authService.getCaptchaChallenge().subscribe({
-      next: (res) => {
-        if (res.success) this.captchaChallenge = res;
-      }
-    });
-  }
 
   setMode(mode: 'login' | 'register'): void {
     this.mode = mode;
@@ -801,10 +757,6 @@ export class LoginComponent implements OnInit, AfterViewInit {
       try {
         grecaptcha.reset(this.recaptchaWidgetId);
       } catch (e) {}
-    }
-
-    if (this.showFallbackCaptcha) {
-      this.loadCaptcha();
     }
 
     if (this.googleClientId) {
@@ -820,9 +772,6 @@ export class LoginComponent implements OnInit, AfterViewInit {
         grecaptcha.reset(this.recaptchaWidgetId);
       } catch (e) {}
     }
-    if (this.showFallbackCaptcha) {
-      this.loadCaptcha();
-    }
   }
 
   onSubmit(): void {
@@ -834,7 +783,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
       return;
     }
 
-    if (!this.recaptchaToken && !this.captchaAnswer) {
+    if (!this.recaptchaToken) {
       this.errorMessage = 'Please complete the security verification (reCAPTCHA) below.';
       return;
     }
@@ -852,9 +801,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
         this.name, 
         this.email, 
         this.password, 
-        this.recaptchaToken,
-        this.captchaChallenge?.captchaToken, 
-        this.captchaAnswer
+        this.recaptchaToken
       ).subscribe({
         next: (res) => {
           this.loading = false;
@@ -880,9 +827,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
       this.authService.login(
         this.email, 
         this.password, 
-        this.recaptchaToken,
-        this.captchaChallenge?.captchaToken, 
-        this.captchaAnswer
+        this.recaptchaToken
       ).subscribe({
         next: (res) => {
           this.loading = false;

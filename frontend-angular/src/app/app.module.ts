@@ -30,6 +30,14 @@ import { ChoresWidgetComponent } from './components/widgets/chores-widget.compon
 import { CameraPipWidgetComponent } from './components/widgets/camera-pip-widget.component';
 import { CommuteWidgetComponent } from './components/widgets/commute-widget.component';
 import { YoutubeWidgetComponent } from './components/widgets/youtube-widget.component';
+import { TextWidgetComponent } from './components/widgets/text-widget.component';
+import { QrcodeWidgetComponent } from './components/widgets/qrcode-widget.component';
+import { WorldClocksWidgetComponent } from './components/widgets/world-clocks-widget.component';
+import { ShapesWidgetComponent } from './components/widgets/shapes-widget.component';
+import { ScheduledTextWidgetComponent } from './components/widgets/scheduled-text-widget.component';
+import { ButtonWidgetComponent } from './components/widgets/button-widget.component';
+import { SunMoonWidgetComponent } from './components/widgets/sun-moon-widget.component';
+import { AnalogClockWidgetComponent } from './components/widgets/analog-clock-widget.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { InstallationGuideComponent } from './components/help/installation-guide.component';
 import { SuperAdminComponent } from './components/admin/super-admin.component';
@@ -64,6 +72,14 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     CameraPipWidgetComponent,
     CommuteWidgetComponent,
     YoutubeWidgetComponent,
+    TextWidgetComponent,
+    QrcodeWidgetComponent,
+    WorldClocksWidgetComponent,
+    ShapesWidgetComponent,
+    ScheduledTextWidgetComponent,
+    ButtonWidgetComponent,
+    SunMoonWidgetComponent,
+    AnalogClockWidgetComponent,
     WallDropComponent,
     InstallationGuideComponent,
     HelpDocsModalComponent

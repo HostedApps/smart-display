@@ -1,17 +1,7 @@
 <?php
 require_once 'db.php';
 
-function getAuthenticatedUser($pdo) {
-    $headers = getallheaders();
-    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-    if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-        return null;
-    }
-    $token = $matches[1];
-    $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE auth_token = ?");
-    $stmt->execute([$token]);
-    return $stmt->fetch();
-}
+
 
 $action = $_GET['action'] ?? 'generate_code';
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -59,10 +49,12 @@ if ($action === 'check_status') {
 
     try {
         $stmt = $pdo->prepare("
-            SELECT dp.status, dp.display_id, d.token as display_token
+            SELECT dp.status, dp.display_id, d.token as display_token, dev.device_token
             FROM device_pairings dp
             LEFT JOIN displays d ON dp.display_id = d.id
+            LEFT JOIN devices dev ON dev.display_id = dp.display_id
             WHERE dp.device_secret = ? AND dp.expires_at > NOW()
+            ORDER BY dev.id DESC LIMIT 1
         ");
         $stmt->execute([$secret]);
         $pairing = $stmt->fetch();
@@ -75,7 +67,8 @@ if ($action === 'check_status') {
         if ($pairing['status'] === 'paired' && $pairing['display_token']) {
             echo json_encode([
                 "status" => "paired",
-                "display_token" => $pairing['display_token']
+                "display_token" => $pairing['display_token'],
+                "device_token" => $pairing['device_token'] ?? ''
             ]);
             exit();
         }

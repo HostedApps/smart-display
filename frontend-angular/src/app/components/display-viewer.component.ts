@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { interval, Subscription, switchMap, catchError, of } from 'rxjs';
@@ -112,6 +112,14 @@ import { EmergencyService } from '../services/emergency.service';
           <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
           <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
           <app-youtube-widget *ngIf="widget.type === 'youtube'" [config]="widget.config"></app-youtube-widget>
+          <app-text-widget *ngIf="widget.type === 'text'" [config]="widget.config"></app-text-widget>
+          <app-qrcode-widget *ngIf="widget.type === 'qrcode'" [config]="widget.config"></app-qrcode-widget>
+          <app-world-clocks-widget *ngIf="widget.type === 'world_clocks'" [config]="widget.config"></app-world-clocks-widget>
+          <app-shapes-widget *ngIf="widget.type === 'shapes'" [config]="widget.config"></app-shapes-widget>
+          <app-scheduled-text-widget *ngIf="widget.type === 'scheduled_text'" [config]="widget.config"></app-scheduled-text-widget>
+          <app-button-widget *ngIf="widget.type === 'button'" [config]="widget.config"></app-button-widget>
+          <app-sun-moon-widget *ngIf="widget.type === 'sun_moon'" [config]="widget.config"></app-sun-moon-widget>
+          <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
         </div>
       </div>
 
@@ -468,7 +476,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   private touchStartY: number = 0;
 
   constructor(
-    private route: ActivatedRoute, 
+    private route: ActivatedRoute,
+    private router: Router,
     private http: HttpClient,
     private offlineCache: OfflineCacheService,
     private sanitizer: DomSanitizer,
@@ -671,7 +680,10 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
         if (err.status === 404) {
           this.offlineReason = 'Display Not Found (404)';
         } else if (err.status === 401 || err.status === 403) {
-          this.offlineReason = 'Unauthorized (401/403)';
+          this.offlineReason = 'Unauthorized. Redirecting to pair...';
+          localStorage.removeItem('device_token');
+          this.router.navigate(['/pair']);
+          return;
         } else if (err.status === 0) {
           this.offlineReason = 'Network or DNS Unreachable';
         } else if (err.status >= 500) {

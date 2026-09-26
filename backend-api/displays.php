@@ -1,18 +1,7 @@
 <?php
 require_once 'db.php';
 
-// Helper to authenticate user via Bearer token
-function getAuthenticatedUser($pdo) {
-    $headers = getallheaders();
-    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-    if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-        return null;
-    }
-    $token = $matches[1];
-    $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE auth_token = ?");
-    $stmt->execute([$token]);
-    return $stmt->fetch();
-}
+
 
 $user = getAuthenticatedUser($pdo);
 if (!$user) {
