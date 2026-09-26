@@ -16,7 +16,52 @@ import { environment } from '../../../environments/environment';
           </svg>
           <h3 class="widget-title">{{ config.title || 'Family Tasks' }}</h3>
         </div>
-        <span class="task-count">{{ completedCount }}/{{ items.length }}</span>
+        <div class="header-actions">
+          <span class="task-count">{{ completedCount }}/{{ items.length }}</span>
+          <button class="add-task-btn" (click)="openAddModal($event)" title="Add Task on Screen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="plus-icon">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Add</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Task Creation Drawer/Modal -->
+      <div class="add-task-panel" *ngIf="showAddModal" (click)="$event.stopPropagation()">
+        <input 
+          #taskInput
+          type="text" 
+          class="task-input" 
+          placeholder="New task..." 
+          [(ngModel)]="newTaskText"
+          (keyup.enter)="submitNewTask()"
+          autofocus
+        />
+        <div class="add-panel-footer">
+          <div class="priority-picker">
+            <button 
+              type="button" 
+              class="pri-chip" 
+              [class.active]="newTaskPriority === 'low'"
+              (click)="newTaskPriority = 'low'">Low</button>
+            <button 
+              type="button" 
+              class="pri-chip" 
+              [class.active]="newTaskPriority === 'medium'"
+              (click)="newTaskPriority = 'medium'">Med</button>
+            <button 
+              type="button" 
+              class="pri-chip pri-high" 
+              [class.active]="newTaskPriority === 'high'"
+              (click)="newTaskPriority = 'high'">High</button>
+          </div>
+          <div class="panel-buttons">
+            <button class="btn-cancel" (click)="closeAddModal()">Cancel</button>
+            <button class="btn-save" (click)="submitNewTask()" [disabled]="!newTaskText.trim()">Save</button>
+          </div>
+        </div>
       </div>
 
       <div class="todo-list" *ngIf="displayItems.length > 0; else emptyState">
@@ -38,6 +83,9 @@ import { environment } from '../../../environments/environment';
           <span *ngIf="item.dueDate && !item.completed" class="due-badge">
             {{ item.dueDate }}
           </span>
+          <button *ngIf="item.completed" class="delete-item-btn" (click)="deleteItem(item, $event)" title="Delete task">
+            ✕
+          </button>
         </div>
       </div>
 
@@ -163,6 +211,126 @@ import { environment } from '../../../environments/environment';
       font-size: 0.65rem;
       color: #94a3b8;
     }
+    .delete-item-btn {
+      background: none;
+      border: none;
+      color: #f87171;
+      font-size: 0.75rem;
+      padding: 2px 4px;
+      cursor: pointer;
+      opacity: 0.6;
+      border-radius: 4px;
+      transition: opacity 0.15s;
+    }
+    .delete-item-btn:hover {
+      opacity: 1;
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .add-task-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      border-radius: 8px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .add-task-btn:hover {
+      background: rgba(56, 189, 248, 0.3);
+      border-color: #38bdf8;
+    }
+    .plus-icon {
+      width: 12px;
+      height: 12px;
+    }
+    .add-task-panel {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .task-input {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: #ffffff;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .task-input:focus {
+      border-color: #38bdf8;
+    }
+    .add-panel-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .priority-picker {
+      display: flex;
+      gap: 4px;
+    }
+    .pri-chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-size: 0.65rem;
+      font-weight: 600;
+      border-radius: 4px;
+      padding: 2px 6px;
+      cursor: pointer;
+    }
+    .pri-chip.active {
+      background: rgba(56, 189, 248, 0.25);
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+    .pri-chip.pri-high.active {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #f87171;
+      color: #f87171;
+    }
+    .panel-buttons {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-cancel {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.7rem;
+      cursor: pointer;
+      padding: 3px 6px;
+    }
+    .btn-save {
+      background: #0284c7;
+      border: none;
+      color: #ffffff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      border-radius: 5px;
+      padding: 3px 10px;
+      cursor: pointer;
+    }
+    .btn-save:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
     .empty-state {
       display: flex;
       align-items: center;
@@ -181,6 +349,10 @@ export class TodoWidgetComponent implements OnInit {
     allowToggle: true
   };
 
+  showAddModal: boolean = false;
+  newTaskText: string = '';
+  newTaskPriority: 'low' | 'medium' | 'high' = 'medium';
+
   private displayToken: string = '';
 
   private defaultItems: TodoItem[] = [
@@ -191,10 +363,10 @@ export class TodoWidgetComponent implements OnInit {
   ];
 
   get items(): TodoItem[] {
-    if (this.config.items && Array.isArray(this.config.items) && this.config.items.length > 0) {
-      return this.config.items;
+    if (!this.config.items || !Array.isArray(this.config.items)) {
+      this.config.items = [...this.defaultItems];
     }
-    return this.defaultItems;
+    return this.config.items;
   }
 
   get displayItems(): TodoItem[] {
@@ -213,6 +385,69 @@ export class TodoWidgetComponent implements OnInit {
 
   ngOnInit(): void {
     this.displayToken = this.route.snapshot.paramMap.get('token') || '';
+  }
+
+  openAddModal(e: MouseEvent): void {
+    e.stopPropagation();
+    this.showAddModal = true;
+    this.newTaskText = '';
+    this.newTaskPriority = 'medium';
+  }
+
+  closeAddModal(): void {
+    this.showAddModal = false;
+    this.newTaskText = '';
+  }
+
+  submitNewTask(): void {
+    const text = this.newTaskText.trim();
+    if (!text) return;
+
+    const newItem: TodoItem = {
+      id: 'task_' + Date.now(),
+      text,
+      completed: false,
+      priority: this.newTaskPriority,
+      dueDate: 'Today'
+    };
+
+    this.items.unshift(newItem);
+    this.closeAddModal();
+
+    if (this.displayToken) {
+      this.http.post(`${environment.apiUrl}/tasks_sync.php`, {
+        action: 'add',
+        token: this.displayToken,
+        text,
+        priority: this.newTaskPriority
+      }).subscribe({
+        next: (res: any) => {
+          if (res?.createdTask?.id) {
+            newItem.id = res.createdTask.id;
+          }
+        },
+        error: () => {}
+      });
+    }
+  }
+
+  deleteItem(item: TodoItem, e: MouseEvent): void {
+    e.stopPropagation();
+    const idx = this.items.indexOf(item);
+    if (idx !== -1) {
+      this.items.splice(idx, 1);
+    }
+
+    if (this.displayToken) {
+      this.http.post(`${environment.apiUrl}/tasks_sync.php`, {
+        action: 'delete',
+        token: this.displayToken,
+        taskId: item.id
+      }).subscribe({
+        next: () => {},
+        error: () => {}
+      });
+    }
   }
 
   toggleItem(item: TodoItem): void {

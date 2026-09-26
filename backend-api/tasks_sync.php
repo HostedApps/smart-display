@@ -14,14 +14,28 @@ require_once 'db.php';
 // Rate limit: 60 task toggles per minute per IP
 checkRateLimit($pdo, 'tasks_sync', 60, 60);
 
-$input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+$action = trim((string)($input['action'] ?? 'toggle'));
 $token = trim($input['token'] ?? $_GET['token'] ?? '');
 $taskId = trim((string)($input['taskId'] ?? $input['id'] ?? ''));
+$taskText = sanitizeText($input['text'] ?? '');
+$priority = in_array($input['priority'] ?? '', ['low', 'medium', 'high']) ? $input['priority'] : 'medium';
 $completed = isset($input['completed']) ? (bool)$input['completed'] : null;
 
-if (empty($token) || empty($taskId)) {
+if (empty($token)) {
     http_response_code(400);
-    echo json_encode(["success" => false, "error" => "Display token and taskId are required"]);
+    echo json_encode(["success" => false, "error" => "Display token is required"]);
+    exit();
+}
+
+if ($action === 'add' && empty($taskText)) {
+    http_response_code(400);
+    echo json_encode(["success" => false, "error" => "Task text is required for adding a task"]);
+    exit();
+}
+
+if ($action !== 'add' && empty($taskId)) {
+    http_response_code(400);
+    echo json_encode(["success" => false, "error" => "taskId is required"]);
     exit();
 }
 
@@ -56,32 +70,52 @@ try {
 
     $updated = false;
     $newStatus = false;
+    $createdTask = null;
 
-    // Mutate the matching task
-    foreach ($items as &$item) {
-        if ((string)($item['id'] ?? '') === $taskId) {
-            if ($completed !== null) {
-                $item['completed'] = $completed;
-            } else {
-                $item['completed'] = !($item['completed'] ?? false);
-            }
-            $newStatus = (bool)$item['completed'];
-            $updated = true;
-            break;
-        }
-    }
-    unset($item);
-
-    // If task was not in custom items list (e.g. default task toggle), create task entry
-    if (!$updated) {
-        $newStatus = ($completed !== null) ? $completed : true;
-        $items[] = [
-            "id" => $taskId,
-            "text" => sanitizeText($input['text'] ?? 'Task ' . $taskId),
-            "completed" => $newStatus,
-            "priority" => $input['priority'] ?? 'medium'
+    if ($action === 'add') {
+        $newId = (string)time() . '_' . substr(md5(uniqid()), 0, 4);
+        $createdTask = [
+            "id" => $newId,
+            "text" => $taskText,
+            "completed" => false,
+            "priority" => $priority,
+            "dueDate" => sanitizeText($input['dueDate'] ?? 'Today')
         ];
+        $items[] = $createdTask;
         $updated = true;
+        $taskId = $newId;
+    } elseif ($action === 'delete') {
+        $items = array_values(array_filter($items, function($item) use ($taskId) {
+            return (string)($item['id'] ?? '') !== $taskId;
+        }));
+        $updated = true;
+    } else {
+        // Mutate the matching task
+        foreach ($items as &$item) {
+            if ((string)($item['id'] ?? '') === $taskId) {
+                if ($completed !== null) {
+                    $item['completed'] = $completed;
+                } else {
+                    $item['completed'] = !($item['completed'] ?? false);
+                }
+                $newStatus = (bool)$item['completed'];
+                $updated = true;
+                break;
+            }
+        }
+        unset($item);
+
+        // If task was not in custom items list (e.g. default task toggle), create task entry
+        if (!$updated) {
+            $newStatus = ($completed !== null) ? $completed : true;
+            $items[] = [
+                "id" => $taskId,
+                "text" => sanitizeText($input['text'] ?? 'Task ' . $taskId),
+                "completed" => $newStatus,
+                "priority" => $priority
+            ];
+            $updated = true;
+        }
     }
 
     $config['items'] = $items;
@@ -119,9 +153,12 @@ try {
 
     echo json_encode([
         "success" => true,
+        "action" => $action,
         "taskId" => $taskId,
+        "createdTask" => $createdTask,
         "completed" => $newStatus,
         "todoistSynced" => $todoistSynced,
+        "items" => $items,
         "totalTasks" => count($items)
     ]);
 } catch (\Exception $e) {

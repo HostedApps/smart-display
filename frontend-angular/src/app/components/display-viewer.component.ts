@@ -8,6 +8,7 @@ import { environment } from '../../environments/environment';
 import { OfflineCacheService } from '../services/offline-cache.service';
 import { WakeLockService } from '../services/wake-lock.service';
 import { EmergencyService } from '../services/emergency.service';
+import { AudioChimeService } from '../services/audio-chime.service';
 import { loadGoogleFont, getFontFamilyString } from '../utils/font-loader.util';
 import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.component';
 
@@ -96,6 +97,7 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
         <div 
           *ngFor="let widget of activeWidgets; trackBy: trackWidgetById" 
           class="widget-wrapper"
+          [ngClass]="getWidgetRuleClasses(widget)"
           [style.left.px]="widget.position.x"
           [style.top.px]="widget.position.y"
           [style.width.px]="widget.position.width"
@@ -133,6 +135,10 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
           <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
           <app-rest-fetch-widget *ngIf="widget.type === 'rest_fetch'" [config]="widget.config"></app-rest-fetch-widget>
           <app-gauge-widget *ngIf="widget.type === 'gauge'" [config]="widget.config"></app-gauge-widget>
+          <app-google-maps-widget *ngIf="widget.type === 'google_maps'" [config]="widget.config"></app-google-maps-widget>
+          <app-whiteboard-widget *ngIf="widget.type === 'whiteboard'" [config]="widget.config"></app-whiteboard-widget>
+          <app-slack-widget *ngIf="widget.type === 'slack'" [config]="widget.config"></app-slack-widget>
+          <app-gmail-widget *ngIf="widget.type === 'gmail'" [config]="widget.config"></app-gmail-widget>
         </div>
       </div>
 
@@ -472,6 +478,36 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
     .btn-dismiss-alert:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+    .alert-glow-red {
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.75) !important;
+      border: 2px solid #ef4444 !important;
+      animation: pulseGlowRed 2s infinite alternate !important;
+    }
+    .alert-glow-amber {
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.75) !important;
+      border: 2px solid #f59e0b !important;
+      animation: pulseGlowAmber 2s infinite alternate !important;
+    }
+    .highlight-green {
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.75) !important;
+      border: 2px solid #10b981 !important;
+    }
+    .pulse-border {
+      border: 2px dashed #38bdf8 !important;
+      animation: pulseBorder 1.5s infinite alternate !important;
+    }
+    @keyframes pulseGlowRed {
+      from { box-shadow: 0 0 15px rgba(239, 68, 68, 0.5); }
+      to { box-shadow: 0 0 35px rgba(239, 68, 68, 0.95); }
+    }
+    @keyframes pulseGlowAmber {
+      from { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+      to { box-shadow: 0 0 35px rgba(245, 158, 11, 0.95); }
+    }
+    @keyframes pulseBorder {
+      from { opacity: 0.7; }
+      to { opacity: 1; }
+    }
   `]
 })
 export class DisplayViewerComponent implements OnInit, OnDestroy {
@@ -496,6 +532,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
 
   private touchStartX: number = 0;
   private touchStartY: number = 0;
+  private lastHourlyChimeHour: number = -1;
 
   constructor(
     private route: ActivatedRoute,
@@ -504,7 +541,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     private offlineCache: OfflineCacheService,
     private sanitizer: DomSanitizer,
     private wakeLock: WakeLockService,
-    private emergencyService: EmergencyService
+    private emergencyService: EmergencyService,
+    private audioChime: AudioChimeService
   ) {}
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
@@ -694,10 +732,11 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       });
     }
 
-    // 1-second clock for time & sleep check
+    // 1-second clock for time, sleep check & audio chimes
     this.clockTimerSub = interval(1000).subscribe(() => {
       this.currentTime = new Date();
       this.checkSleepSchedule();
+      this.checkAudioChimes();
     });
   }
 
@@ -861,6 +900,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
         if (w.style?.fontFamily) loadGoogleFont(w.style.fontFamily);
       });
       this.detectSevereWeatherAlerts();
+      this.applyCustomCss(this.displayConfig?.custom_css);
 
       this.startCarousel();
       this.checkSleepSchedule();
@@ -950,11 +990,112 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     }
   }
 
+  checkAudioChimes(): void {
+    if (!this.displayConfig) return;
+    const now = this.currentTime;
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+    const hours = now.getHours();
+
+    // Top-of-the-hour chime (:00)
+    if (this.displayConfig.hourly_chime && minutes === 0 && seconds === 0 && this.lastHourlyChimeHour !== hours) {
+      this.lastHourlyChimeHour = hours;
+      this.audioChime.playHourlyChime();
+    }
+
+    // Calendar event start chime
+    if (this.displayConfig.audio_chimes_enabled && seconds === 0) {
+      const calWidget = this.widgets.find(w => w.type === 'calendar');
+      if (calWidget && calWidget.config?.customEvents) {
+        const events = calWidget.config.customEvents;
+        for (const ev of events) {
+          if (ev.startDate) {
+            const evDate = new Date(ev.startDate);
+            if (evDate.getFullYear() === now.getFullYear() &&
+                evDate.getMonth() === now.getMonth() &&
+                evDate.getDate() === now.getDate() &&
+                evDate.getHours() === now.getHours() &&
+                evDate.getMinutes() === now.getMinutes()) {
+              this.audioChime.playDoorbellChime();
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  getWidgetRuleClasses(widget: Widget): string {
+    if (!widget.rules || widget.rules.length === 0) return '';
+    const classes: string[] = [];
+
+    for (const rule of widget.rules) {
+      if (!rule.field || rule.threshold === undefined) continue;
+
+      let val: any = undefined;
+      if (widget.config && widget.config[rule.field] !== undefined) {
+        val = widget.config[rule.field];
+      } else if (rule.field === 'temperature' && (widget.config?.temp !== undefined || widget.config?.temperature !== undefined)) {
+        val = widget.config.temp || widget.config.temperature;
+      } else if (rule.field === 'value' && widget.config?.value !== undefined) {
+        val = widget.config.value;
+      } else if (rule.field === 'state' && widget.config?.state !== undefined) {
+        val = widget.config.state;
+      }
+
+      if (val === undefined) continue;
+
+      let match = false;
+      const numVal = parseFloat(val);
+      const numThreshold = parseFloat(rule.threshold);
+
+      switch (rule.operator) {
+        case 'gt':
+          match = !isNaN(numVal) && !isNaN(numThreshold) && numVal > numThreshold;
+          break;
+        case 'lt':
+          match = !isNaN(numVal) && !isNaN(numThreshold) && numVal < numThreshold;
+          break;
+        case 'eq':
+          match = String(val).toLowerCase() === String(rule.threshold).toLowerCase();
+          break;
+        case 'neq':
+          match = String(val).toLowerCase() !== String(rule.threshold).toLowerCase();
+          break;
+        case 'contains':
+          match = String(val).toLowerCase().includes(String(rule.threshold).toLowerCase());
+          break;
+      }
+
+      if (match && rule.className) {
+        classes.push(rule.className);
+      }
+    }
+
+    return classes.join(' ');
+  }
+
+  private applyCustomCss(css?: string): void {
+    if (typeof document === 'undefined') return;
+    let styleEl = document.getElementById('smart-display-custom-css') as HTMLStyleElement;
+    if (!css) {
+      if (styleEl) styleEl.remove();
+      return;
+    }
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'smart-display-custom-css';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = css;
+  }
+
   ngOnDestroy(): void {
     this.wakeLock.releaseWakeLock();
     this.pollSub?.unsubscribe();
     this.carouselTimerSub?.unsubscribe();
     this.clockTimerSub?.unsubscribe();
     this.emergencyPollSub?.unsubscribe();
+    this.applyCustomCss();
   }
 }

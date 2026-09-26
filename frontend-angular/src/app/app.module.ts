@@ -41,6 +41,10 @@ import { AnalogClockWidgetComponent } from './components/widgets/analog-clock-wi
 import { RestFetchWidgetComponent } from './components/widgets/rest-fetch-widget.component';
 import { GaugeWidgetComponent } from './components/widgets/gauge-widget.component';
 import { SevereWeatherAlertBannerComponent } from './components/widgets/severe-weather-alert-banner.component';
+import { WhiteboardWidgetComponent } from './components/widgets/whiteboard-widget.component';
+import { GoogleMapsWidgetComponent } from './components/widgets/google-maps-widget.component';
+import { SlackWidgetComponent } from './components/widgets/slack-widget.component';
+import { GmailWidgetComponent } from './components/widgets/gmail-widget.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { InstallationGuideComponent } from './components/help/installation-guide.component';
 import { SuperAdminComponent } from './components/admin/super-admin.component';
@@ -86,6 +90,10 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     RestFetchWidgetComponent,
     GaugeWidgetComponent,
     SevereWeatherAlertBannerComponent,
+    WhiteboardWidgetComponent,
+    GoogleMapsWidgetComponent,
+    SlackWidgetComponent,
+    GmailWidgetComponent,
     WallDropComponent,
     InstallationGuideComponent,
     HelpDocsModalComponent

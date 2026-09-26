@@ -5,6 +5,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { 
   Widget, 
   WidgetSchedule,
+  WidgetRule,
   DisplayConfig, 
   DisplayResponse, 
   DisplayPage, 
@@ -15,6 +16,7 @@ import {
 } from '../../models/display.model';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
+import { AudioChimeService } from '../../services/audio-chime.service';
 import { AVAILABLE_FONTS, loadGoogleFont, getFontFamilyString, FontOption } from '../../utils/font-loader.util';
 import { DASHBOARD_TEMPLATES, DashboardTemplate } from '../../utils/dashboard-templates.util';
 import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.component';
@@ -227,6 +229,22 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
             <button (click)="addWidget('gauge')" class="palette-item" title="Semicircular radial gauge meter for temperatures, CPU, or metrics">
               <span class="palette-icon">⚡</span>
               <span class="palette-title">Gauge</span>
+            </button>
+            <button (click)="addWidget('whiteboard')" class="palette-item" title="Touch-interactive family whiteboard and chalkboard for notes and doodles">
+              <span class="palette-icon">🎨</span>
+              <span class="palette-title">Whiteboard</span>
+            </button>
+            <button (click)="addWidget('google_maps')" class="palette-item" title="Interactive map embed with location search, zoom, and live traffic">
+              <span class="palette-icon">🗺️</span>
+              <span class="palette-title">Google Maps</span>
+            </button>
+            <button (click)="addWidget('slack')" class="palette-item" title="Live Slack channel message feed with avatars and timestamps">
+              <span class="palette-icon">💬</span>
+              <span class="palette-title">Slack Feed</span>
+            </button>
+            <button (click)="addWidget('gmail')" class="palette-item" title="Gmail inbox unread count badge and latest email previews">
+              <span class="palette-icon">✉️</span>
+              <span class="palette-title">Gmail Inbox</span>
             </button>
           </div>
 
@@ -1140,6 +1158,160 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
               </div>
             </ng-container>
 
+            <ng-container *ngIf="selectedWidget.type === 'whiteboard'">
+              <div class="form-group">
+                <label>Canvas Board Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.canvasTitle" placeholder="Family Notes & Doodles" class="input-control" />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Default Pen Color</label>
+                  <input type="color" [(ngModel)]="selectedWidget.config.defaultColor" class="input-control" style="height: 38px; padding: 2px;" />
+                </div>
+                <div class="form-group">
+                  <label>Background Color</label>
+                  <input type="color" [(ngModel)]="selectedWidget.config.backgroundColor" class="input-control" style="height: 38px; padding: 2px;" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Default Stroke Width: {{ selectedWidget.config.defaultSize || 3 }}px</label>
+                <input type="range" min="1" max="12" step="1" [(ngModel)]="selectedWidget.config.defaultSize" class="slider-control" />
+              </div>
+            </ng-container>
+
+            <ng-container *ngIf="selectedWidget.type === 'google_maps'">
+              <div class="form-group">
+                <label>Widget Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Live Traffic & Map" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Location / Address or City</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.address" placeholder="Austin, TX" class="input-control" />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Zoom Level: {{ selectedWidget.config.zoom || 13 }}</label>
+                  <input type="range" min="3" max="19" step="1" [(ngModel)]="selectedWidget.config.zoom" class="slider-control" />
+                </div>
+                <div class="form-group">
+                  <label>Map View Type</label>
+                  <select [(ngModel)]="selectedWidget.config.mapType" class="input-control">
+                    <option value="m">Roadmap (Standard)</option>
+                    <option value="k">Satellite Aerial</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group checkbox-group">
+                <label>
+                  <input type="checkbox" [(ngModel)]="selectedWidget.config.showTraffic" /> Show Live Traffic Indicator Badge
+                </label>
+              </div>
+            </ng-container>
+
+            <ng-container *ngIf="selectedWidget.type === 'slack'">
+              <div class="form-group">
+                <label>Slack Channel Name</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.channelName" placeholder="announcements" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Workspace / Team Name</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.workspaceName" placeholder="Acme Workspace" class="input-control" />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Max Messages Shown</label>
+                  <input type="number" min="1" max="15" [(ngModel)]="selectedWidget.config.maxMessages" class="input-control" />
+                </div>
+                <div class="form-group checkbox-group" style="margin-top: 24px;">
+                  <label>
+                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showAvatars" /> Show User Avatars
+                  </label>
+                </div>
+              </div>
+            </ng-container>
+
+            <ng-container *ngIf="selectedWidget.type === 'gmail'">
+              <div class="form-group">
+                <label>Google / Gmail Account</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.emailAddress" placeholder="user@gmail.com" class="input-control" />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Unread Badge Count</label>
+                  <input type="number" min="0" [(ngModel)]="selectedWidget.config.unreadCount" class="input-control" />
+                </div>
+                <div class="form-group checkbox-group" style="margin-top: 24px;">
+                  <label>
+                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showSnippet" /> Show Subject & Snippet Previews
+                  </label>
+                </div>
+              </div>
+            </ng-container>
+
+            <hr class="divider" />
+
+            <!-- Phase 3: Linked Widget Interaction -->
+            <div class="form-group">
+              <label>🔗 Linked Target Widget</label>
+              <select [(ngModel)]="selectedWidget.linkedWidgetId" class="input-control">
+                <option [ngValue]="undefined">None (Standalone Widget)</option>
+                <option *ngFor="let other of getOtherWidgets(selectedWidget)" [ngValue]="other.id">
+                  #{{ other.id }} - {{ other.type | titlecase }} ({{ other.position.width }}×{{ other.position.height }})
+                </option>
+              </select>
+              <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 4px;">Pair this widget with another widget on canvas for synchronized interaction or updates.</span>
+            </div>
+
+            <hr class="divider" />
+
+            <!-- Phase 3: Rules Engine / Conditional Formatting -->
+            <div class="rules-card">
+              <div class="rules-header">
+                <label style="font-weight: 600; color: #f1f5f9; margin: 0;">⚡ Conditional Alert Rules</label>
+                <button type="button" class="btn-secondary-small" (click)="addRuleToSelectedWidget()">+ Add Rule</button>
+              </div>
+              <p class="tab-desc" style="margin-bottom: 8px;">Apply glowing neon alerts, borders, and pulse animations when data thresholds trigger.</p>
+
+              <div *ngIf="!selectedWidget.rules || selectedWidget.rules.length === 0" style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 4px 0;">
+                No rules active on this widget.
+              </div>
+
+              <div *ngFor="let rule of selectedWidget.rules; let ri = index" class="rule-item">
+                <button type="button" class="rule-delete-btn" (click)="removeRuleFromSelectedWidget(ri)" title="Delete Rule">✕</button>
+                <div class="form-row" style="margin-bottom: 6px;">
+                  <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 0.72rem;">Field</label>
+                    <input type="text" [(ngModel)]="rule.field" placeholder="value / temp / state" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;" />
+                  </div>
+                  <div class="form-group" style="width: 70px;">
+                    <label style="font-size: 0.72rem;">Condition</label>
+                    <select [(ngModel)]="rule.operator" class="input-control" style="font-size: 0.75rem; padding: 4px 2px;">
+                      <option value="gt">&gt;</option>
+                      <option value="lt">&lt;</option>
+                      <option value="eq">==</option>
+                      <option value="neq">!=</option>
+                      <option value="contains">has</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="flex: 1;">
+                    <label style="font-size: 0.72rem;">Threshold</label>
+                    <input type="text" [(ngModel)]="rule.threshold" placeholder="e.g. 80" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;" />
+                  </div>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-size: 0.72rem;">Alert Visual Effect</label>
+                  <select [(ngModel)]="rule.className" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;">
+                    <option value="alert-glow-red">🔴 Alert Red (Flashing Crimson Glow)</option>
+                    <option value="alert-glow-amber">🟡 Warning Amber (Flashing Amber)</option>
+                    <option value="highlight-green">🟢 Highlight Green (Emerald Glow)</option>
+                    <option value="pulse-border">🔵 Pulse Border (Pulsing Neon)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <hr class="divider" />
+
             <button (click)="removeSelectedWidget()" class="btn btn-danger">Delete Widget</button>
           </div>
         </div>
@@ -1442,6 +1614,45 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
             <label>Blur ({{ backgroundConfig.blur || 0 }}px)</label>
             <input type="range" min="0" max="20" step="1" [(ngModel)]="backgroundConfig.blur" class="slider-control" />
           </div>
+
+          <hr class="divider" />
+
+          <h4>🔔 Audio Chimes & Sound Synthesis</h4>
+          <p class="tab-desc">Synthesized browser audio chimes for calendar events and hourly wall clock gongs (no external sound files required).</p>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" [(ngModel)]="audioChimesEnabled" /> Play Event Chimes (Plays subtle marimba tone on calendar event start)
+            </label>
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" [(ngModel)]="hourlyChime" /> Hourly Clock Chime (Plays acoustic gong on top of each hour)
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>Audition Chimes:</label>
+            <div class="chime-test-row">
+              <button type="button" class="btn-chip" (click)="testChime('doorbell')">🔔 Doorbell</button>
+              <button type="button" class="btn-chip" (click)="testChime('marimba')">🎵 Marimba</button>
+              <button type="button" class="btn-chip" (click)="testChime('gong')">🕰️ Hourly Gong</button>
+              <button type="button" class="btn-chip" (click)="testChime('alert')">⚠️ Alert Beep</button>
+            </div>
+          </div>
+
+          <hr class="divider" />
+
+          <h4>🎨 Custom CSS Overrides</h4>
+          <p class="tab-desc">Inject custom CSS directly into your kiosk viewer for bespoke styling, typography, glow effects, or component layout tweaks.</p>
+          <div class="form-group">
+            <textarea 
+              [(ngModel)]="customCss" 
+              placeholder="/* Example: Custom widget border or glow */&#10;.widget-card { border-color: rgba(56, 189, 248, 0.4) !important; }" 
+              class="custom-css-area"
+            ></textarea>
+          </div>
         </div>
 
         <div class="actions">
@@ -1612,6 +1823,10 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
                 <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
                 <app-rest-fetch-widget *ngIf="widget.type === 'rest_fetch'" [config]="widget.config"></app-rest-fetch-widget>
                 <app-gauge-widget *ngIf="widget.type === 'gauge'" [config]="widget.config"></app-gauge-widget>
+                <app-google-maps-widget *ngIf="widget.type === 'google_maps'" [config]="widget.config"></app-google-maps-widget>
+                <app-whiteboard-widget *ngIf="widget.type === 'whiteboard'" [config]="widget.config"></app-whiteboard-widget>
+                <app-slack-widget *ngIf="widget.type === 'slack'" [config]="widget.config"></app-slack-widget>
+                <app-gmail-widget *ngIf="widget.type === 'gmail'" [config]="widget.config"></app-gmail-widget>
               </div>
 
               <!-- 8-Point Visual Resize Handles -->
@@ -3408,6 +3623,65 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
       display: flex;
       justify-content: flex-end;
     }
+    .rules-card {
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    .rules-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .rule-item {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 8px;
+      position: relative;
+    }
+    .rule-delete-btn {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      background: transparent;
+      border: none;
+      color: #ef4444;
+      font-size: 0.95rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .rule-delete-btn:hover {
+      color: #f87171;
+    }
+    .custom-css-area {
+      width: 100%;
+      height: 130px;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: #38bdf8;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.8rem;
+      padding: 8px;
+      resize: vertical;
+      box-sizing: border-box;
+      line-height: 1.4;
+    }
+    .custom-css-area:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+    .chime-test-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
   `]
 })
 export class DashboardEditorComponent implements OnInit, AfterViewInit {
@@ -3506,6 +3780,11 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   // Severe Weather Alerts
   weatherAlertsEnabled: boolean = true;
   weatherAlertText: string = '';
+
+  // Phase 3: Custom CSS and Audio Chimes
+  customCss: string = '';
+  audioChimesEnabled: boolean = false;
+  hourlyChime: boolean = false;
 
   get canvasFontFamily(): string {
     return getFontFamilyString(this.displayConfig.font_family);
@@ -3622,7 +3901,8 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     private router: Router,
     private http: HttpClient,
     private authService: AuthService,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private chimeService: AudioChimeService
   ) {}
 
   goToFleet(): void {
@@ -3631,6 +3911,39 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   openInstallationGuide(): void {
     this.router.navigate(['/docs/installation']);
+  }
+
+  getOtherWidgets(current: Widget): Widget[] {
+    return this.widgets.filter(w => w.id !== current.id);
+  }
+
+  addRuleToSelectedWidget(): void {
+    if (!this.selectedWidget) return;
+    if (!this.selectedWidget.rules) {
+      this.selectedWidget.rules = [];
+    }
+    this.selectedWidget.rules.push({
+      id: 'rule_' + Date.now(),
+      field: 'value',
+      operator: 'gt',
+      threshold: 80,
+      action: 'set_class',
+      className: 'alert-glow-red'
+    });
+    this.pushHistory();
+  }
+
+  removeRuleFromSelectedWidget(index: number): void {
+    if (!this.selectedWidget?.rules) return;
+    this.selectedWidget.rules.splice(index, 1);
+    this.pushHistory();
+  }
+
+  testChime(type: 'doorbell' | 'marimba' | 'gong' | 'alert' = 'doorbell'): void {
+    if (type === 'doorbell') this.chimeService.playDoorbell();
+    else if (type === 'marimba') this.chimeService.playMarimba();
+    else if (type === 'gong') this.chimeService.playHourlyGong();
+    else if (type === 'alert') this.chimeService.playAlert();
   }
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
@@ -3675,6 +3988,15 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
               this.weatherAlertText = typeof res.display.weather_alert === 'string'
                 ? res.display.weather_alert
                 : (res.display.weather_alert.message || '');
+            }
+            if (res.display.custom_css) {
+              this.customCss = res.display.custom_css;
+            }
+            if (res.display.audio_chimes_enabled !== undefined) {
+              this.audioChimesEnabled = !!res.display.audio_chimes_enabled;
+            }
+            if (res.display.hourly_chime !== undefined) {
+              this.hourlyChime = !!res.display.hourly_chime;
             }
             (res.widgets || []).forEach(w => {
               if (w.style?.fontFamily) loadGoogleFont(w.style.fontFamily);
@@ -4114,6 +4436,53 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
           icon: '⚡'
         };
         initialSize = { width: 280, height: 210 };
+        break;
+      case 'whiteboard':
+        initialConfig = {
+          defaultColor: '#00ffcc',
+          defaultSize: 3,
+          backgroundColor: '#1a1d24',
+          canvasTitle: 'Family Notes & Doodles',
+          strokes: []
+        };
+        initialSize = { width: 440, height: 320 };
+        break;
+      case 'google_maps':
+        initialConfig = {
+          address: 'Austin, TX',
+          zoom: 13,
+          mapType: 'm',
+          showTraffic: true,
+          title: 'Austin Live Traffic & Map'
+        };
+        initialSize = { width: 420, height: 320 };
+        break;
+      case 'slack':
+        initialConfig = {
+          channelName: 'announcements',
+          workspaceName: 'Acme Team',
+          showAvatars: true,
+          maxMessages: 5,
+          mockMessages: [
+            { id: '1', user: 'Sarah Connor', handle: 'sarah', text: 'All systems operational for deployment today 🚀', time: '10:24 AM', avatarColor: '#10b981' },
+            { id: '2', user: 'Alex Chen', handle: 'achen', text: 'Reminder: Kitchen fridge cleanout at 4 PM!', time: '11:15 AM', avatarColor: '#3b82f6' },
+            { id: '3', user: 'Taylor Swift', handle: 'taylor', text: 'New release candidate v3.0 is live on staging.', time: '12:02 PM', avatarColor: '#ec4899' }
+          ]
+        };
+        initialSize = { width: 380, height: 300 };
+        break;
+      case 'gmail':
+        initialConfig = {
+          emailAddress: 'family@smart-display.online',
+          unreadCount: 3,
+          showSnippet: true,
+          previews: [
+            { from: 'School Principal', subject: 'Spring Break Schedule & Parent Night', snippet: 'Please note school will be closed on Friday...', time: '8:45 AM', isUnread: true },
+            { from: 'Amazon Deliveries', subject: 'Your package will arrive today by 7 PM', snippet: 'Track your order #112-984219...', time: '10:12 AM', isUnread: true },
+            { from: 'City Utility Services', subject: 'Monthly Statement Ready for Review', snippet: 'Your e-statement for the billing cycle is now ready...', time: '1:30 PM', isUnread: false }
+          ]
+        };
+        initialSize = { width: 360, height: 280 };
         break;
     }
 
@@ -4718,6 +5087,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       font_family: this.displayConfig.font_family,
       weather_alerts_enabled: this.weatherAlertsEnabled,
       weather_alert: this.weatherAlertText ? this.weatherAlertText : null,
+      custom_css: this.customCss,
+      audio_chimes_enabled: this.audioChimesEnabled,
+      hourly_chime: this.hourlyChime,
       widgets: this.widgets
     };
 
@@ -5071,7 +5443,10 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     const payload = {
       pages: this.pages,
       widgets: this.widgets,
-      backgroundConfig: this.backgroundConfig
+      backgroundConfig: this.backgroundConfig,
+      customCss: this.customCss,
+      audioChimesEnabled: this.audioChimesEnabled,
+      hourlyChime: this.hourlyChime
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
@@ -5097,6 +5472,15 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         }
         if (data.backgroundConfig) {
           this.backgroundConfig = data.backgroundConfig;
+        }
+        if (data.customCss !== undefined) {
+          this.customCss = data.customCss;
+        }
+        if (data.audioChimesEnabled !== undefined) {
+          this.audioChimesEnabled = !!data.audioChimesEnabled;
+        }
+        if (data.hourlyChime !== undefined) {
+          this.hourlyChime = !!data.hourlyChime;
         }
         this.activePageId = this.pages[0]?.id || 'default';
         this.selectedWidget = null;
