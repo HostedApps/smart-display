@@ -120,6 +120,8 @@ import { EmergencyService } from '../services/emergency.service';
           <app-button-widget *ngIf="widget.type === 'button'" [config]="widget.config"></app-button-widget>
           <app-sun-moon-widget *ngIf="widget.type === 'sun_moon'" [config]="widget.config"></app-sun-moon-widget>
           <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
+          <app-rest-fetch-widget *ngIf="widget.type === 'rest_fetch'" [config]="widget.config"></app-rest-fetch-widget>
+          <app-gauge-widget *ngIf="widget.type === 'gauge'" [config]="widget.config"></app-gauge-widget>
         </div>
       </div>
 

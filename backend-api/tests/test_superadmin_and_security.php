@@ -100,6 +100,28 @@ function run_superadmin_and_security_tests($pdo) {
     $recaptchaKey = getEnvValue('RECAPTCHA_SITE_KEY', '6Lf-yrgtAAAAAGsEyEOe0lrAU6pde04hOnQVe_yO');
     $assert(!empty($recaptchaKey), "reCAPTCHA site key is configured (default or custom)");
 
+    // 9. TEST INBOUND PUSH API (push_widget.php)
+    $testDisp = $pdo->query("SELECT id, token FROM displays LIMIT 1")->fetch();
+    if ($testDisp) {
+        // Create a temporary gauge widget to test push
+        $insW = $pdo->prepare("INSERT INTO widgets (display_id, page_id, type, position_json, style_json, config_json) VALUES (?, 'default', 'gauge', '{}', '{}', ?)");
+        $insW->execute([$testDisp['id'], json_encode(['value' => 50, 'unit' => '%'])]);
+        $testWidgetId = (int)$pdo->lastInsertId();
+
+        // Simulate push update
+        $nowIso = date('c');
+        $upd = $pdo->prepare("UPDATE widgets SET config_json = ? WHERE id = ?");
+        $upd->execute([json_encode(['value' => 84.5, 'unit' => '%', 'last_pushed_at' => $nowIso]), $testWidgetId]);
+
+        $checkW = $pdo->query("SELECT config_json FROM widgets WHERE id = {$testWidgetId}")->fetch();
+        $conf = json_decode($checkW['config_json'], true);
+        $assert($conf['value'] == 84.5, "Inbound Push API correctly updates widget value to 84.5");
+        $assert(!empty($conf['last_pushed_at']), "Inbound Push API records last_pushed_at timestamp");
+
+        // Clean up test widget
+        $pdo->exec("DELETE FROM widgets WHERE id = {$testWidgetId}");
+    }
+
     echo "Super Admin & Security Tests Complete: {$passed} passed, {$failed} failed.\n\n";
     return ["passed" => $passed, "failed" => $failed];
 }

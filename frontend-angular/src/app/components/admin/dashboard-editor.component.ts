@@ -206,6 +206,14 @@ import { AuthService } from '../../services/auth.service';
               <span class="palette-icon">🕐</span>
               <span class="palette-title">Analog Clock</span>
             </button>
+            <button (click)="addWidget('rest_fetch')" class="palette-item" title="Fetch live JSON data from Home Assistant or external REST APIs">
+              <span class="palette-icon">📡</span>
+              <span class="palette-title">REST Data</span>
+            </button>
+            <button (click)="addWidget('gauge')" class="palette-item" title="Semicircular radial gauge meter for temperatures, CPU, or metrics">
+              <span class="palette-icon">⚡</span>
+              <span class="palette-title">Gauge</span>
+            </button>
           </div>
 
           <hr class="divider" />
@@ -995,10 +1003,118 @@ import { AuthService } from '../../services/auth.service';
               </div>
             </ng-container>
             
-            <ng-container *ngIf="selectedWidget.type === 'world_clocks'">
-              <p class="tab-desc">Edit clocks configuration array via JSON below:</p>
+            <ng-container *ngIf="selectedWidget.type === 'rest_fetch'">
               <div class="form-group">
-                <textarea [ngModel]="selectedWidget.config.clocks | json" (ngModelChange)="selectedWidget.config.clocks = parseJson($event)" rows="6" class="input-control"></textarea>
+                <label>1-Click Quick Preset</label>
+                <select (change)="applyRestFetchPreset(selectedWidget, $any($event.target).value)" class="input-control">
+                  <option value="">Select a preset or custom API...</option>
+                  <option value="homeassistant">🏠 Home Assistant Sensor (corelabel-infraRA)</option>
+                  <option value="bitcoin">🪙 Bitcoin Live Price (CoinGecko)</option>
+                  <option value="ip_geo">📍 Public IP & City (ipapi.co)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>REST Endpoint URL</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.url" placeholder="https://api.example.com/data.json" class="input-control" />
+              </div>
+
+              <div class="form-group">
+                <label>Authorization Header (Optional)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.authHeader" placeholder="Bearer YOUR_TOKEN" class="input-control" />
+              </div>
+
+              <div class="form-group">
+                <label>JSON Data Key / Path</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.jsonPath" placeholder="state or data.price" class="input-control" />
+                <span class="field-hint">e.g. <code>state</code> for Home Assistant, <code>bitcoin.usd</code> for crypto</span>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Title Header</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Feed Title" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Icon / Emoji</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.icon" placeholder="🌐" class="input-control" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Value Prefix</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.prefix" placeholder="$" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Value Suffix / Unit</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.unit" placeholder="°F, %, kW" class="input-control" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Refresh Interval (seconds)</label>
+                <input type="number" min="5" max="3600" [(ngModel)]="selectedWidget.config.refreshSeconds" class="input-control" />
+              </div>
+            </ng-container>
+
+            <ng-container *ngIf="selectedWidget.type === 'gauge'">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Current Value</label>
+                  <input type="number" [(ngModel)]="selectedWidget.config.value" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Unit Label</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.unit" placeholder="°F, %, kW" class="input-control" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Min Scale</label>
+                  <input type="number" [(ngModel)]="selectedWidget.config.min" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Max Scale</label>
+                  <input type="number" [(ngModel)]="selectedWidget.config.max" class="input-control" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Title Header</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Gauge Title" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Icon / Emoji</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.icon" placeholder="⚡" class="input-control" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Warning (Amber)</label>
+                  <input type="number" [(ngModel)]="selectedWidget.config.warnThreshold" placeholder="75" class="input-control" />
+                </div>
+                <div class="form-group">
+                  <label>Critical (Red)</label>
+                  <input type="number" [(ngModel)]="selectedWidget.config.critThreshold" placeholder="90" class="input-control" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Color Theme</label>
+                <select [(ngModel)]="selectedWidget.config.colorScheme" class="input-control">
+                  <option value="green-yellow-red">Emerald → Amber → Crimson (Standard)</option>
+                  <option value="blue-cyan-emerald">Sky Blue → Cyan → Emerald</option>
+                </select>
+              </div>
+
+              <div class="push-webhook-box">
+                <span class="push-box-title">📡 Inbound Webhook / HA Push</span>
+                <p class="tab-desc">Push live data directly into this gauge via HTTP POST:</p>
+                <code class="webhook-snippet">POST /api/push_widget.php<br>{{ '{' }} "token": "{{ token }}", "widget_id": {{ selectedWidget.id }}, "value": 78.5 {{ '}' }}</code>
               </div>
             </ng-container>
 
@@ -1427,6 +1543,8 @@ import { AuthService } from '../../services/auth.service';
                 <app-button-widget *ngIf="widget.type === 'button'" [config]="widget.config"></app-button-widget>
                 <app-sun-moon-widget *ngIf="widget.type === 'sun_moon'" [config]="widget.config"></app-sun-moon-widget>
                 <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
+                <app-rest-fetch-widget *ngIf="widget.type === 'rest_fetch'" [config]="widget.config"></app-rest-fetch-widget>
+                <app-gauge-widget *ngIf="widget.type === 'gauge'" [config]="widget.config"></app-gauge-widget>
               </div>
 
               <!-- 8-Point Visual Resize Handles -->
@@ -3495,6 +3613,32 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         };
         initialSize = { width: 260, height: 260 };
         break;
+      case 'rest_fetch':
+        initialConfig = {
+          url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',
+          jsonPath: 'bitcoin.usd',
+          title: 'Bitcoin Price',
+          prefix: '$',
+          unit: 'USD',
+          refreshSeconds: 60,
+          icon: '🪙'
+        };
+        initialSize = { width: 280, height: 180 };
+        break;
+      case 'gauge':
+        initialConfig = {
+          value: 68,
+          min: 0,
+          max: 100,
+          unit: '%',
+          title: 'System Load',
+          warnThreshold: 75,
+          critThreshold: 90,
+          colorScheme: 'green-yellow-red',
+          icon: '⚡'
+        };
+        initialSize = { width: 280, height: 210 };
+        break;
     }
 
     const newWidget: Widget = {
@@ -3508,6 +3652,38 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     this.widgets.push(newWidget);
     this.selectedWidget = newWidget;
     this.pushHistory();
+  }
+
+  applyRestFetchPreset(widget: Widget, presetKey: string): void {
+    if (!widget || !widget.config) return;
+    if (presetKey === 'homeassistant') {
+      widget.config.url = 'http://corelabel-infraRA:8123/api/states/sensor.temperature';
+      widget.config.authHeader = 'Bearer YOUR_HOME_ASSISTANT_TOKEN';
+      widget.config.jsonPath = 'state';
+      widget.config.title = 'Living Room Temp';
+      widget.config.prefix = '';
+      widget.config.unit = '°F';
+      widget.config.icon = '🌡️';
+      widget.config.refreshSeconds = 30;
+    } else if (presetKey === 'bitcoin') {
+      widget.config.url = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd';
+      widget.config.authHeader = '';
+      widget.config.jsonPath = 'bitcoin.usd';
+      widget.config.title = 'Bitcoin Price';
+      widget.config.prefix = '$';
+      widget.config.unit = 'USD';
+      widget.config.icon = '🪙';
+      widget.config.refreshSeconds = 60;
+    } else if (presetKey === 'ip_geo') {
+      widget.config.url = 'https://ipapi.co/json/';
+      widget.config.authHeader = '';
+      widget.config.jsonPath = 'city';
+      widget.config.title = 'Current City';
+      widget.config.prefix = '';
+      widget.config.unit = '';
+      widget.config.icon = '📍';
+      widget.config.refreshSeconds = 300;
+    }
   }
 
   removeSelectedWidget(): void {

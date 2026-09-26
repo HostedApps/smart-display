@@ -38,6 +38,8 @@ import { ScheduledTextWidgetComponent } from './components/widgets/scheduled-tex
 import { ButtonWidgetComponent } from './components/widgets/button-widget.component';
 import { SunMoonWidgetComponent } from './components/widgets/sun-moon-widget.component';
 import { AnalogClockWidgetComponent } from './components/widgets/analog-clock-widget.component';
+import { RestFetchWidgetComponent } from './components/widgets/rest-fetch-widget.component';
+import { GaugeWidgetComponent } from './components/widgets/gauge-widget.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { InstallationGuideComponent } from './components/help/installation-guide.component';
 import { SuperAdminComponent } from './components/admin/super-admin.component';
@@ -80,6 +82,8 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     ButtonWidgetComponent,
     SunMoonWidgetComponent,
     AnalogClockWidgetComponent,
+    RestFetchWidgetComponent,
+    GaugeWidgetComponent,
     WallDropComponent,
     InstallationGuideComponent,
     HelpDocsModalComponent
