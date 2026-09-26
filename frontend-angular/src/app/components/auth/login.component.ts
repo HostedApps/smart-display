@@ -548,7 +548,7 @@ export class LoginComponent implements OnInit, AfterViewInit {
   password: string = '';
 
   // Google reCAPTCHA & GIS Keys
-  recaptchaSiteKey: string = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
+  recaptchaSiteKey: string = '6Lf-yrgtAAAAAGsEyEOe0lrAU6pde04hOnQVe_yO';
   googleClientId: string = '';
   recaptchaToken: string = '';
   recaptchaWidgetId?: number;
@@ -618,12 +618,18 @@ export class LoginComponent implements OnInit, AfterViewInit {
       next: (res) => {
         if (res.success) {
           this.capacity = res;
+          const oldKey = this.recaptchaSiteKey;
           if (res.recaptchaSiteKey) {
             this.recaptchaSiteKey = res.recaptchaSiteKey;
           }
           if (res.googleClientId) {
             this.googleClientId = res.googleClientId;
             this.initGoogleAuth();
+          }
+          if (res.recaptchaSiteKey && res.recaptchaSiteKey !== oldKey) {
+            const container = document.getElementById('recaptchaContainer');
+            if (container) container.innerHTML = '';
+            this.recaptchaWidgetId = undefined;
           }
           this.initGoogleRecaptcha();
         }

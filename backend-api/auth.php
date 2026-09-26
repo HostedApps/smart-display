@@ -99,7 +99,7 @@ try {
         $count = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
         echo json_encode([
             "success" => true,
-            "recaptchaSiteKey" => getEnvValue('RECAPTCHA_SITE_KEY', '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'),
+            "recaptchaSiteKey" => getEnvValue('RECAPTCHA_SITE_KEY', '6Lf-yrgtAAAAAGsEyEOe0lrAU6pde04hOnQVe_yO'),
             "googleClientId" => getEnvValue('GOOGLE_CLIENT_ID', ''),
             "userCount" => $count,
             "maxCapacity" => MAX_SYSTEM_USERS,

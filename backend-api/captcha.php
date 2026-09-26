@@ -27,8 +27,8 @@ function verifyGoogleRecaptcha($recaptchaToken) {
         return true;
     }
 
-    // Default to Google's official test secret key if not yet provided in .env
-    $secret = getEnvValue('RECAPTCHA_SECRET_KEY', '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe');
+    // Default to production secret key if not explicitly set in .env
+    $secret = getEnvValue('RECAPTCHA_SECRET_KEY', '6Lf-yrgtAAAAAB46I3IZnZaJGThAnH7xKetyQ9EX');
     if (empty($secret)) {
         return true;
     }
