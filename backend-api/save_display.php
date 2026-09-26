@@ -64,6 +64,12 @@ try {
     if (isset($input['hourly_chime'])) {
         $backgroundArr['hourly_chime'] = (bool)$input['hourly_chime'];
     }
+    if (isset($input['touchhub_enabled'])) {
+        $backgroundArr['touchhub_enabled'] = (bool)$input['touchhub_enabled'];
+    }
+    if (isset($input['touchhub_config'])) {
+        $backgroundArr['touchhub_config'] = $input['touchhub_config'];
+    }
     $background = !empty($backgroundArr) ? json_encode($backgroundArr) : null;
     $sleepSchedule = isset($input['sleep_schedule']) ? json_encode($input['sleep_schedule']) : null;
     $pages = isset($input['pages']) ? json_encode($input['pages']) : null;

@@ -28,6 +28,10 @@ import { environment } from '../../../environments/environment';
           <span>📷 Google Photos ({{ effectiveImages.length }})</span>
         </div>
 
+        <div class="album-badge icloud-badge" *ngIf="isiCloudPhotos">
+          <span>☁️ iCloud Photos ({{ effectiveImages.length }})</span>
+        </div>
+
         <div class="caption-pill" *ngIf="config.showCaptions && currentCaption">
           <span>{{ currentCaption }}</span>
         </div>
@@ -181,8 +185,10 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   ];
 
   googlePhotosList: string[] = [];
+  iCloudPhotosList: string[] = [];
   loadingAlbum: boolean = false;
   isGooglePhotos: boolean = false;
+  isiCloudPhotos: boolean = false;
   currentIndex: number = 0;
   private currentLoadedAlbumUrl: string = '';
   private currentIntervalSec: number = 0;
@@ -235,8 +241,10 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   get effectiveImages(): string[] {
     if (this.isGooglePhotos) {
-      // Return cached/fetched Google Photos list (never flash default images while album is active)
       return this.googlePhotosList.map(u => this.normalizeImageUrl(u));
+    }
+    if (this.isiCloudPhotos) {
+      return this.iCloudPhotosList.map(u => this.normalizeImageUrl(u));
     }
     if (this.config.images && Array.isArray(this.config.images) && this.config.images.length > 0) {
       return this.config.images.map((u: string) => this.normalizeImageUrl(u));
@@ -263,30 +271,66 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     // Listen for network reconnect to immediately retry album download
     this.onlineListener = () => {
       const albumUrl = this.getAlbumUrl();
-      if (albumUrl && this.isGooglePhotos) {
-        this.fetchGooglePhotosAlbum(albumUrl, false, 0);
+      if (albumUrl) {
+        if (this.isGooglePhotos) {
+          this.fetchGooglePhotosAlbum(albumUrl, false, 0);
+        } else if (this.isiCloudPhotos) {
+          this.fetchICloudAlbum(albumUrl, false, 0);
+        }
       }
     };
     window.addEventListener('online', this.onlineListener);
 
-    this.checkAndFetchGooglePhotos();
+    this.checkAndFetchAlbums();
     this.restartTimer();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
-      this.checkAndFetchGooglePhotos();
+      this.checkAndFetchAlbums();
       this.restartTimer();
     }
   }
 
   private getAlbumUrl(): string {
-    return this.config.albumUrl || (typeof this.config.images === 'string' && (this.config.images.includes('photos.') || this.config.images.includes('drive.google.com') || this.config.images.includes('goo.gl')) ? this.config.images.trim() : '');
+    return this.config.albumUrl || (typeof this.config.images === 'string' && (this.config.images.includes('photos.') || this.config.images.includes('drive.google.com') || this.config.images.includes('goo.gl') || this.config.images.includes('icloud.com')) ? this.config.images.trim() : '');
   }
 
-  private checkAndFetchGooglePhotos(): void {
+  private checkAndFetchAlbums(): void {
     const albumUrl = this.getAlbumUrl();
+
+    // Check iCloud Shared Album
+    if (albumUrl && (albumUrl.includes('icloud.com/sharedalbum') || albumUrl.includes('share.icloud.com'))) {
+      this.isiCloudPhotos = true;
+      this.isGooglePhotos = false;
+
+      if (PhotoWidgetComponent.albumIndexMap.has(albumUrl)) {
+        this.currentIndex = PhotoWidgetComponent.albumIndexMap.get(albumUrl) || 0;
+      }
+      if (PhotoWidgetComponent.albumCache.has(albumUrl)) {
+        this.iCloudPhotosList = PhotoWidgetComponent.albumCache.get(albumUrl)!;
+        this.currentLoadedAlbumUrl = albumUrl;
+      } else {
+        const stored = PhotoWidgetComponent.loadAlbumFromStorage(albumUrl);
+        if (stored && stored.length > 0) {
+          PhotoWidgetComponent.albumCache.set(albumUrl, stored);
+          this.iCloudPhotosList = stored;
+          this.currentLoadedAlbumUrl = albumUrl;
+        }
+      }
+
+      const hasLocalPhotos = this.iCloudPhotosList.length > 0;
+      this.fetchICloudAlbum(albumUrl, hasLocalPhotos, 0);
+
+      this.albumPollSub?.unsubscribe();
+      this.albumPollSub = interval(30 * 60 * 1000).subscribe(() => this.fetchICloudAlbum(albumUrl, true, 0));
+      return;
+    } else {
+      this.isiCloudPhotos = false;
+      this.iCloudPhotosList = [];
+    }
     
+    // Check Google Photos
     if (albumUrl && (albumUrl.includes('photos.app.goo.gl') || albumUrl.includes('photos.google.com') || albumUrl.includes('drive.google.com') || albumUrl.includes('goo.gl'))) {
       this.isGooglePhotos = true;
 
@@ -321,6 +365,39 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
       this.currentLoadedAlbumUrl = '';
       this.googlePhotosList = [];
     }
+  }
+
+  private fetchICloudAlbum(url: string, isBackgroundRefresh: boolean = false, retryAttempt: number = 0): void {
+    if (!isBackgroundRefresh && this.iCloudPhotosList.length === 0) {
+      this.loadingAlbum = true;
+    }
+    const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_icloud_photos&album_url=${encodeURIComponent(url)}`;
+    
+    this.http.get<any>(proxyUrl)
+      .pipe(catchError(() => of(null)))
+      .subscribe(res => {
+        this.loadingAlbum = false;
+        if (res && res.success && Array.isArray(res.images) && res.images.length > 0) {
+          PhotoWidgetComponent.albumCache.set(url, res.images);
+          PhotoWidgetComponent.saveAlbumToStorage(url, res.images);
+          this.iCloudPhotosList = res.images;
+          this.currentLoadedAlbumUrl = url;
+          
+          if (this.currentIndex >= this.iCloudPhotosList.length) {
+            this.currentIndex = this.currentIndex % this.iCloudPhotosList.length;
+          }
+          PhotoWidgetComponent.albumIndexMap.set(url, this.currentIndex);
+          this.preloadNextImage();
+        } else {
+          if (retryAttempt < 5) {
+            const delay = Math.min(30000, 3000 * Math.pow(2, retryAttempt));
+            if (this.retryTimeout) clearTimeout(this.retryTimeout);
+            this.retryTimeout = setTimeout(() => {
+              this.fetchICloudAlbum(url, this.iCloudPhotosList.length > 0, retryAttempt + 1);
+            }, delay);
+          }
+        }
+      });
   }
 
   private fetchGooglePhotosAlbum(url: string, isBackgroundRefresh: boolean = false, retryAttempt: number = 0): void {

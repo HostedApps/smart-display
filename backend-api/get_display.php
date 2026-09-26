@@ -66,7 +66,9 @@ try {
         'weather_alert' => $bgData['weather_alert'] ?? null,
         'custom_css' => $bgData['custom_css'] ?? null,
         'audio_chimes_enabled' => (bool)($bgData['audio_chimes_enabled'] ?? false),
-        'hourly_chime' => (bool)($bgData['hourly_chime'] ?? false)
+        'hourly_chime' => (bool)($bgData['hourly_chime'] ?? false),
+        'touchhub_enabled' => (bool)($bgData['touchhub_enabled'] ?? false),
+        'touchhub_config' => $bgData['touchhub_config'] ?? null
     ];
 
     // Fetch Widgets

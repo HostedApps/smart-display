@@ -377,10 +377,53 @@ export interface GmailConfig {
   emails?: GmailEmailPreview[];
 }
 
+export interface TradingViewConfig {
+  symbol?: string; // e.g. "NASDAQ:AAPL", "BINANCE:BTCUSDT"
+  interval?: string; // "1D", "1W", "1M"
+  theme?: 'dark' | 'light';
+  chartStyle?: string;
+  showVolume?: boolean;
+  title?: string;
+}
+
+export interface RedditPost {
+  id: string;
+  title: string;
+  author: string;
+  url: string;
+  permalink: string;
+  score: number;
+  numComments: number;
+  subreddit: string;
+}
+
+export interface RedditConfig {
+  subreddit?: string;
+  sort?: 'hot' | 'top' | 'new';
+  intervalSeconds?: number;
+  showScore?: boolean;
+  showTitle?: boolean;
+}
+
+export interface TouchHubItem {
+  id: string;
+  label: string;
+  icon: string;
+  action: 'page' | 'whiteboard' | 'tasks' | 'spotify' | 'url' | 'nightmode' | 'pages';
+  target?: string;
+}
+
+export interface TouchHubConfig {
+  enabled: boolean;
+  autoHide?: boolean;
+  position?: 'bottom' | 'top';
+  items?: TouchHubItem[];
+}
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge' | 'google_maps' | 'whiteboard' | 'slack' | 'gmail';
+  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge' | 'google_maps' | 'whiteboard' | 'slack' | 'gmail' | 'tradingview' | 'reddit';
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
@@ -449,6 +492,8 @@ export interface DisplayConfig {
   custom_css?: string;
   audio_chimes_enabled?: boolean;
   hourly_chime?: boolean;
+  touchhub_enabled?: boolean;
+  touchhub_config?: TouchHubConfig;
 }
 
 export interface DisplaySummary {

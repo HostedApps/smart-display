@@ -45,6 +45,9 @@ import { WhiteboardWidgetComponent } from './components/widgets/whiteboard-widge
 import { GoogleMapsWidgetComponent } from './components/widgets/google-maps-widget.component';
 import { SlackWidgetComponent } from './components/widgets/slack-widget.component';
 import { GmailWidgetComponent } from './components/widgets/gmail-widget.component';
+import { TradingviewWidgetComponent } from './components/widgets/tradingview-widget.component';
+import { RedditWidgetComponent } from './components/widgets/reddit-widget.component';
+import { TouchhubDockComponent } from './components/widgets/touchhub-dock.component';
 import { WallDropComponent } from './components/walldrop/wall-drop.component';
 import { InstallationGuideComponent } from './components/help/installation-guide.component';
 import { SuperAdminComponent } from './components/admin/super-admin.component';
@@ -94,6 +97,9 @@ import { AuthInterceptor } from './interceptors/auth.interceptor';
     GoogleMapsWidgetComponent,
     SlackWidgetComponent,
     GmailWidgetComponent,
+    TradingviewWidgetComponent,
+    RedditWidgetComponent,
+    TouchhubDockComponent,
     WallDropComponent,
     InstallationGuideComponent,
     HelpDocsModalComponent
