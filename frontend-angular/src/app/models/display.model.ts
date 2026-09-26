@@ -304,19 +304,31 @@ export interface EmergencyBroadcast {
   created_at: string;
 }
 
+export interface WidgetSchedule {
+  enabled: boolean;
+  startTime?: string; // e.g. "08:00" (24h format)
+  endTime?: string;   // e.g. "17:30" (24h format)
+  days?: number[];    // [0, 1, 2, 3, 4, 5, 6] (0=Sun, 6=Sat)
+}
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock';
+  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge';
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
+  schedule?: WidgetSchedule;
+  locked?: boolean;
+  hidden?: boolean;
+  customName?: string;
 }
 
 export interface DisplayPage {
   id: string;
   name: string;
   duration_seconds: number;
+  schedule?: WidgetSchedule;
 }
 
 export interface SleepScheduleConfig {

@@ -150,7 +150,9 @@ import { EmergencyService } from '../services/emergency.service';
           *ngFor="let page of pages; let idx = index" 
           class="dot" 
           [class.active]="activePageIndex === idx"
+          [class.inactive-schedule]="!isPageScheduledActive(page)"
           (click)="goToPage(idx)"
+          [title]="page.name + (!isPageScheduledActive(page) ? ' (Resting on schedule)' : '')"
         ></span>
       </div>
     </div>
@@ -292,6 +294,11 @@ import { EmergencyService } from '../services/emergency.service';
       border-radius: 4px;
       background: #0ea5e9;
       box-shadow: 0 0 10px rgba(14, 165, 233, 0.8);
+    }
+    .dot.inactive-schedule {
+      opacity: 0.35;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px dashed rgba(255, 255, 255, 0.3);
     }
 
     /* Ambient Night Clock Mode */
@@ -492,12 +499,72 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   }
 
   get activeWidgets(): Widget[] {
-    if (this.pages.length <= 1) {
-      return this.widgets;
+    let list = this.widgets;
+    if (this.pages.length > 1) {
+      const curPage = this.pages[this.activePageIndex];
+      if (curPage) {
+        list = this.widgets.filter(w => !w.page_id || w.page_id === curPage.id || w.page_id === 'default');
+      }
     }
-    const curPage = this.pages[this.activePageIndex];
-    if (!curPage) return this.widgets;
-    return this.widgets.filter(w => !w.page_id || w.page_id === curPage.id || w.page_id === 'default');
+    return list.filter(w => this.isWidgetScheduledActive(w));
+  }
+
+  isWidgetScheduledActive(w: Widget, now: Date = this.currentTime): boolean {
+    if (w.hidden) return false;
+    const sched = w.schedule || (w.config as any)?.schedule;
+    if (!sched || !sched.enabled) return true;
+
+    // 1. Day of week check (0=Sun, 1=Mon, ..., 6=Sat)
+    if (Array.isArray(sched.days) && sched.days.length > 0) {
+      if (!sched.days.includes(now.getDay())) {
+        return false;
+      }
+    }
+
+    // 2. Time range check (HH:mm)
+    if (sched.startTime && sched.endTime) {
+      const [sH, sM] = sched.startTime.split(':').map(Number);
+      const [eH, eM] = sched.endTime.split(':').map(Number);
+      const curMin = now.getHours() * 60 + now.getMinutes();
+      const startMin = sH * 60 + sM;
+      const endMin = eH * 60 + eM;
+
+      if (startMin <= endMin) {
+        return curMin >= startMin && curMin <= endMin;
+      } else {
+        // Overnight range spanning midnight (e.g. 22:00 to 06:00)
+        return curMin >= startMin || curMin <= endMin;
+      }
+    }
+
+    return true;
+  }
+
+  isPageScheduledActive(page: DisplayPage, now: Date = this.currentTime): boolean {
+    const sched = page.schedule;
+    if (!sched || !sched.enabled) return true;
+
+    if (Array.isArray(sched.days) && sched.days.length > 0) {
+      if (!sched.days.includes(now.getDay())) {
+        return false;
+      }
+    }
+
+    if (sched.startTime && sched.endTime) {
+      const [sH, sM] = sched.startTime.split(':').map(Number);
+      const [eH, eM] = sched.endTime.split(':').map(Number);
+      const curMin = now.getHours() * 60 + now.getMinutes();
+      const startMin = sH * 60 + sM;
+      const endMin = eH * 60 + eM;
+
+      if (startMin <= endMin) {
+        return curMin >= startMin && curMin <= endMin;
+      } else {
+        return curMin >= startMin || curMin <= endMin;
+      }
+    }
+
+    return true;
   }
 
   get backgroundImageUrl(): string | null {
@@ -618,11 +685,11 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   handleKeyboardEvent(event: KeyboardEvent) {
     if (this.pages.length > 1) {
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ' || event.key === 'MediaTrackNext') {
-        this.goToPage((this.activePageIndex + 1) % this.pages.length);
+        this.goToNextPage();
       } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'MediaTrackPrevious') {
-        this.goToPage((this.activePageIndex - 1 + this.pages.length) % this.pages.length);
+        this.goToPrevPage();
       } else if (event.key === 'Enter') {
-        this.goToPage((this.activePageIndex + 1) % this.pages.length);
+        this.goToNextPage();
       }
     }
   }
@@ -643,9 +710,9 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       const deltaY = event.changedTouches[0].clientY - this.touchStartY;
       if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
         if (deltaX < 0) {
-          this.goToPage((this.activePageIndex + 1) % this.pages.length);
+          this.goToNextPage();
         } else {
-          this.goToPage((this.activePageIndex - 1 + this.pages.length) % this.pages.length);
+          this.goToPrevPage();
         }
       }
     }
@@ -727,16 +794,33 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     }
   }
 
+  private getEligiblePageIndices(): number[] {
+    const eligible = this.pages
+      .map((p, idx) => ({ p, idx }))
+      .filter(item => this.isPageScheduledActive(item.p))
+      .map(item => item.idx);
+    return eligible.length > 0 ? eligible : this.pages.map((_, i) => i);
+  }
+
   private startCarousel(): void {
     this.carouselTimerSub?.unsubscribe();
     if (this.pages.length <= 1) return;
+
+    const available = this.getEligiblePageIndices();
+    if (!available.includes(this.activePageIndex)) {
+      this.activePageIndex = available[0] ?? 0;
+    }
+
+    if (available.length <= 1) return;
 
     const curPage = this.pages[this.activePageIndex] || this.pages[0];
     const duration = Math.max(5, curPage.duration_seconds || 30);
 
     this.carouselTimerSub = interval(duration * 1000).subscribe(() => {
-      this.activePageIndex = (this.activePageIndex + 1) % this.pages.length;
-      this.startCarousel(); // adjust for next page's duration
+      const currentPos = available.indexOf(this.activePageIndex);
+      const nextPos = (currentPos + 1) % available.length;
+      this.activePageIndex = available[nextPos];
+      this.startCarousel();
     });
   }
 
@@ -745,14 +829,38 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     this.startCarousel();
   }
 
+  goToNextPage(): void {
+    const available = this.getEligiblePageIndices();
+    const currentPos = available.indexOf(this.activePageIndex);
+    const nextPos = (currentPos + 1) % available.length;
+    this.goToPage(available[nextPos]);
+  }
+
+  goToPrevPage(): void {
+    const available = this.getEligiblePageIndices();
+    const currentPos = available.indexOf(this.activePageIndex);
+    const prevPos = (currentPos - 1 + available.length) % available.length;
+    this.goToPage(available[prevPos]);
+  }
+
   private checkSleepSchedule(): void {
+    const now = new Date();
+
+    // Check if active page eligibility changed every 10 seconds
+    if (now.getSeconds() % 10 === 0 && this.pages.length > 1) {
+      const eligible = this.getEligiblePageIndices();
+      if (!eligible.includes(this.activePageIndex)) {
+        this.activePageIndex = eligible[0] ?? 0;
+        this.startCarousel();
+      }
+    }
+
     const sched = this.displayConfig?.sleep_schedule;
     if (!sched || !sched.enabled || !sched.sleepTime || !sched.wakeTime) {
       this.isSleeping = false;
       return;
     }
 
-    const now = new Date();
     const curMinutes = now.getHours() * 60 + now.getMinutes();
 
     const [sH, sM] = sched.sleepTime.split(':').map(Number);
