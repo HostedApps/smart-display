@@ -89,6 +89,18 @@ function getClientIp() {
         ?? '127.0.0.1';
 }
 
+function getAuthenticatedUser($pdo) {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+        return null;
+    }
+    $token = $matches[1];
+    $stmt = $pdo->prepare("SELECT id, name, email, role FROM users WHERE auth_token = ?");
+    $stmt->execute([$token]);
+    return $stmt->fetch();
+}
+
 function checkRateLimit($pdo, $action, $maxAttempts = 10, $windowSeconds = 60) {
     $ip = getClientIp();
     $rateKey = $action . ':' . md5($ip);
@@ -148,6 +160,7 @@ function isSafeExternalUrl($url) {
         'photos.app.goo.gl', 'photos.google.com', 'drive.google.com',
         'googleusercontent.com', 'google.com', 'goo.gl',
         'yahoo.com', 'coingecko.com', 'openweathermap.org',
+        'open-meteo.com',
         'unsplash.com', 'githubusercontent.com'
     ];
     foreach ($trustedDomains as $td) {
@@ -201,4 +214,93 @@ function logUserActivity($pdo, $userId, $userEmail, $action, $details = []) {
         // Silently catch logging errors to never disrupt main user flows
     }
 }
+
+/**
+ * Automatically discovers the supported Gemini model for a given API key.
+ * Queries Google's ListModels endpoint across v1beta and v1, caching the result.
+ */
+function resolveGeminiModel($apiKey) {
+    if (empty($apiKey)) {
+        return ['apiVersion' => 'v1beta', 'model' => 'gemini-3.6-flash'];
+    }
+
+    $cacheFile = sys_get_temp_dir() . '/gemini_model_' . md5($apiKey) . '.json';
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
+        $cached = @json_decode(file_get_contents($cacheFile), true);
+        if (!empty($cached['model']) && !empty($cached['apiVersion']) && !in_array($cached['model'], ['gemini-2.5-flash', 'gemini-1.5-flash'])) {
+            return $cached;
+        }
+    }
+
+    $candidateVersions = ['v1beta', 'v1'];
+    $preferences = [
+        'gemini-3.6-flash',
+        'gemini-3.6-flash-preview',
+        'gemini-3.5-flash',
+        'gemini-3.0-flash',
+        'gemini-3-flash',
+        'gemini-2.5-flash-latest',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-exp',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash-002',
+        'gemini-1.5-flash-001',
+        'gemini-1.5-flash-8b',
+        'gemini-3.6-pro',
+        'gemini-2.5-pro',
+        'gemini-1.5-pro',
+        'gemini-pro'
+    ];
+
+    foreach ($candidateVersions as $version) {
+        $url = "https://generativelanguage.googleapis.com/{$version}/models?key=" . urlencode($apiKey);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200 && $res) {
+            $data = json_decode($res, true);
+            $models = $data['models'] ?? [];
+
+            // Filter models that support generateContent
+            $available = [];
+            foreach ($models as $m) {
+                $methods = $m['supportedGenerationMethods'] ?? [];
+                if (in_array('generateContent', $methods)) {
+                    $rawName = $m['name'] ?? '';
+                    $cleanName = str_replace('models/', '', $rawName);
+                    $available[] = $cleanName;
+                }
+            }
+
+            // Check against our priority list
+            foreach ($preferences as $pref) {
+                foreach ($available as $avail) {
+                    if (strcasecmp($pref, $avail) === 0) {
+                        $result = ['apiVersion' => $version, 'model' => $avail];
+                        @file_put_contents($cacheFile, json_encode($result));
+                        return $result;
+                    }
+                }
+            }
+
+            // If no preference matched exactly, take the first available gemini model
+            foreach ($available as $avail) {
+                if (stripos($avail, 'gemini') !== false) {
+                    $result = ['apiVersion' => $version, 'model' => $avail];
+                    @file_put_contents($cacheFile, json_encode($result));
+                    return $result;
+                }
+            }
+        }
+    }
+
+    // Default fallback if ListModels fails
+    return ['apiVersion' => 'v1beta', 'model' => 'gemini-3.6-flash'];
+}
+
 

@@ -1,17 +1,7 @@
 <?php
 require_once 'db.php';
 
-function getAuthenticatedUser($pdo) {
-    $headers = getallheaders();
-    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-    if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-        return null;
-    }
-    $token = $matches[1];
-    $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE auth_token = ?");
-    $stmt->execute([$token]);
-    return $stmt->fetch();
-}
+
 
 $action = $_GET['action'] ?? '';
 $method = $_SERVER['REQUEST_METHOD'];

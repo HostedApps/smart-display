@@ -80,9 +80,20 @@ import { AuthService } from '../../services/auth.service';
 
           <hr class="divider" />
 
+          <button 
+            class="btn-auto-arrange"
+            (click)="openAutoArrangeModal()"
+            [disabled]="pageWidgets.length < 2"
+            title="Auto-arrange widgets into aesthetic layouts"
+          >
+            ✨ Auto Arrange
+          </button>
+
+          <hr class="divider" />
+
           <div class="palette-header">
             <h3>Add Widget</h3>
-            <span class="palette-badge">19 Widgets</span>
+            <span class="palette-badge">27 Widgets</span>
           </div>
           <div class="widget-palette">
             <button (click)="addWidget('youtube')" class="palette-item" title="Embed ambient YouTube videos or live news/music streams with auto-play and loop">
@@ -161,6 +172,38 @@ import { AuthService } from '../../services/auth.service';
               <span class="palette-icon">💬</span>
               <span class="palette-title">Daily Quote</span>
             </button>
+            <button (click)="addWidget('text')" class="palette-item" title="Static text announcements, room labels, or custom messages">
+              <span class="palette-icon">📝</span>
+              <span class="palette-title">Text</span>
+            </button>
+            <button (click)="addWidget('qrcode')" class="palette-item" title="Generate QR codes for WiFi passwords, URLs, or contact info">
+              <span class="palette-icon">📱</span>
+              <span class="palette-title">QR Code</span>
+            </button>
+            <button (click)="addWidget('world_clocks')" class="palette-item" title="Multiple timezone clocks for distributed teams or family abroad">
+              <span class="palette-icon">🌐</span>
+              <span class="palette-title">World Clocks</span>
+            </button>
+            <button (click)="addWidget('shapes')" class="palette-item" title="Decorative shapes, dividers, color panels, and visual separators">
+              <span class="palette-icon">⬛</span>
+              <span class="palette-title">Shapes</span>
+            </button>
+            <button (click)="addWidget('scheduled_text')" class="palette-item" title="Text announcements that appear and disappear at scheduled times">
+              <span class="palette-icon">⏰</span>
+              <span class="palette-title">Scheduled Text</span>
+            </button>
+            <button (click)="addWidget('button')" class="palette-item" title="Interactive touch buttons for navigation between pages or external links">
+              <span class="palette-icon">🔘</span>
+              <span class="palette-title">Button</span>
+            </button>
+            <button (click)="addWidget('sun_moon')" class="palette-item" title="Sunrise, sunset times and current moon phase with illumination">
+              <span class="palette-icon">🌙</span>
+              <span class="palette-title">Sun & Moon</span>
+            </button>
+            <button (click)="addWidget('analog_clock')" class="palette-item" title="Classic analog clock dial with hour, minute, and second hands">
+              <span class="palette-icon">🕐</span>
+              <span class="palette-title">Analog Clock</span>
+            </button>
           </div>
 
           <hr class="divider" />
@@ -223,24 +266,47 @@ import { AuthService } from '../../services/auth.service';
 
             <!-- Weather -->
             <ng-container *ngIf="selectedWidget.type === 'weather'">
-              <div class="form-group">
-                <label>OpenWeather API Key</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.apiKey" placeholder="API Key" class="input-control" />
+              <div class="weather-notice-banner">
+                <span class="weather-notice-icon">🌤️</span>
+                <span><strong>No API Key Required!</strong> Live temperature, conditions, UV index, and Air Quality (AQI) fetch automatically via Open-Meteo.</span>
               </div>
+
               <div class="form-group">
                 <label>City Name</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.city" placeholder="City" class="input-control" />
+                <input type="text" [(ngModel)]="selectedWidget.config.city" placeholder="e.g. San Jose, CA or London" class="input-control" />
+                <div class="field-hint" style="font-size: 0.68rem; color: #94a3b8; margin-top: 4px;">
+                  Supports any global city or state (e.g. "Austin, TX", "Paris", "Tokyo").
+                </div>
               </div>
+
               <div class="form-group">
                 <label>Units</label>
                 <select [(ngModel)]="selectedWidget.config.units" class="input-control">
-                  <option value="imperial">Imperial (°F)</option>
-                  <option value="metric">Metric (°C)</option>
+                  <option value="imperial">Imperial (°F, mph)</option>
+                  <option value="metric">Metric (°C, m/s)</option>
                 </select>
               </div>
+
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showForecast" /> Show 5-Day Forecast Strip</label>
+              </div>
+
               <div class="form-group checkbox-group">
                 <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showHourly" /> Show 12-Hour Hourly Forecast</label>
               </div>
+
+              <div class="form-group">
+                <label>Severe Weather Alert (Optional)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.alert" placeholder="e.g. Winter Storm Warning" class="input-control" />
+              </div>
+
+              <details style="margin-top: 8px; font-size: 0.72rem; color: #94a3b8; cursor: pointer;">
+                <summary style="outline: none;">Advanced: Custom OpenWeather API Key</summary>
+                <div class="form-group" style="margin-top: 8px;">
+                  <label style="font-size: 0.68rem;">OpenWeather API Key (Optional)</label>
+                  <input type="text" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use zero-config Open-Meteo" class="input-control" />
+                </div>
+              </details>
             </ng-container>
 
             <!-- Calendar -->
@@ -618,8 +684,16 @@ import { AuthService } from '../../services/auth.service';
               </div>
               <div class="form-group">
                 <label>Google Gemini API Key (Optional)</label>
-                <input type="password" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use built-in ambient engine" class="input-control" />
-                <small style="font-size:0.65rem; color:#94a3b8;">Default built-in intelligence engine works with zero setup.</small>
+                <div style="display: flex; gap: 8px;">
+                  <input type="password" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use built-in ambient engine" class="input-control" style="flex: 1;" />
+                  <button type="button" (click)="testGeminiKey()" [disabled]="testingGemini" class="btn btn-secondary" style="white-space: nowrap; padding: 0 12px; font-size: 0.8rem;">
+                    {{ testingGemini ? 'Testing...' : 'Test Key' }}
+                  </button>
+                </div>
+                <div *ngIf="geminiTestResult" [style.color]="geminiTestResult.success ? '#34d399' : '#f87171'" style="font-size: 0.72rem; margin-top: 5px; font-weight: 600; word-break: break-word;">
+                  {{ geminiTestResult.success ? '✅ ' : '❌ ' }}{{ geminiTestResult.message }}
+                </div>
+                <small style="font-size:0.65rem; color:#94a3b8; display: block; margin-top: 4px;">Default built-in intelligence engine works with zero setup.</small>
               </div>
             </ng-container>
 
@@ -665,6 +739,13 @@ import { AuthService } from '../../services/auth.service';
                   </select>
                 </div>
               </div>
+              <div style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 8px; padding: 10px; margin-top: 10px;">
+                <div style="font-size: 0.72rem; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">💡 Google & SimpliSafe Feed Tips:</div>
+                <div style="font-size: 0.68rem; color: #cbd5e1; line-height: 1.4;">
+                  • <strong>Home Assistant or Scrypted Bridge (Recommended):</strong> Google Nest and SimpliSafe protect their feeds behind cloud logins. Bridging them through Home Assistant or Scrypted produces an instant local snapshot or WebRTC/MJPEG URL you can paste above.<br>
+                  • <strong>Nest Public Live Link:</strong> In the Nest app, enable "Camera Sharing" &gt; "Share with password" or "Share publicly", and paste the embed link into Video Stream URL.
+                </div>
+              </div>
             </ng-container>
 
             <!-- Live Commute & Transit -->
@@ -707,6 +788,145 @@ import { AuthService } from '../../services/auth.service';
               </div>
               <div class="form-group checkbox-group">
                 <label><input type="checkbox" [(ngModel)]="selectedWidget.config.isLive" /> Show Red "LIVE" Badge</label>
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'text'">
+              <div class="form-group">
+                <label>Title</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Body Text (Supports Line Breaks)</label>
+                <textarea [(ngModel)]="selectedWidget.config.body" rows="4" class="input-control"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Font Size</label>
+                <select [(ngModel)]="selectedWidget.config.fontSize" class="input-control">
+                  <option value="small">Small</option>
+                  <option value="medium">Medium</option>
+                  <option value="large">Large</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Text Alignment</label>
+                <select [(ngModel)]="selectedWidget.config.textAlign" class="input-control">
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'qrcode'">
+              <div class="form-group">
+                <label>Label</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.label" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>QR Code Data (URL, text, WiFi string)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.data" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Size (px)</label>
+                <input type="number" [(ngModel)]="selectedWidget.config.size" class="input-control" />
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'shapes'">
+              <div class="form-group">
+                <label>Shape Type</label>
+                <select [(ngModel)]="selectedWidget.config.shape" class="input-control">
+                  <option value="rectangle">Rectangle Fill</option>
+                  <option value="circle">Circle</option>
+                  <option value="horizontal_line">Horizontal Line (Divider)</option>
+                  <option value="vertical_line">Vertical Line (Divider)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Color (Hex or Name)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.color" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Fill Opacity (0.0 - 1.0)</label>
+                <input type="number" step="0.1" min="0" max="1" [(ngModel)]="selectedWidget.config.fillOpacity" class="input-control" />
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'scheduled_text'">
+              <div class="form-group">
+                <label>Announcement Message</label>
+                <textarea [(ngModel)]="selectedWidget.config.message" rows="3" class="input-control"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Start Time (HH:MM)</label>
+                <input type="time" [(ngModel)]="selectedWidget.config.startTime" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>End Time (HH:MM)</label>
+                <input type="time" [(ngModel)]="selectedWidget.config.endTime" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Active Days (comma separated: Mon,Tue,Wed)</label>
+                <input type="text" [ngModel]="selectedWidget.config.showDays?.join(',')" (ngModelChange)="selectedWidget.config.showDays = $event.split(',')" class="input-control" />
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'button'">
+              <div class="form-group">
+                <label>Button Label</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.label" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Icon (Emoji)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.icon" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Target URL (Optional)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.url" placeholder="https://..." class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Button Style</label>
+                <select [(ngModel)]="selectedWidget.config.style" class="input-control">
+                  <option value="gradient">Vibrant Gradient</option>
+                  <option value="solid">Solid Indigo</option>
+                  <option value="outline">Outline Transparent</option>
+                </select>
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'sun_moon'">
+              <div class="form-group">
+                <label>City Name</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.cityName" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Latitude</label>
+                <input type="number" step="0.0001" [(ngModel)]="selectedWidget.config.latitude" class="input-control" />
+              </div>
+              <div class="form-group">
+                <label>Longitude</label>
+                <input type="number" step="0.0001" [(ngModel)]="selectedWidget.config.longitude" class="input-control" />
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'analog_clock'">
+              <div class="form-group">
+                <label>Accent Color (Hex)</label>
+                <input type="text" [(ngModel)]="selectedWidget.config.accentColor" class="input-control" />
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showSeconds" /> Show Second Hand</label>
+              </div>
+              <div class="form-group checkbox-group">
+                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showNumbers" /> Show Numbers</label>
+              </div>
+            </ng-container>
+            
+            <ng-container *ngIf="selectedWidget.type === 'world_clocks'">
+              <p class="tab-desc">Edit clocks configuration array via JSON below:</p>
+              <div class="form-group">
+                <textarea [ngModel]="selectedWidget.config.clocks | json" (ngModelChange)="selectedWidget.config.clocks = parseJson($event)" rows="6" class="input-control"></textarea>
               </div>
             </ng-container>
 
@@ -757,7 +977,24 @@ import { AuthService } from '../../services/auth.service';
               <option value="portrait_1080p">Portrait 1080p (1080 × 1920) - Vertical Full HD</option>
               <option value="portrait_1440p">Portrait 1440p (1440 × 2560) - Vertical 2K QHD</option>
               <option value="portrait_4k">Portrait 4K (2160 × 3840) - Vertical 4K</option>
+              <option value="landscape_16_10">Landscape 16:10 (1920 × 1200) - Tablet</option>
+              <option value="portrait_16_10">Portrait 16:10 (1200 × 1920) - Tablet</option>
+              <option value="landscape_4_3">Landscape 4:3 (1600 × 1200) - iPad</option>
+              <option value="portrait_4_3">Portrait 4:3 (1200 × 1600) - iPad</option>
+              <option value="ultrawide">Ultrawide 21:9 (3440 × 1440)</option>
+              <option value="freeform">Freeform (Custom Dimensions)</option>
             </select>
+          </div>
+          
+          <div class="form-row" *ngIf="displayConfig.orientation === 'freeform'">
+            <div class="form-group">
+              <label>Custom Width (px)</label>
+              <input type="number" [(ngModel)]="canvasWidth" (ngModelChange)="updateOrientation()" class="input-control" />
+            </div>
+            <div class="form-group">
+              <label>Custom Height (px)</label>
+              <input type="number" [(ngModel)]="canvasHeight" (ngModelChange)="updateOrientation()" class="input-control" />
+            </div>
           </div>
 
           <div class="form-group">
@@ -850,6 +1087,14 @@ import { AuthService } from '../../services/auth.service';
           <button (click)="saveConfiguration()" [disabled]="saving" class="btn btn-primary">
             {{ saving ? 'Saving...' : 'Save & Publish' }}
           </button>
+          
+          <div class="export-actions">
+            <button (click)="exportConfiguration()" class="btn-secondary-small">Export JSON</button>
+            <label class="btn-secondary-small">
+              Import JSON
+              <input type="file" accept=".json" (change)="importConfiguration($event)" style="display: none;" />
+            </label>
+          </div>
         </div>
       </aside>
 
@@ -980,6 +1225,14 @@ import { AuthService } from '../../services/auth.service';
                 <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
                 <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
                 <app-youtube-widget *ngIf="widget.type === 'youtube'" [config]="widget.config"></app-youtube-widget>
+                <app-text-widget *ngIf="widget.type === 'text'" [config]="widget.config"></app-text-widget>
+                <app-qrcode-widget *ngIf="widget.type === 'qrcode'" [config]="widget.config"></app-qrcode-widget>
+                <app-world-clocks-widget *ngIf="widget.type === 'world_clocks'" [config]="widget.config"></app-world-clocks-widget>
+                <app-shapes-widget *ngIf="widget.type === 'shapes'" [config]="widget.config"></app-shapes-widget>
+                <app-scheduled-text-widget *ngIf="widget.type === 'scheduled_text'" [config]="widget.config"></app-scheduled-text-widget>
+                <app-button-widget *ngIf="widget.type === 'button'" [config]="widget.config"></app-button-widget>
+                <app-sun-moon-widget *ngIf="widget.type === 'sun_moon'" [config]="widget.config"></app-sun-moon-widget>
+                <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
               </div>
 
               <!-- 8-Point Visual Resize Handles -->
@@ -1015,6 +1268,60 @@ import { AuthService } from '../../services/auth.service';
 
       <!-- Help & Documentation Modal -->
       <app-help-docs-modal *ngIf="showHelpModal" (closed)="showHelpModal = false"></app-help-docs-modal>
+
+      <!-- Auto Arrange Layout Picker Modal -->
+      <div class="auto-arrange-overlay" *ngIf="showAutoArrangeModal" (click)="showAutoArrangeModal = false">
+        <div class="auto-arrange-modal" (click)="$event.stopPropagation()">
+          <div class="auto-arrange-header">
+            <div>
+              <h2>✨ Auto Arrange Layouts</h2>
+              <p class="auto-arrange-subtitle">Choose a layout style for your {{ pageWidgets.length }} widgets</p>
+            </div>
+            <button class="auto-arrange-close" (click)="showAutoArrangeModal = false">✕</button>
+          </div>
+
+          <div class="layout-grid">
+            <div 
+              *ngFor="let layout of layoutPreviews; let i = index"
+              class="layout-card"
+              [class.selected]="selectedLayoutIndex === i"
+              (click)="selectedLayoutIndex = i"
+            >
+              <div class="layout-preview-canvas" [style.aspect-ratio]="canvasWidth + '/' + canvasHeight">
+                <div 
+                  *ngFor="let pos of layout.positions; let j = index"
+                  class="layout-preview-widget"
+                  [style.left.%]="(pos.x / canvasWidth) * 100"
+                  [style.top.%]="(pos.y / canvasHeight) * 100"
+                  [style.width.%]="(pos.width / canvasWidth) * 100"
+                  [style.height.%]="(pos.height / canvasHeight) * 100"
+                  [style.background]="layoutColorPalette[j % layoutColorPalette.length]"
+                >
+                  <span class="preview-widget-label">{{ pageWidgets[j]?.type }}</span>
+                </div>
+              </div>
+              <div class="layout-card-footer">
+                <span class="layout-card-icon">{{ layout.icon }}</span>
+                <div>
+                  <div class="layout-card-name">{{ layout.name }}</div>
+                  <div class="layout-card-desc">{{ layout.description }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="auto-arrange-actions">
+            <button 
+              class="btn btn-primary" 
+              [disabled]="selectedLayoutIndex < 0"
+              (click)="applySelectedLayout()"
+            >
+              Apply Layout
+            </button>
+            <button class="btn btn-secondary" (click)="showAutoArrangeModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -1583,6 +1890,24 @@ import { AuthService } from '../../services/auth.service';
       font-size: 1rem;
     }
 
+    .weather-notice-banner {
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(14, 165, 233, 0.25);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      color: #7dd3fc;
+      line-height: 1.35;
+    }
+    .weather-notice-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
     .feeds-manager, .meal-days-editor {
       display: flex;
       flex-direction: column;
@@ -1647,6 +1972,28 @@ import { AuthService } from '../../services/auth.service';
       border-top: 1px solid rgba(255, 255, 255, 0.08);
       background: #0f172a;
       margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .export-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-secondary-small {
+      flex: 1;
+      padding: 6px 0;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      color: #cbd5e1;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-secondary-small:hover {
+      background: rgba(255, 255, 255, 0.12);
     }
 
     .canvas-viewport {
@@ -1891,6 +2238,206 @@ import { AuthService } from '../../services/auth.service';
     .handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
     .handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
     .handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+
+    /* ==============================
+       AUTO ARRANGE STYLES
+       ============================== */
+    .btn-auto-arrange {
+      width: 100%;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.3px;
+    }
+    .btn-auto-arrange:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+    }
+    .btn-auto-arrange:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .auto-arrange-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .auto-arrange-modal {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      width: 90vw;
+      max-width: 780px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .auto-arrange-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 24px 28px 12px;
+    }
+    .auto-arrange-header h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #f1f5f9;
+    }
+    .auto-arrange-subtitle {
+      margin: 4px 0 0;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .auto-arrange-close {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-size: 1.1rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .auto-arrange-close:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #f1f5f9;
+    }
+
+    .layout-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      padding: 12px 28px 20px;
+    }
+    @media (max-width: 700px) {
+      .layout-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .layout-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      overflow: hidden;
+    }
+    .layout-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(99, 102, 241, 0.08);
+      transform: translateY(-2px);
+    }
+    .layout-card.selected {
+      border-color: #6366f1;
+      background: rgba(99, 102, 241, 0.12);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .layout-preview-canvas {
+      position: relative;
+      width: 100%;
+      background: #0f172a;
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      min-height: 80px;
+    }
+
+    .layout-preview-widget {
+      position: absolute;
+      border-radius: 4px;
+      opacity: 0.85;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .preview-widget-label {
+      font-size: 0.5rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      padding: 0 2px;
+    }
+
+    .layout-card-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+    }
+    .layout-card-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    .layout-card-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .layout-card-desc {
+      font-size: 0.65rem;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    .auto-arrange-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      padding: 16px 28px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+    }
   `]
 })
 export class DashboardEditorComponent implements OnInit, AfterViewInit {
@@ -1933,6 +2480,10 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   selectedWidget: Widget | null = null;
   gridSnapSize: number = 0; // 0 = Off, 10 = 10px, 20 = 20px
 
+  // Gemini API Key Testing
+  testingGemini: boolean = false;
+  geminiTestResult: { success: boolean; message: string } | null = null;
+
   // Canvas Resolution Dimensions
   canvasWidth: number = 1280;
   canvasHeight: number = 720;
@@ -1962,6 +2513,17 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   private historyStack: string[] = [];
   private historyIndex: number = -1;
   private isApplyingHistory: boolean = false;
+
+  // Auto Arrange State
+  showAutoArrangeModal: boolean = false;
+  selectedLayoutIndex: number = -1;
+  layoutPreviews: { name: string; icon: string; description: string; positions: { x: number; y: number; width: number; height: number }[] }[] = [];
+  layoutColorPalette: string[] = [
+    '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
+    '#06b6d4', '#f43f5e', '#84cc16', '#6366f1', '#14b8a6',
+    '#e879f9', '#fb923c', '#a3e635', '#38bdf8', '#c084fc',
+    '#fbbf24', '#34d399', '#f472b6', '#22d3ee', '#a78bfa'
+  ];
 
   constructor(
     private route: ActivatedRoute, 
@@ -2063,6 +2625,32 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       case 'portrait_720p':
         this.canvasWidth = 720;
         this.canvasHeight = 1280;
+        break;
+      case 'landscape_16_10':
+        this.canvasWidth = 1920;
+        this.canvasHeight = 1200;
+        break;
+      case 'portrait_16_10':
+        this.canvasWidth = 1200;
+        this.canvasHeight = 1920;
+        break;
+      case 'landscape_4_3':
+        this.canvasWidth = 1600;
+        this.canvasHeight = 1200;
+        break;
+      case 'portrait_4_3':
+        this.canvasWidth = 1200;
+        this.canvasHeight = 1600;
+        break;
+      case 'ultrawide':
+        this.canvasWidth = 3440;
+        this.canvasHeight = 1440;
+        break;
+      case 'freeform':
+        // For freeform, keep the current values, allow user to resize via input.
+        // E.g., defaulting to 1024x1024 if currently undefined.
+        this.canvasWidth = this.canvasWidth || 1024;
+        this.canvasHeight = this.canvasHeight || 1024;
         break;
       case 'landscape_720p':
       default:
@@ -2325,6 +2913,75 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         };
         initialSize = { width: 440, height: 260 };
         break;
+      case 'text':
+        initialConfig = {
+          title: 'Announcement',
+          body: 'Welcome to the Smart Display!\nAdd your message here.',
+          fontSize: 'medium',
+          textAlign: 'left'
+        };
+        initialSize = { width: 340, height: 200 };
+        break;
+      case 'qrcode':
+        initialConfig = {
+          data: 'https://smart-kiosk.online',
+          label: 'Scan Me',
+          size: 200
+        };
+        initialSize = { width: 240, height: 280 };
+        break;
+      case 'world_clocks':
+        initialConfig = {
+          clocks: [
+            { label: 'New York', timezone: 'America/New_York' },
+            { label: 'London', timezone: 'Europe/London' },
+            { label: 'Tokyo', timezone: 'Asia/Tokyo' }
+          ]
+        };
+        initialSize = { width: 320, height: 220 };
+        break;
+      case 'shapes':
+        initialConfig = {
+          shape: 'rectangle',
+          color: '#6366f1',
+          fillOpacity: 0.3
+        };
+        initialSize = { width: 300, height: 4 };
+        break;
+      case 'scheduled_text':
+        initialConfig = {
+          message: 'Good morning! Have a great day!',
+          startTime: '06:00',
+          endTime: '12:00',
+          showDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        };
+        initialSize = { width: 340, height: 180 };
+        break;
+      case 'button':
+        initialConfig = {
+          label: 'Open Link',
+          icon: '🔗',
+          url: '',
+          style: 'gradient'
+        };
+        initialSize = { width: 200, height: 160 };
+        break;
+      case 'sun_moon':
+        initialConfig = {
+          latitude: 37.3382,
+          longitude: -121.8863,
+          cityName: 'San Jose'
+        };
+        initialSize = { width: 320, height: 280 };
+        break;
+      case 'analog_clock':
+        initialConfig = {
+          showSeconds: true,
+          showNumbers: true,
+          accentColor: '#3b82f6'
+        };
+        initialSize = { width: 260, height: 260 };
+        break;
     }
 
     const newWidget: Widget = {
@@ -2345,6 +3002,14 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     this.widgets = this.widgets.filter(w => w !== this.selectedWidget);
     this.selectedWidget = null;
     this.pushHistory();
+  }
+
+  parseJson(val: string): any {
+    try {
+      return JSON.parse(val);
+    } catch {
+      return this.selectedWidget?.config.clocks || [];
+    }
   }
 
   getWidgetOpacity(): number {
@@ -2712,6 +3377,44 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       });
   }
 
+  testGeminiKey(): void {
+    if (!this.selectedWidget || !this.selectedWidget.config.apiKey) {
+      this.geminiTestResult = { success: false, message: 'Please enter a Gemini API key first.' };
+      return;
+    }
+    this.testingGemini = true;
+    this.geminiTestResult = null;
+    this.http.post<any>(`${environment.apiUrl}/ai_briefing.php`, {
+      apiKey: this.selectedWidget.config.apiKey.trim(),
+      test: true
+    }).subscribe({
+      next: (res) => {
+        this.testingGemini = false;
+        if (res && res.success) {
+          this.geminiTestResult = { 
+            success: true, 
+            message: res.message || 'Connected! Google Gemini is working.' 
+          };
+          if (this.selectedWidget) {
+            this.selectedWidget.config = { ...this.selectedWidget.config };
+          }
+        } else {
+          this.geminiTestResult = { 
+            success: false, 
+            message: res?.error || 'Validation failed. Check your API key.' 
+          };
+        }
+      },
+      error: (err) => {
+        this.testingGemini = false;
+        this.geminiTestResult = { 
+          success: false, 
+          message: err?.error?.error || err?.message || 'Server network error.' 
+        };
+      }
+    });
+  }
+
   addCalendarFeed(widget: Widget): void {
     if (!widget.config.feeds) widget.config.feeds = [];
     widget.config.feeds.push({ name: 'Family', url: '', color: '#ec4899' });
@@ -2742,6 +3445,311 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       widget.config.notes.splice(index, 1);
       this.pushHistory();
     }
+  }
+
+  // ========================
+  // AUTO ARRANGE LAYOUTS
+  // ========================
+
+  openAutoArrangeModal(): void {
+    this.selectedLayoutIndex = -1;
+    this.layoutPreviews = this.generateAllLayouts();
+    this.showAutoArrangeModal = true;
+  }
+
+  generateAllLayouts(): { name: string; icon: string; description: string; positions: { x: number; y: number; width: number; height: number }[] }[] {
+    const widgets = this.pageWidgets;
+    const cw = this.canvasWidth;
+    const ch = this.canvasHeight;
+    const n = widgets.length;
+    if (n < 2) return [];
+
+    return [
+      { name: 'Golden Spiral', icon: '🌀', description: 'Fibonacci-inspired proportioned asymmetric layout', positions: this.layoutGoldenSpiral(widgets, cw, ch) },
+      { name: 'Editorial Hero', icon: '📰', description: 'A massive visual hero block balanced by a neat sidebar of details', positions: this.layoutEditorialHero(widgets, cw, ch) },
+      { name: 'Zen Overlap', icon: '🍃', description: 'Floating widgets with elegant negative space and slight overlaps', positions: this.layoutZenOverlap(widgets, cw, ch) },
+      { name: 'Mondrian', icon: '🟥', description: 'Bold, structured abstract geometric compartments', positions: this.layoutMondrian(widgets, cw, ch) },
+      { name: 'Rule of Thirds', icon: '◰', description: 'Classic photography grid alignment for strong visual anchors', positions: this.layoutRuleOfThirds(widgets, cw, ch) },
+      { name: 'Typographic', icon: 'T', description: 'Ultra-wide and narrow contrast blocks for text-heavy displays', positions: this.layoutTypographic(widgets, cw, ch) }
+    ];
+  }
+
+  private assignCreativeBoxes(widgets: Widget[], boxes: {x: number, y: number, width: number, height: number}[]): {x: number, y: number, width: number, height: number}[] {
+    const heroTypes = ['photo', 'youtube', 'radar', 'ai_briefing', 'weather', 'clock'];
+    const listTypes = ['calendar', 'todo', 'rss', 'chores', 'meal_planner'];
+
+    const scored = widgets.map((w, i) => {
+      let score = 0;
+      if (heroTypes.includes(w.type)) score += 100 - heroTypes.indexOf(w.type);
+      else if (listTypes.includes(w.type)) score += 50 - listTypes.indexOf(w.type);
+      return { index: i, score: score, widget: w };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const sortedBoxes = [...boxes].sort((a, b) => (b.width * b.height) - (a.width * a.height));
+    const positions = new Array(widgets.length);
+    for (let i = 0; i < scored.length; i++) {
+      // Safely map in case we have more widgets than boxes (shouldn't happen but just in case)
+      const box = i < sortedBoxes.length ? sortedBoxes[i] : sortedBoxes[sortedBoxes.length - 1];
+      positions[scored[i].index] = { ...box };
+    }
+    return positions;
+  }
+
+  layoutGoldenSpiral(widgets: Widget[], cw: number, ch: number) {
+    const n = widgets.length;
+    const margin = 30;
+    const gap = 20;
+    const boxes = [];
+    
+    let x = margin;
+    let y = margin;
+    let w = cw - margin * 2;
+    let h = ch - margin * 2;
+    let dir = 0; // 0=right, 1=down, 2=left, 3=up
+
+    for(let i = 0; i < n; i++) {
+       if (i === n - 1) {
+          boxes.push({x, y, width: w, height: h});
+          break;
+       }
+       const ratio = 0.618;
+       if (dir === 0) {
+          const splitW = Math.floor((w - gap) * ratio);
+          boxes.push({x, y, width: splitW, height: h});
+          x += splitW + gap;
+          w -= splitW + gap;
+       } else if (dir === 1) {
+          const splitH = Math.floor((h - gap) * ratio);
+          boxes.push({x, y, width: w, height: splitH});
+          y += splitH + gap;
+          h -= splitH + gap;
+       } else if (dir === 2) {
+          const splitW = Math.floor((w - gap) * ratio);
+          boxes.push({x: x + w - splitW, y, width: splitW, height: h});
+          w -= splitW + gap;
+       } else if (dir === 3) {
+          const splitH = Math.floor((h - gap) * ratio);
+          boxes.push({x, y: y + h - splitH, width: w, height: splitH});
+          h -= splitH + gap;
+       }
+       dir = (dir + 1) % 4;
+    }
+    return this.assignCreativeBoxes(widgets, boxes);
+  }
+
+  layoutEditorialHero(widgets: Widget[], cw: number, ch: number) {
+    const n = widgets.length;
+    const margin = 40;
+    const gap = 24;
+    const boxes = [];
+    
+    const heroW = Math.floor((cw - margin*2 - gap) * 0.66);
+    const heroH = ch - margin*2;
+    boxes.push({x: margin, y: margin, width: heroW, height: heroH});
+    
+    const rightX = margin + heroW + gap;
+    const rightW = cw - margin*2 - heroW - gap;
+    const rem = n - 1;
+    
+    if (rem > 0) {
+      if (rem === 1) {
+         boxes.push({x: rightX, y: margin, width: rightW, height: heroH});
+      } else {
+         const topH = Math.floor((heroH - gap) * 0.4);
+         boxes.push({x: rightX, y: margin, width: rightW, height: topH});
+         
+         const bottomRem = rem - 1;
+         const bottomY = margin + topH + gap;
+         const bottomH = heroH - topH - gap;
+         const cellW = Math.floor((rightW - gap * (bottomRem - 1)) / bottomRem);
+         
+         for(let i = 0; i < bottomRem; i++) {
+             boxes.push({
+               x: rightX + i*(cellW + gap), 
+               y: bottomY, 
+               width: cellW, 
+               height: bottomH
+             });
+         }
+      }
+    }
+    return this.assignCreativeBoxes(widgets, boxes);
+  }
+
+  layoutZenOverlap(widgets: Widget[], cw: number, ch: number) {
+    const n = widgets.length;
+    const margin = 50;
+    const boxes = [];
+    const cols = Math.ceil(Math.sqrt(n));
+    const rows = Math.ceil(n / cols);
+    const availW = cw - margin * 2;
+    const availH = ch - margin * 2;
+    const cellW = Math.floor(availW / cols);
+    const cellH = Math.floor(availH / rows);
+    
+    for(let i = 0; i < n; i++) {
+       const col = i % cols;
+       const row = Math.floor(i / cols);
+       const w = Math.floor(cellW * 0.65);
+       const h = Math.floor(cellH * 0.75);
+       
+       const offsetX = (i % 2 === 0) ? cellW * 0.1 : cellW * 0.25;
+       const offsetY = (i % 3 === 0) ? cellH * 0.1 : cellH * 0.2;
+       
+       boxes.push({
+         x: margin + col * cellW + offsetX,
+         y: margin + row * cellH + offsetY,
+         width: w,
+         height: h
+       });
+    }
+    return this.assignCreativeBoxes(widgets, boxes);
+  }
+
+  layoutMondrian(widgets: Widget[], cw: number, ch: number) {
+    const n = widgets.length;
+    const margin = 0; 
+    const gap = 12; 
+    const boxes: {x: number, y: number, width: number, height: number}[] = [];
+    
+    function splitBox(box: {x: number, y: number, width: number, height: number}, splitsLeft: number, alternate: number) {
+       if (splitsLeft <= 0) {
+         boxes.push(box);
+         return;
+       }
+       const splitRatio = 0.35 + (splitsLeft * 0.1) % 0.3; 
+       
+       if (alternate % 2 === 0) {
+         const w1 = Math.floor((box.width - gap) * splitRatio);
+         const w2 = box.width - gap - w1;
+         splitBox({x: box.x, y: box.y, width: w1, height: box.height}, Math.floor((splitsLeft-1)/2), alternate+1);
+         splitBox({x: box.x + w1 + gap, y: box.y, width: w2, height: box.height}, Math.ceil((splitsLeft-1)/2), alternate+1);
+       } else {
+         const h1 = Math.floor((box.height - gap) * splitRatio);
+         const h2 = box.height - gap - h1;
+         splitBox({x: box.x, y: box.y, width: box.width, height: h1}, Math.floor((splitsLeft-1)/2), alternate+1);
+         splitBox({x: box.x, y: box.y + h1 + gap, width: box.width, height: h2}, Math.ceil((splitsLeft-1)/2), alternate+1);
+       }
+    }
+    
+    splitBox({x: margin, y: margin, width: cw - margin*2, height: ch - margin*2}, n - 1, 0);
+    return this.assignCreativeBoxes(widgets, boxes);
+  }
+
+  layoutRuleOfThirds(widgets: Widget[], cw: number, ch: number) {
+    const n = widgets.length;
+    const margin = 40;
+    const gap = 20;
+    const boxes = [];
+    
+    const mainW = Math.floor((cw - margin*2) * (2/3)) - gap;
+    const mainH = Math.floor((ch - margin*2) * (2/3)) - gap;
+    boxes.push({x: margin, y: margin, width: mainW, height: mainH});
+    
+    if (n > 1) {
+        const bottomY = margin + mainH + gap;
+        const bottomH = ch - margin*2 - mainH - gap;
+        boxes.push({x: margin, y: bottomY, width: mainW, height: bottomH});
+    }
+    if (n > 2) {
+        const rightX = margin + mainW + gap;
+        const rightW = cw - margin*2 - mainW - gap;
+        const rem = n - 2;
+        const remH = Math.floor((ch - margin*2 - gap*(rem-1)) / rem);
+        for(let i = 0; i < rem; i++) {
+           boxes.push({x: rightX, y: margin + i*(remH + gap), width: rightW, height: remH});
+        }
+    }
+    return this.assignCreativeBoxes(widgets, boxes);
+  }
+
+  layoutTypographic(widgets: Widget[], cw: number, ch: number) {
+    const n = widgets.length;
+    const margin = 30;
+    const gap = 16;
+    const boxes = [];
+    
+    const narrowW = Math.floor((cw - margin*2 - gap*2) * 0.2);
+    const wideW = cw - margin*2 - gap*2 - narrowW*2;
+    
+    const leftCount = Math.floor(n / 3);
+    const centerCount = 1;
+    let rightCount = n - leftCount - centerCount;
+    if (rightCount < 0) rightCount = 0;
+    
+    if (leftCount > 0) {
+      const leftH = Math.floor((ch - margin*2 - gap*(leftCount-1)) / leftCount);
+      for(let i = 0; i < leftCount; i++) {
+        boxes.push({x: margin, y: margin + i*(leftH + gap), width: narrowW, height: leftH});
+      }
+    }
+    
+    boxes.push({x: margin + narrowW + gap, y: margin, width: wideW, height: ch - margin*2});
+    
+    if (rightCount > 0) {
+      const rightX = margin + narrowW + gap + wideW + gap;
+      const rightH = Math.floor((ch - margin*2 - gap*(rightCount-1)) / rightCount);
+      for(let i = 0; i < rightCount; i++) {
+        boxes.push({x: rightX, y: margin + i*(rightH + gap), width: narrowW, height: rightH});
+      }
+    }
+    return this.assignCreativeBoxes(widgets, boxes);
+  }
+  applySelectedLayout(): void {
+    if (this.selectedLayoutIndex < 0 || this.selectedLayoutIndex >= this.layoutPreviews.length) return;
+    const layout = this.layoutPreviews[this.selectedLayoutIndex];
+    const widgets = this.pageWidgets;
+    if (layout.positions.length !== widgets.length) return;
+
+    this.pushHistory();
+    for (let i = 0; i < widgets.length; i++) {
+      widgets[i].position = { ...layout.positions[i] };
+    }
+    this.showAutoArrangeModal = false;
+    this.selectedLayoutIndex = -1;
+  }
+
+  exportConfiguration(): void {
+    const payload = {
+      pages: this.pages,
+      widgets: this.widgets,
+      backgroundConfig: this.backgroundConfig
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smart-display-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  importConfiguration(event: any): void {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e: any) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.pages && Array.isArray(data.pages)) {
+          this.pages = data.pages;
+        }
+        if (data.widgets && Array.isArray(data.widgets)) {
+          this.widgets = data.widgets;
+        }
+        if (data.backgroundConfig) {
+          this.backgroundConfig = data.backgroundConfig;
+        }
+        this.activePageId = this.pages[0]?.id || 'default';
+        this.selectedWidget = null;
+        alert('Configuration imported successfully! Click Save & Publish to apply.');
+      } catch (err) {
+        alert('Invalid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
   }
 
   logout(): void {

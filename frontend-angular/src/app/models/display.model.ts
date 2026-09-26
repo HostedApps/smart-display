@@ -307,7 +307,7 @@ export interface EmergencyBroadcast {
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube';
+  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock';
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
@@ -344,7 +344,13 @@ export type DisplayOrientation =
   | 'portrait_720p' 
   | 'portrait_1080p' 
   | 'portrait_1440p' 
-  | 'portrait_4k';
+  | 'portrait_4k'
+  | 'landscape_16_10'
+  | 'portrait_16_10'
+  | 'landscape_4_3'
+  | 'portrait_4_3'
+  | 'ultrawide'
+  | 'freeform';
 
 export interface DisplayConfig {
   id: number;
@@ -392,6 +398,7 @@ export interface PairingCodeResponse {
 export interface PairingStatusResponse {
   status: 'pending' | 'paired' | 'expired';
   display_token?: string;
+  device_token?: string;
 }
 
 export interface DisplayResponse {

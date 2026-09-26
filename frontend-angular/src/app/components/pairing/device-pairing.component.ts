@@ -283,6 +283,9 @@ export class DevicePairingComponent implements OnInit, OnDestroy {
         next: (res) => {
           if (res.status === 'paired' && res.display_token) {
             this.pollSub?.unsubscribe();
+            if (res.device_token) {
+              localStorage.setItem('device_token', res.device_token);
+            }
             // Automatically navigate to paired display!
             this.router.navigate(['/display', res.display_token]);
           } else if (res.status === 'expired') {

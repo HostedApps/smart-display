@@ -8,16 +8,32 @@ export class AuthInterceptor implements HttpInterceptor {
   constructor(private authService: AuthService) {}
 
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    // Only attach auth and device tokens to internal backend API requests.
+    // External APIs (Open-Meteo, OpenWeather, CartoDB, RainViewer, etc.) must NOT receive internal tokens,
+    // which cause CORS preflight OPTIONS failures and leak credentials.
+    const isInternalApi = 
+      req.url.startsWith('/api') || 
+      req.url.startsWith('api/') || 
+      req.url.includes('/backend-api/') ||
+      req.url.includes('/api/');
+
+    if (!isInternalApi) {
+      return next.handle(req);
+    }
+
     const token = this.authService.getToken();
 
-    let authReq = req;
+    let headers = req.headers;
     if (token) {
-      authReq = req.clone({
-        setHeaders: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      headers = headers.set('Authorization', `Bearer ${token}`);
     }
+    
+    const deviceToken = localStorage.getItem('device_token');
+    if (deviceToken) {
+      headers = headers.set('X-Device-Token', deviceToken);
+    }
+
+    let authReq = req.clone({ headers });
 
     return next.handle(authReq).pipe(
       catchError((error: HttpErrorResponse) => {

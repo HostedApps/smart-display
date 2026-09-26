@@ -1,6 +1,7 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, DoCheck, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { interval, Subscription } from 'rxjs';
+import { interval, Subscription, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 interface ForecastItem {
   date: string;
@@ -14,6 +15,57 @@ interface HourlyItem {
   temp: number;
   icon: string;
 }
+
+interface WeatherCodeInfo {
+  desc: string;
+  iconDay: string;
+  iconNight: string;
+}
+
+const WMO_MAP: Record<number, WeatherCodeInfo> = {
+  0: { desc: 'Clear Sky', iconDay: '01d', iconNight: '01n' },
+  1: { desc: 'Mainly Clear', iconDay: '02d', iconNight: '02n' },
+  2: { desc: 'Partly Cloudy', iconDay: '02d', iconNight: '02n' },
+  3: { desc: 'Overcast', iconDay: '04d', iconNight: '04n' },
+  45: { desc: 'Foggy', iconDay: '50d', iconNight: '50n' },
+  48: { desc: 'Rime Fog', iconDay: '50d', iconNight: '50n' },
+  51: { desc: 'Light Drizzle', iconDay: '09d', iconNight: '09n' },
+  53: { desc: 'Moderate Drizzle', iconDay: '09d', iconNight: '09n' },
+  55: { desc: 'Dense Drizzle', iconDay: '09d', iconNight: '09n' },
+  56: { desc: 'Light Freezing Drizzle', iconDay: '09d', iconNight: '09n' },
+  57: { desc: 'Dense Freezing Drizzle', iconDay: '09d', iconNight: '09n' },
+  61: { desc: 'Slight Rain', iconDay: '10d', iconNight: '10n' },
+  63: { desc: 'Moderate Rain', iconDay: '10d', iconNight: '10n' },
+  65: { desc: 'Heavy Rain', iconDay: '10d', iconNight: '10n' },
+  66: { desc: 'Light Freezing Rain', iconDay: '13d', iconNight: '13n' },
+  67: { desc: 'Heavy Freezing Rain', iconDay: '13d', iconNight: '13n' },
+  71: { desc: 'Slight Snow', iconDay: '13d', iconNight: '13n' },
+  73: { desc: 'Moderate Snow', iconDay: '13d', iconNight: '13n' },
+  75: { desc: 'Heavy Snow', iconDay: '13d', iconNight: '13n' },
+  77: { desc: 'Snow Grains', iconDay: '13d', iconNight: '13n' },
+  80: { desc: 'Slight Rain Showers', iconDay: '09d', iconNight: '09n' },
+  81: { desc: 'Moderate Rain Showers', iconDay: '09d', iconNight: '09n' },
+  82: { desc: 'Violent Rain Showers', iconDay: '09d', iconNight: '09n' },
+  85: { desc: 'Slight Snow Showers', iconDay: '13d', iconNight: '13n' },
+  86: { desc: 'Heavy Snow Showers', iconDay: '13d', iconNight: '13n' },
+  95: { desc: 'Thunderstorm', iconDay: '11d', iconNight: '11n' },
+  96: { desc: 'Thunderstorm with Hail', iconDay: '11d', iconNight: '11n' },
+  99: { desc: 'Thunderstorm with Heavy Hail', iconDay: '11d', iconNight: '11n' }
+};
+
+const US_STATES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'District of Columbia'
+};
 
 @Component({
   selector: 'app-weather-widget',
@@ -32,7 +84,9 @@ interface HourlyItem {
               <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path>
               <circle cx="12" cy="10" r="3"></circle>
             </svg>
-            <span class="city-name">{{ config.city || 'San Jose' }}</span>
+            <span class="city-name" [title]="resolvedLocationText || displayCity">{{ displayCity }}</span>
+            <span class="updating-dot" *ngIf="loading" title="Fetching live weather..."></span>
+            <span class="weather-err-tag" *ngIf="errorMessage" [title]="errorMessage">⚠️ {{ errorMessage }}</span>
           </div>
 
           <div class="temp-display">
@@ -133,6 +187,7 @@ interface HourlyItem {
       width: 12px;
       height: 12px;
       color: var(--accent-blue, #0ea5e9);
+      flex-shrink: 0;
     }
     .city-name {
       font-size: 0.8rem;
@@ -140,6 +195,30 @@ interface HourlyItem {
       color: #94a3b8;
       letter-spacing: 0.5px;
       text-transform: uppercase;
+      max-width: 170px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .updating-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--accent-blue, #0ea5e9);
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulseSync 1.2s infinite ease-in-out;
+      margin-left: 2px;
+      flex-shrink: 0;
+    }
+    @keyframes pulseSync {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.3); }
+    }
+    .weather-err-tag {
+      font-size: 0.6rem;
+      color: #f87171;
+      font-weight: 600;
+      white-space: nowrap;
     }
     .temp-display {
       display: flex;
@@ -315,7 +394,7 @@ interface HourlyItem {
     }
   `]
 })
-export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
+export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoCheck {
   @Input() config: any = {
     apiKey: '',
     city: 'San Jose',
@@ -332,7 +411,20 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
   forecast: ForecastItem[] = [];
   hourly: HourlyItem[] = [];
   activeAlert: string | null = null;
+  loading: boolean = false;
+  errorMessage: string | null = null;
+  resolvedCityName: string = '';
+  resolvedLocationText: string = '';
+
   private pollSub?: Subscription;
+  private debounceTimer: any = null;
+  private lastCity?: string;
+  private lastUnits?: string;
+  private lastApiKey?: string;
+  private lastShowHourly?: boolean;
+  private lastGeocodedCity?: string;
+  private cachedCoords?: { lat: number; lon: number };
+  private realAqi: number | null = null;
 
   private defaultWeather = {
     temp: 72,
@@ -360,6 +452,10 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
     { time: '12 AM', temp: 61, icon: '01n' }
   ];
 
+  get displayCity(): string {
+    return this.config?.city || this.resolvedCityName || 'San Jose';
+  }
+
   get displayWeather(): any {
     return this.currentWeather || this.defaultWeather;
   }
@@ -373,9 +469,13 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get displayAqi(): number {
-    return this.config.aqi !== undefined && this.config.aqi !== null 
-      ? Number(this.config.aqi) 
-      : (this.currentWeather?.aqi || 38);
+    if (this.config?.aqi !== undefined && this.config?.aqi !== null) {
+      return Number(this.config.aqi);
+    }
+    if (this.realAqi !== null) {
+      return this.realAqi;
+    }
+    return this.currentWeather?.aqi || 38;
   }
 
   get aqiLevel(): string {
@@ -399,9 +499,10 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   get displayUv(): number {
-    return this.config.uvIndex !== undefined && this.config.uvIndex !== null 
-      ? Number(this.config.uvIndex) 
-      : (this.currentWeather?.uv || 4);
+    if (this.config?.uvIndex !== undefined && this.config?.uvIndex !== null) {
+      return Number(this.config.uvIndex);
+    }
+    return this.currentWeather?.uv || 4;
   }
 
   get uvLevel(): string {
@@ -416,83 +517,330 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    if (this.config.showHourly) {
+    this.lastCity = this.config?.city;
+    this.lastUnits = this.config?.units;
+    this.lastApiKey = this.config?.apiKey;
+    this.lastShowHourly = this.config?.showHourly;
+
+    if (this.config?.showHourly) {
       this.forecastMode = 'hourly';
     }
-    if (this.config.alert) {
+    if (this.config?.alert) {
       this.activeAlert = this.config.alert;
     }
     this.fetchWeatherData();
+
+    // Re-poll every 15 minutes (900,000 ms)
     this.pollSub = interval(900000).subscribe(() => this.fetchWeatherData());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['config']) {
-      if (this.config.showHourly) {
+      if (this.config?.showHourly) {
         this.forecastMode = 'hourly';
       }
-      if (this.config.alert) {
+      if (this.config?.alert) {
         this.activeAlert = this.config.alert;
       }
       this.fetchWeatherData();
     }
   }
 
+  ngDoCheck(): void {
+    const currentCity = this.config?.city?.trim();
+    const currentUnits = this.config?.units;
+    const currentApiKey = this.config?.apiKey?.trim();
+    const currentShowHourly = this.config?.showHourly;
+
+    if (
+      currentCity !== this.lastCity || 
+      currentUnits !== this.lastUnits || 
+      currentApiKey !== this.lastApiKey ||
+      currentShowHourly !== this.lastShowHourly
+    ) {
+      this.lastCity = currentCity;
+      this.lastUnits = currentUnits;
+      this.lastApiKey = currentApiKey;
+      this.lastShowHourly = currentShowHourly;
+
+      if (currentShowHourly) {
+        this.forecastMode = 'hourly';
+      }
+
+      // Debounce lookups to smoothly handle user typing in the admin editor
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = setTimeout(() => {
+        this.fetchWeatherData();
+      }, 400);
+    }
+  }
+
   fetchWeatherData(): void {
-    if (!this.config.apiKey || !this.config.city) return;
-    const units = this.config.units || 'imperial';
-    const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(this.config.city)}&units=${units}&appid=${this.config.apiKey}`;
+    const city = (this.config?.city || 'San Jose').trim();
+    if (!city) return;
 
-    this.http.get<any>(url).subscribe({
-      next: (data) => {
-        if (!data || !data.list || data.list.length === 0) return;
-        const current = data.list[0];
-        
-        // Compute realistic AQI & UV for city condition
-        const computedAqi = Math.max(15, Math.min(180, Math.round(35 + (current.main.humidity % 40) - 10)));
-        const hour = new Date().getHours();
-        const computedUv = (hour >= 10 && hour <= 16) ? Math.max(1, Math.min(11, Math.round((16 - Math.abs(13 - hour)) / 1.8))) : 0;
+    // If an explicit OpenWeatherMap API key is provided, try it first
+    if (this.config?.apiKey && this.config.apiKey.trim()) {
+      const units = this.config.units || 'imperial';
+      const owmUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=${units}&appid=${this.config.apiKey.trim()}`;
+      
+      this.loading = true;
+      this.errorMessage = null;
 
-        this.currentWeather = {
-          temp: current.main.temp,
-          desc: current.weather[0].description,
-          icon: current.weather[0].icon,
-          humidity: current.main.humidity,
-          wind: current.wind.speed,
-          aqi: computedAqi,
-          uv: computedUv
-        };
-
-        // Parse Daily (5 days)
-        const dailyMap = new Map<string, any>();
-        for (const item of data.list) {
-          const dateStr = item.dt_txt.split(' ')[0];
-          if (!dailyMap.has(dateStr) && dailyMap.size < 5) {
-            dailyMap.set(dateStr, {
-              date: item.dt_txt,
-              temp: item.main.temp,
-              icon: item.weather[0].icon,
-              desc: item.weather[0].description
-            });
+      this.http.get<any>(owmUrl).pipe(
+        catchError(() => of(null))
+      ).subscribe({
+        next: (data) => {
+          if (data && data.list && data.list.length > 0) {
+            this.loading = false;
+            this.parseOpenWeatherMapData(data);
+          } else {
+            // OWM failed (invalid key or 401/404) -> smoothly fall back to Open-Meteo zero-config
+            this.geocodeAndFetch(city);
           }
+        },
+        error: () => {
+          this.geocodeAndFetch(city);
         }
-        this.forecast = Array.from(dailyMap.values());
+      });
+      return;
+    }
 
-        // Parse Hourly (next 5 points, 3h intervals)
+    // Default zero-config path: Open-Meteo (No API key needed!)
+    this.geocodeAndFetch(city);
+  }
+
+  private geocodeAndFetch(city: string): void {
+    const trimmed = city.trim();
+    if (!trimmed) return;
+
+    this.loading = true;
+    this.errorMessage = null;
+
+    // Check if coordinates already known
+    if (this.lastGeocodedCity === trimmed && this.cachedCoords) {
+      this.fetchForecastFromCoords(this.cachedCoords.lat, this.cachedCoords.lon);
+      return;
+    }
+
+    // Parse potential city and state/country parts (e.g. "Austin, TX" -> "Austin" + "TX")
+    let queryCity = trimmed;
+    let regionHint: string | null = null;
+    if (trimmed.includes(',')) {
+      const parts = trimmed.split(',');
+      queryCity = parts[0].trim();
+      regionHint = parts[1].trim();
+    }
+
+    const geocodeUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=10&language=en&format=json`;
+
+    this.http.get<any>(geocodeUrl).pipe(
+      catchError((err) => {
+        console.warn('[WeatherWidget] Geocode error:', err);
+        return of(null);
+      })
+    ).subscribe(geoRes => {
+      if (geoRes && geoRes.results && geoRes.results.length > 0) {
+        const bestItem = this.findBestGeocodeResult(geoRes.results, regionHint);
+        this.applyGeoResult(trimmed, bestItem);
+      } else if (trimmed !== queryCity) {
+        // Fallback: try raw query string directly
+        const rawUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trimmed)}&count=5&language=en&format=json`;
+        this.http.get<any>(rawUrl).pipe(
+          catchError(() => of(null))
+        ).subscribe(fallbackRes => {
+          if (fallbackRes && fallbackRes.results && fallbackRes.results.length > 0) {
+            this.applyGeoResult(trimmed, fallbackRes.results[0]);
+          } else {
+            this.handleGeocodeNotFound(trimmed);
+          }
+        });
+      } else {
+        this.handleGeocodeNotFound(trimmed);
+      }
+    });
+  }
+
+  private findBestGeocodeResult(results: any[], regionHint: string | null): any {
+    if (!regionHint || results.length === 1) {
+      return results[0];
+    }
+
+    const hintLower = regionHint.toLowerCase();
+    const resolvedState = US_STATES[regionHint.toUpperCase()]?.toLowerCase();
+
+    // 1. Exact match on admin1 (e.g. "Texas" or "California")
+    const matchAdmin = results.find(item => {
+      const admin = (item.admin1 || '').toLowerCase();
+      return admin === hintLower || (resolvedState && admin === resolvedState);
+    });
+    if (matchAdmin) return matchAdmin;
+
+    // 2. Match country or country_code (e.g. "US", "UK", "GB")
+    const matchCountry = results.find(item => {
+      const cCode = (item.country_code || '').toLowerCase();
+      const country = (item.country || '').toLowerCase();
+      return cCode === hintLower || country === hintLower;
+    });
+    if (matchCountry) return matchCountry;
+
+    return results[0];
+  }
+
+  private applyGeoResult(query: string, item: any): void {
+    this.lastGeocodedCity = query;
+    this.cachedCoords = { lat: item.latitude, lon: item.longitude };
+    this.resolvedCityName = item.name;
+    this.resolvedLocationText = item.admin1 ? `${item.name}, ${item.admin1}` : (item.country ? `${item.name}, ${item.country}` : item.name);
+
+    if (this.config) {
+      this.config.latitude = item.latitude;
+      this.config.longitude = item.longitude;
+    }
+
+    this.fetchForecastFromCoords(item.latitude, item.longitude);
+  }
+
+  private handleGeocodeNotFound(query: string): void {
+    this.loading = false;
+    this.errorMessage = `"${query}" not found`;
+  }
+
+  private fetchForecastFromCoords(lat: number, lon: number): void {
+    const isMetric = this.config?.units === 'metric';
+    const tempUnit = isMetric ? 'celsius' : 'fahrenheit';
+    const windUnit = isMetric ? 'ms' : 'mph';
+
+    const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max&forecast_hours=12&temperature_unit=${tempUnit}&wind_speed_unit=${windUnit}&timeformat=iso8601&timezone=auto`;
+
+    this.http.get<any>(forecastUrl).pipe(
+      catchError(() => of(null))
+    ).subscribe(data => {
+      this.loading = false;
+      if (!data || !data.current) return;
+
+      const cur = data.current;
+      const isDay = cur.is_day !== 0;
+      const cond = this.getConditionInfo(cur.weather_code, isDay);
+      const uvVal = (data.daily?.uv_index_max && data.daily.uv_index_max.length > 0)
+        ? Math.round(data.daily.uv_index_max[0])
+        : (this.config?.uvIndex !== undefined && this.config?.uvIndex !== null ? Number(this.config.uvIndex) : 4);
+
+      this.currentWeather = {
+        temp: Math.round(cur.temperature_2m),
+        feelsLike: Math.round(cur.apparent_temperature),
+        desc: cond.desc,
+        icon: cond.icon,
+        humidity: Math.round(cur.relative_humidity_2m),
+        wind: Math.round(cur.wind_speed_10m),
+        uv: uvVal
+      };
+
+      // 5-Day Daily Forecast
+      if (data.daily && data.daily.time) {
+        const dailyItems: ForecastItem[] = [];
+        const count = Math.min(data.daily.time.length, 5);
+        for (let i = 0; i < count; i++) {
+          const code = data.daily.weather_code ? data.daily.weather_code[i] : 0;
+          const c = this.getConditionInfo(code, true);
+          dailyItems.push({
+            date: data.daily.time[i],
+            temp: Math.round(data.daily.temperature_2m_max[i]),
+            icon: c.icon,
+            desc: c.desc
+          });
+        }
+        this.forecast = dailyItems;
+      }
+
+      // 12-Hour Hourly Forecast
+      if (data.hourly && data.hourly.time) {
         const hourlyItems: HourlyItem[] = [];
-        for (const item of data.list.slice(0, 5)) {
-          const dt = new Date(item.dt_txt);
-          const timeStr = dt.toLocaleTimeString([], { hour: 'numeric', hour12: true });
+        const times = data.hourly.time;
+        const temps = data.hourly.temperature_2m;
+        const codes = data.hourly.weather_code;
+        const step = Math.max(1, Math.floor(times.length / 5));
+        for (let i = 0; i < times.length && hourlyItems.length < 5; i += step) {
+          const dt = new Date(times[i]);
+          const hr = dt.getHours();
+          const isDayHour = hr >= 6 && hr < 20;
+          const c = this.getConditionInfo(codes[i], isDayHour);
           hourlyItems.push({
-            time: timeStr,
-            temp: item.main.temp,
-            icon: item.weather[0].icon
+            time: dt.toLocaleTimeString([], { hour: 'numeric', hour12: true }),
+            temp: Math.round(temps[i]),
+            icon: c.icon
           });
         }
         this.hourly = hourlyItems;
-      },
-      error: () => {}
+      }
+
+      // Fetch Air Quality Index for this location
+      this.fetchAirQuality(lat, lon);
     });
+  }
+
+  private fetchAirQuality(lat: number, lon: number): void {
+    const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`;
+    this.http.get<any>(aqiUrl).pipe(
+      catchError(() => of(null))
+    ).subscribe(aqiRes => {
+      if (aqiRes?.current?.us_aqi !== undefined && aqiRes.current.us_aqi !== null) {
+        this.realAqi = Math.round(aqiRes.current.us_aqi);
+      }
+    });
+  }
+
+  private parseOpenWeatherMapData(data: any): void {
+    const current = data.list[0];
+    const computedAqi = Math.max(15, Math.min(180, Math.round(35 + (current.main.humidity % 40) - 10)));
+    const hour = new Date().getHours();
+    const computedUv = (hour >= 10 && hour <= 16) ? Math.max(1, Math.min(11, Math.round((16 - Math.abs(13 - hour)) / 1.8))) : 0;
+
+    this.currentWeather = {
+      temp: Math.round(current.main.temp),
+      desc: current.weather[0].description,
+      icon: current.weather[0].icon,
+      humidity: current.main.humidity,
+      wind: Math.round(current.wind.speed),
+      aqi: computedAqi,
+      uv: computedUv
+    };
+
+    // Parse Daily (5 days)
+    const dailyMap = new Map<string, any>();
+    for (const item of data.list) {
+      const dateStr = item.dt_txt.split(' ')[0];
+      if (!dailyMap.has(dateStr) && dailyMap.size < 5) {
+        dailyMap.set(dateStr, {
+          date: item.dt_txt,
+          temp: Math.round(item.main.temp),
+          icon: item.weather[0].icon,
+          desc: item.weather[0].description
+        });
+      }
+    }
+    this.forecast = Array.from(dailyMap.values());
+
+    // Parse Hourly (next 5 points, 3h intervals)
+    const hourlyItems: HourlyItem[] = [];
+    for (const item of data.list.slice(0, 5)) {
+      const dt = new Date(item.dt_txt);
+      const timeStr = dt.toLocaleTimeString([], { hour: 'numeric', hour12: true });
+      hourlyItems.push({
+        time: timeStr,
+        temp: Math.round(item.main.temp),
+        icon: item.weather[0].icon
+      });
+    }
+    this.hourly = hourlyItems;
+  }
+
+  getConditionInfo(code: number, isDay: boolean = true): { desc: string; icon: string } {
+    const info = WMO_MAP[code] || { desc: 'Partly Cloudy', iconDay: '02d', iconNight: '02n' };
+    return {
+      desc: info.desc,
+      icon: isDay ? info.iconDay : info.iconNight
+    };
   }
 
   getIconUrl(iconCode: string): string {
@@ -501,5 +849,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnDestroy(): void {
     this.pollSub?.unsubscribe();
+    clearTimeout(this.debounceTimer);
   }
 }
+

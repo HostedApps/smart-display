@@ -141,7 +141,7 @@ interface RainViewerFrame {
       transition: opacity 0.3s ease;
     }
     .base-layer {
-      filter: brightness(0.85) contrast(1.1);
+      filter: invert(1) hue-rotate(180deg) brightness(0.7) contrast(1.2) saturate(0.3);
     }
     .radar-layer {
       mix-blend-mode: screen;
@@ -246,7 +246,7 @@ export class RadarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     const zoom = this.config.zoom || 7;
 
     const tile = this.latLonToTile(lat, lon, zoom);
-    this.baseTileUrl = `https://a.basemaps.cartocdn.com/dark_all/${zoom}/${tile.x}/${tile.y}@2x.png`;
+    this.baseTileUrl = `https://tile.openstreetmap.org/${zoom}/${tile.x}/${tile.y}.png`;
   }
 
   private fetchRadarMetadata(): void {
