@@ -35,7 +35,10 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
           <button (click)="openInstallationGuide()" class="btn-guide-header" title="Open Client Hardware Installation Guide (Printable PDF)">
             📄 Installation PDF
           </button>
-          <div class="user-chip">
+          <button (click)="openPasswordModal()" class="btn-password-header" title="Change Admin Account Password">
+            🔑 Password
+          </button>
+          <div class="user-chip" (click)="openPasswordModal()" style="cursor: pointer;" title="Account: Click to change password">
             <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
             <span class="user-email">{{ currentUser?.email }}</span>
           </div>
@@ -345,6 +348,65 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
         </div>
       </div>
 
+      <!-- MODAL 4: CHANGE ADMIN PASSWORD -->
+      <div *ngIf="showPasswordModal" class="modal-backdrop" (click)="closePasswordModal()">
+        <div class="modal-card" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>🔐 Change Account Password</h3>
+            <button (click)="closePasswordModal()" class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-desc">Update your admin account password for <code>{{ currentUser?.email }}</code>.</p>
+
+            <div *ngIf="passwordSuccess" class="pw-alert pw-alert-success">
+              ✅ {{ passwordSuccess }}
+            </div>
+            <div *ngIf="passwordError" class="pw-alert pw-alert-error">
+              ⚠️ {{ passwordError }}
+            </div>
+
+            <div class="form-group">
+              <label>Current Password</label>
+              <input 
+                type="password" 
+                [(ngModel)]="currentPassword" 
+                placeholder="••••••••" 
+                class="input-control" 
+                autocomplete="current-password"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>New Password</label>
+              <input 
+                type="password" 
+                [(ngModel)]="newPassword" 
+                placeholder="At least 6 characters" 
+                class="input-control" 
+                autocomplete="new-password"
+              />
+            </div>
+
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input 
+                type="password" 
+                [(ngModel)]="confirmPassword" 
+                placeholder="Re-enter new password" 
+                class="input-control" 
+                autocomplete="new-password"
+              />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button (click)="closePasswordModal()" class="btn btn-secondary">Cancel</button>
+            <button (click)="submitPasswordChange()" [disabled]="changingPassword" class="btn btn-primary">
+              {{ changingPassword ? 'Updating...' : '🔑 Update Password' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Help & Documentation Modal -->
       <app-help-docs-modal *ngIf="showHelpModal" (closed)="showHelpModal = false"></app-help-docs-modal>
     </div>
@@ -487,6 +549,42 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
     .btn-guide-header:hover {
       background: rgba(255, 255, 255, 0.12);
       color: #ffffff;
+    }
+    .btn-password-header {
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      color: #c084fc;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-password-header:hover {
+      background: #a855f7;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+    }
+    .pw-alert {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      text-align: center;
+    }
+    .pw-alert-success {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+    }
+    .pw-alert-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
     }
     .btn-signout {
       background: rgba(239, 68, 68, 0.12);
@@ -1290,6 +1388,73 @@ export class DisplayListComponent implements OnInit {
 
   openSuperAdmin(): void {
     this.router.navigate(['/admin/superadmin']);
+  }
+
+  // Password Change Modal
+  showPasswordModal: boolean = false;
+  currentPassword: string = '';
+  newPassword: string = '';
+  confirmPassword: string = '';
+  changingPassword: boolean = false;
+  passwordSuccess: string = '';
+  passwordError: string = '';
+
+  openPasswordModal(): void {
+    this.currentPassword = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.passwordSuccess = '';
+    this.passwordError = '';
+    this.showPasswordModal = true;
+  }
+
+  closePasswordModal(): void {
+    this.showPasswordModal = false;
+  }
+
+  submitPasswordChange(): void {
+    this.passwordSuccess = '';
+    this.passwordError = '';
+
+    if (!this.currentPassword || !this.newPassword || !this.confirmPassword) {
+      this.passwordError = 'All password fields are required';
+      return;
+    }
+    if (this.newPassword.length < 6) {
+      this.passwordError = 'New password must be at least 6 characters';
+      return;
+    }
+    if (this.newPassword !== this.confirmPassword) {
+      this.passwordError = 'New passwords do not match';
+      return;
+    }
+    if (this.currentPassword === this.newPassword) {
+      this.passwordError = 'New password must be different from current password';
+      return;
+    }
+
+    this.changingPassword = true;
+    this.authService.changePassword(this.currentPassword, this.newPassword).subscribe({
+      next: (res) => {
+        this.changingPassword = false;
+        if (res.success) {
+          this.passwordSuccess = res.message || 'Password changed successfully!';
+          this.currentPassword = '';
+          this.newPassword = '';
+          this.confirmPassword = '';
+          setTimeout(() => {
+            this.closePasswordModal();
+            this.showAlert('✅ Password updated successfully!', 'success');
+          }, 1500);
+        } else {
+          this.passwordError = res.error || 'Failed to change password';
+        }
+      },
+      error: (err) => {
+        this.changingPassword = false;
+        this.passwordError = err.error?.error || 'Failed to change password. Please check your current password.';
+      }
+    });
   }
 
   logout(): void {
