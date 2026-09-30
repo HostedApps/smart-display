@@ -1775,6 +1775,58 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
               class="custom-css-area"
             ></textarea>
           </div>
+
+          <hr class="divider" />
+
+          <h4>🔐 Change Password</h4>
+          <p class="tab-desc">Update your account password. You must enter your current password to confirm the change.</p>
+
+          <div *ngIf="passwordChangeSuccess" class="pw-success-alert">
+            ✅ {{ passwordChangeSuccess }}
+          </div>
+          <div *ngIf="passwordChangeError" class="pw-error-alert">
+            ⚠️ {{ passwordChangeError }}
+          </div>
+
+          <div class="form-group">
+            <label>Current Password</label>
+            <input 
+              type="password" 
+              [(ngModel)]="currentPassword" 
+              placeholder="••••••••" 
+              class="input-control" 
+              autocomplete="current-password"
+            />
+          </div>
+          <div class="form-group">
+            <label>New Password</label>
+            <input 
+              type="password" 
+              [(ngModel)]="newPassword" 
+              placeholder="Min 6 characters" 
+              class="input-control" 
+              autocomplete="new-password"
+            />
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input 
+              type="password" 
+              [(ngModel)]="confirmPassword" 
+              placeholder="Re-enter new password" 
+              class="input-control" 
+              autocomplete="new-password"
+            />
+          </div>
+          <button 
+            type="button" 
+            (click)="changePassword()" 
+            [disabled]="passwordChangeLoading" 
+            class="btn btn-secondary full-width"
+            style="margin-top: 6px;"
+          >
+            {{ passwordChangeLoading ? 'Changing...' : '🔑 Update Password' }}
+          </button>
         </div>
 
         <div class="actions">
@@ -3806,6 +3858,26 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
       flex-wrap: wrap;
       margin-top: 6px;
     }
+    .pw-success-alert {
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .pw-error-alert {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+      text-align: center;
+    }
   `]
 })
 export class DashboardEditorComponent implements OnInit, AfterViewInit {
@@ -3913,6 +3985,55 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   // Phase 4: TouchHub Navigation Dock
   touchHubAutoHide: boolean = true;
   touchHubPosition: 'bottom' | 'top' = 'bottom';
+
+  // Password Change
+  currentPassword: string = '';
+  newPassword: string = '';
+  confirmPassword: string = '';
+  passwordChangeLoading: boolean = false;
+  passwordChangeSuccess: string = '';
+  passwordChangeError: string = '';
+
+  changePassword(): void {
+    this.passwordChangeSuccess = '';
+    this.passwordChangeError = '';
+
+    if (!this.currentPassword || !this.newPassword || !this.confirmPassword) {
+      this.passwordChangeError = 'All password fields are required';
+      return;
+    }
+    if (this.newPassword.length < 6) {
+      this.passwordChangeError = 'New password must be at least 6 characters';
+      return;
+    }
+    if (this.newPassword !== this.confirmPassword) {
+      this.passwordChangeError = 'New passwords do not match';
+      return;
+    }
+    if (this.currentPassword === this.newPassword) {
+      this.passwordChangeError = 'New password must be different from current password';
+      return;
+    }
+
+    this.passwordChangeLoading = true;
+    this.authService.changePassword(this.currentPassword, this.newPassword).subscribe({
+      next: (res) => {
+        this.passwordChangeLoading = false;
+        if (res.success) {
+          this.passwordChangeSuccess = res.message || 'Password changed successfully';
+          this.currentPassword = '';
+          this.newPassword = '';
+          this.confirmPassword = '';
+        } else {
+          this.passwordChangeError = res.error || 'Failed to change password';
+        }
+      },
+      error: (err) => {
+        this.passwordChangeLoading = false;
+        this.passwordChangeError = err.error?.error || 'Failed to change password. Please try again.';
+      }
+    });
+  }
 
   onTouchHubConfigChange(): void {
     if (!this.displayConfig.touchhub_config) {

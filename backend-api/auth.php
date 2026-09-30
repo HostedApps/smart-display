@@ -623,6 +623,67 @@ try {
     }
 
     // -------------------------------------------------------------
+    // ACTION: CHANGE PASSWORD (Authenticated)
+    // -------------------------------------------------------------
+    if ($action === 'change_password') {
+        checkRateLimit($pdo, 'change_password', 5, 300);
+
+        $user = getAuthenticatedUser($pdo);
+        if (!$user) {
+            http_response_code(401);
+            echo json_encode(["success" => false, "error" => "Authentication required. Please log in again."]);
+            exit();
+        }
+
+        $currentPassword = $input['currentPassword'] ?? '';
+        $newPassword = $input['newPassword'] ?? '';
+
+        if (empty($currentPassword) || empty($newPassword)) {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "Current password and new password are required"]);
+            exit();
+        }
+
+        if (strlen($newPassword) < 6) {
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "New password must be at least 6 characters"]);
+            exit();
+        }
+
+        // Fetch stored password hash
+        $stmt = $pdo->prepare("SELECT password_hash, oauth_provider FROM users WHERE id = ?");
+        $stmt->execute([$user['id']]);
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            http_response_code(404);
+            echo json_encode(["success" => false, "error" => "User account not found"]);
+            exit();
+        }
+
+        // Verify current password
+        if (!password_verify($currentPassword, $row['password_hash'])) {
+            logUserActivity($pdo, $user['id'], $user['email'], 'PASSWORD_CHANGE_FAILED', ["reason" => "invalid_current_password"]);
+            http_response_code(400);
+            echo json_encode(["success" => false, "error" => "Current password is incorrect"]);
+            exit();
+        }
+
+        // Hash and save new password
+        $newHash = password_hash($newPassword, PASSWORD_BCRYPT);
+        $up = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+        $up->execute([$newHash, $user['id']]);
+
+        logUserActivity($pdo, $user['id'], $user['email'], 'PASSWORD_CHANGED');
+
+        echo json_encode([
+            "success" => true,
+            "message" => "Password changed successfully"
+        ]);
+        exit();
+    }
+
+    // -------------------------------------------------------------
     // ACTION: LOGOUT
     // -------------------------------------------------------------
     if ($action === 'logout') {

@@ -83,6 +83,13 @@ export class AuthService {
       );
   }
 
+  changePassword(currentPassword: string, newPassword: string): Observable<{ success: boolean; message?: string; error?: string }> {
+    return this.http.post<{ success: boolean; message?: string; error?: string }>(
+      `${environment.apiUrl}/auth.php?action=change_password`,
+      { currentPassword, newPassword }
+    );
+  }
+
   logout(): void {
     const token = this.getToken();
     if (token) {
