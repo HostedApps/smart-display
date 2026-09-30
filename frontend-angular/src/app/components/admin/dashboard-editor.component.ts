@@ -38,7 +38,10 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
           <button (click)="openInstallationGuide()" class="btn-guide-mini" title="Open Client Hardware Installation Guide (PDF)">
             📄 PDF Guide
           </button>
-          <div class="user-info">
+          <button (click)="openPasswordModal()" class="btn-password-mini" title="Change Admin Account Password">
+            🔑 Password
+          </button>
+          <div class="user-info" (click)="openPasswordModal()" style="cursor: pointer;" title="Account: Click to change password">
             <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
           </div>
         </div>
@@ -2145,6 +2148,71 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
           </div>
         </div>
       </div>
+
+      <!-- Change Password Modal -->
+      <div class="auto-arrange-overlay" *ngIf="showPasswordModal" (click)="closePasswordModal()">
+        <div class="auto-arrange-modal" (click)="$event.stopPropagation()" style="max-width: 440px; padding: 24px;">
+          <div class="auto-arrange-header" style="margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px;">
+            <div>
+              <h2 style="font-size: 1.15rem; color: #fff; margin: 0;">🔐 Change Account Password</h2>
+              <p style="font-size: 0.8rem; color: #94a3b8; margin: 4px 0 0 0;">Update password for {{ currentUser?.email }}</p>
+            </div>
+            <button class="auto-arrange-close" (click)="closePasswordModal()">✕</button>
+          </div>
+
+          <div *ngIf="passwordChangeSuccess" class="pw-success-alert">
+            ✅ {{ passwordChangeSuccess }}
+          </div>
+          <div *ngIf="passwordChangeError" class="pw-error-alert">
+            ⚠️ {{ passwordChangeError }}
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label>Current Password</label>
+            <input 
+              type="password" 
+              [(ngModel)]="currentPassword" 
+              placeholder="••••••••" 
+              class="input-control" 
+              autocomplete="current-password"
+            />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label>New Password</label>
+            <input 
+              type="password" 
+              [(ngModel)]="newPassword" 
+              placeholder="Min 6 characters" 
+              class="input-control" 
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label>Confirm New Password</label>
+            <input 
+              type="password" 
+              [(ngModel)]="confirmPassword" 
+              placeholder="Re-enter new password" 
+              class="input-control" 
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary" (click)="closePasswordModal()">Cancel</button>
+            <button 
+              type="button" 
+              class="btn btn-primary" 
+              (click)="changePassword()" 
+              [disabled]="passwordChangeLoading"
+            >
+              {{ passwordChangeLoading ? 'Updating...' : '🔑 Update Password' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -2223,6 +2291,22 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
     .btn-guide-mini:hover {
       background: rgba(255, 255, 255, 0.15);
       color: #ffffff;
+    }
+    .btn-password-mini {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #c084fc;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-password-mini:hover {
+      background: #a855f7;
+      color: #ffffff;
+      box-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
     }
     .user-info {
       margin-left: auto;
@@ -3987,12 +4071,26 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   touchHubPosition: 'bottom' | 'top' = 'bottom';
 
   // Password Change
+  showPasswordModal: boolean = false;
   currentPassword: string = '';
   newPassword: string = '';
   confirmPassword: string = '';
   passwordChangeLoading: boolean = false;
   passwordChangeSuccess: string = '';
   passwordChangeError: string = '';
+
+  openPasswordModal(): void {
+    this.currentPassword = '';
+    this.newPassword = '';
+    this.confirmPassword = '';
+    this.passwordChangeSuccess = '';
+    this.passwordChangeError = '';
+    this.showPasswordModal = true;
+  }
+
+  closePasswordModal(): void {
+    this.showPasswordModal = false;
+  }
 
   changePassword(): void {
     this.passwordChangeSuccess = '';
@@ -4024,6 +4122,11 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
           this.currentPassword = '';
           this.newPassword = '';
           this.confirmPassword = '';
+          if (this.showPasswordModal) {
+            setTimeout(() => {
+              this.showPasswordModal = false;
+            }, 1500);
+          }
         } else {
           this.passwordChangeError = res.error || 'Failed to change password';
         }
