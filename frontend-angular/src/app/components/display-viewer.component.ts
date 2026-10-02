@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, HostListener, Type } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { interval, Subscription, switchMap, catchError, of } from 'rxjs';
+import { interval, Subscription, switchMap, catchError, of, filter } from 'rxjs';
 import { DisplayResponse, Widget, DisplayConfig, DisplayPage, EmergencyBroadcast } from '../models/display.model';
 import { environment } from '../../environments/environment';
 import { OfflineCacheService } from '../services/offline-cache.service';
@@ -14,6 +14,8 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
 import { LIVE_DISPLAY } from './widgets/widget-context';
 import { getWidgetDefinition } from './widgets/widget-registry';
 import { themeClasses } from '../utils/theme.util';
+import { CanvasSize, computeStageTransform, getCanvasSize } from '../utils/canvas-size.util';
+import { ClockService } from '../services/clock.service';
 
 @Component({
   selector: 'app-display-viewer',
@@ -98,7 +100,12 @@ import { themeClasses } from '../utils/theme.util';
       <div class="blackout-overlay" *ngIf="isSleeping && !displayConfig?.sleep_schedule?.nightMode"></div>
 
       <!-- Active Screen Widgets Area -->
-      <div class="widgets-container" *ngIf="!isSleeping">
+      <div class="design-stage"
+        *ngIf="!isSleeping"
+        [style.width.px]="designSize.width"
+        [style.height.px]="designSize.height"
+        [style.transform]="stageTransformCss">
+      <div class="widgets-container" [class.sd-orbit]="displayConfig?.burn_in_shift !== false">
         <div 
           *ngFor="let widget of activeWidgets; trackBy: trackWidgetById" 
           class="widget-wrapper sd-widget-box"
@@ -111,12 +118,15 @@ import { themeClasses } from '../utils/theme.util';
           [style.opacity]="widget.style?.opacity !== undefined ? widget.style?.opacity : 1"
           [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
           [style.fontFamily]="getWidgetFont(widget)"
-          [class.sd-has-bg]="!!widget.style?.backgroundColor"
-          [class.sd-no-blur]="widget.style?.backdropBlur === false"
-          [style.--sd-widget-bg]="widget.style?.backgroundColor || null"
         >
-          <ng-container *ngComponentOutlet="widgetComponent(widget.type); inputs: { config: widget.config }"></ng-container>
+          <div class="sd-widget-host"
+            [class.sd-has-bg]="!!widget.style?.backgroundColor"
+            [class.sd-no-blur]="widget.style?.backdropBlur === false"
+            [style.--sd-widget-bg]="widget.style?.backgroundColor || null">
+            <ng-container *ngComponentOutlet="widgetComponent(widget.type); inputs: { config: widget.config }"></ng-container>
+          </div>
         </div>
+      </div>
       </div>
 
       <!-- Fullscreen Emergency Broadcast Takeover Overlay -->
@@ -233,16 +243,23 @@ import { themeClasses } from '../utils/theme.util';
       pointer-events: none;
       z-index: 0;
     }
+    /* The design canvas, scaled to the physical screen (see computeStageTransform) */
+    .design-stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      transform-origin: 0 0;
+    }
     .widgets-container {
       position: absolute;
       inset: 0;
-      z-index: 1;
     }
     .widget-wrapper {
       position: absolute;
       box-sizing: border-box;
       padding: 6px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: opacity 0.3s ease, box-shadow 0.3s ease;
     }
     .offline-pill {
       position: absolute;
@@ -607,7 +624,47 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   displayConfig?: DisplayConfig;
 
   get canvasThemeClasses(): string[] {
-    return [...themeClasses(this.displayConfig?.theme), this.displayConfig?.orientation || 'landscape_720p'];
+    return [
+      ...themeClasses(this.displayConfig?.theme),
+      this.displayConfig?.orientation || 'landscape_720p',
+      `sd-transition-${this.displayConfig?.page_transition || 'fade'}`,
+      this.performanceMode ? 'sd-perf' : ''
+    ];
+  }
+
+  /** Design canvas the layout was built on in the editor */
+  get designSize(): CanvasSize {
+    return getCanvasSize(this.displayConfig?.orientation, {
+      width: this.displayConfig?.canvas_width,
+      height: this.displayConfig?.canvas_height
+    });
+  }
+
+  /** Low-power rendering: explicit setting, or auto-detected Raspberry Pi / ARM Linux / low-memory device */
+  get performanceMode(): boolean {
+    const mode = this.displayConfig?.performance_mode || 'auto';
+    if (mode === 'on') return true;
+    if (mode === 'off') return false;
+    return this.isLowPowerDevice;
+  }
+
+  private readonly isLowPowerDevice: boolean = (() => {
+    if (typeof navigator === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const armLinux = /Linux (armv7l|armv8l|aarch64)|Raspbian|CrOS armv/i.test(ua) && !/Android/i.test(ua);
+    const memory = (navigator as any).deviceMemory as number | undefined;
+    return armLinux || (memory !== undefined && memory <= 2);
+  })();
+
+  stageTransformCss = '';
+  private screenSize: CanvasSize = { width: 0, height: 0 };
+
+  @HostListener('window:resize')
+  updateStageTransform(): void {
+    if (typeof window === 'undefined') return;
+    this.screenSize = { width: window.innerWidth, height: window.innerHeight };
+    const t = computeStageTransform(this.designSize, this.screenSize, this.displayConfig?.scale_mode || 'fit', this.displayConfig?.safe_area || 0);
+    this.stageTransformCss = `translate(${t.offsetX}px, ${t.offsetY}px) scale(${t.scaleX}, ${t.scaleY})`;
   }
 
   widgetComponent(type: string): Type<unknown> | null {
@@ -639,6 +696,9 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   private pollSub?: Subscription;
   private carouselTimerSub?: Subscription;
   private clockTimerSub?: Subscription;
+  /** Last layout version seen on the emergency poll; null until the server supports it */
+  private lastConfigVersion: string | null = null;
+  private slowPollCount = 0;
   private emergencyPollSub?: Subscription;
   private token: string = '';
 
@@ -654,7 +714,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private wakeLock: WakeLockService,
     private emergencyService: EmergencyService,
-    private audioChime: AudioChimeService
+    private audioChime: AudioChimeService,
+    private clock: ClockService
   ) {}
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
@@ -713,7 +774,23 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     }
   }
 
+  private activeWidgetsCache: { key: string; widgets: Widget[]; pages: DisplayPage[]; result: Widget[] } | null = null;
+
+  /** Widgets on the current page whose schedule is active. Cached per page and minute, so it is not
+   *  recomputed on every change-detection pass and ngFor sees a stable array. */
   get activeWidgets(): Widget[] {
+    const t = this.currentTime;
+    const key = `${this.activePageIndex}|${t.getDay()}|${t.getHours()}|${t.getMinutes()}`;
+    const c = this.activeWidgetsCache;
+    if (c && c.key === key && c.widgets === this.widgets && c.pages === this.pages) {
+      return c.result;
+    }
+    const result = this.computeActiveWidgets();
+    this.activeWidgetsCache = { key, widgets: this.widgets, pages: this.pages, result };
+    return result;
+  }
+
+  private computeActiveWidgets(): Widget[] {
     let list = this.widgets;
     if (this.pages.length > 1) {
       const curPage = this.pages[this.activePageIndex];
@@ -822,6 +899,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       // Periodic resync every 60s with error catch to keep subscription alive
       this.pollSub = interval(60000)
         .pipe(
+          filter(() => !this.lastConfigVersion || ++this.slowPollCount % 5 === 0),
           switchMap(() => this.fetchDisplayData().pipe(
             catchError(() => {
               this.isOnline = false;
@@ -845,7 +923,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     }
 
     // 1-second clock for time, sleep check & audio chimes
-    this.clockTimerSub = interval(1000).subscribe(() => {
+    this.clockTimerSub = this.clock.tick$.subscribe(() => {
       this.currentTime = new Date();
       this.checkSleepSchedule();
       this.checkAudioChimes();
@@ -856,6 +934,13 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     if (!this.token) return;
     this.emergencyService.checkActiveBroadcast(this.token).subscribe({
       next: (res) => {
+        // Instant publish: reload the layout as soon as the server's version stamp changes
+        if (res.config_version) {
+          if (this.lastConfigVersion && res.config_version !== this.lastConfigVersion) {
+            this.loadConfiguration();
+          }
+          this.lastConfigVersion = res.config_version;
+        }
         if (res.active && res.broadcast) {
           const isNew = !this.activeEmergency || this.activeEmergency.id !== res.broadcast.id;
           this.activeEmergency = res.broadcast;
@@ -1016,6 +1101,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
 
       this.startCarousel();
       this.checkSleepSchedule();
+      this.updateStageTransform();
     }
   }
 

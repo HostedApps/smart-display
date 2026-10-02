@@ -55,6 +55,27 @@ try {
             unset($backgroundArr['accent_color']);
         }
     }
+    // Screen & performance settings (validated; stored in background_json)
+    foreach (['canvas_width', 'canvas_height'] as $dimKey) {
+        if (isset($input[$dimKey])) {
+            $backgroundArr[$dimKey] = max(200, min(7680, (int)$input[$dimKey]));
+        }
+    }
+    if (isset($input['scale_mode'])) {
+        $backgroundArr['scale_mode'] = in_array($input['scale_mode'], ['fit', 'fill', 'stretch', 'none'], true) ? $input['scale_mode'] : 'fit';
+    }
+    if (isset($input['safe_area'])) {
+        $backgroundArr['safe_area'] = round(max(0, min(0.1, (float)$input['safe_area'])), 3);
+    }
+    if (isset($input['page_transition'])) {
+        $backgroundArr['page_transition'] = in_array($input['page_transition'], ['none', 'fade', 'slide', 'zoom'], true) ? $input['page_transition'] : 'fade';
+    }
+    if (isset($input['performance_mode'])) {
+        $backgroundArr['performance_mode'] = in_array($input['performance_mode'], ['auto', 'on', 'off'], true) ? $input['performance_mode'] : 'auto';
+    }
+    if (isset($input['burn_in_shift'])) {
+        $backgroundArr['burn_in_shift'] = (bool)$input['burn_in_shift'];
+    }
     if (isset($input['weather_alerts_enabled'])) {
         $backgroundArr['weather_alerts_enabled'] = (bool)$input['weather_alerts_enabled'];
     }

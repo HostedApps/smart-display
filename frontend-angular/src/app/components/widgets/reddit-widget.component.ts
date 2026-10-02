@@ -2,6 +2,9 @@ import { Component, Input, OnInit, OnChanges, OnDestroy, SimpleChanges } from '@
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
 import { RedditConfig, RedditPost } from '../../models/display.model';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 @Component({
   selector: 'app-reddit-widget',
@@ -244,7 +247,7 @@ export class RedditWidgetComponent implements OnInit, OnChanges, OnDestroy {
   isLoading = false;
   private intervalTimer: any = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(private dataCache: DataCacheService, private http: HttpClient) {}
 
   get currentPost(): RedditPost | null {
     if (!this.posts.length) return null;
@@ -271,7 +274,7 @@ export class RedditWidgetComponent implements OnInit, OnChanges, OnDestroy {
     const sort = this.config.sort || 'hot';
     const url = `${environment.apiUrl}/proxy.php?action=fetch_reddit_feed&subreddit=${encodeURIComponent(sub)}&sort=${sort}&limit=30`;
 
-    this.http.get<any>(url).subscribe({
+    this.dataCache.get<any>(url, 5 * MINUTE).subscribe({
       next: (res) => {
         this.isLoading = false;
         if (res && res.success && Array.isArray(res.posts) && res.posts.length > 0) {

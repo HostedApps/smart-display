@@ -4,6 +4,9 @@ import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 @Component({
   selector: 'app-photo-widget',
@@ -198,7 +201,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   readonly isLive: boolean;
 
-  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+  constructor(private dataCache: DataCacheService, private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
     this.isLive = !!live;
   }
 
@@ -379,7 +382,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     }
     const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_icloud_photos&album_url=${encodeURIComponent(url)}`;
     
-    this.http.get<any>(proxyUrl)
+    this.dataCache.get<any>(proxyUrl, 10 * MINUTE)
       .pipe(catchError(() => of(null)))
       .subscribe(res => {
         this.loadingAlbum = false;
@@ -412,7 +415,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     }
     const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_google_photos&album_url=${encodeURIComponent(url)}`;
     
-    this.http.get<any>(proxyUrl)
+    this.dataCache.get<any>(proxyUrl, 10 * MINUTE)
       .pipe(catchError(() => of(null)))
       .subscribe(res => {
         this.loadingAlbum = false;

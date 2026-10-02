@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { interval, Subscription } from 'rxjs';
+import { Subscription } from 'rxjs';
+import { ClockService } from '../../services/clock.service';
 
 @Component({
   selector: 'app-countdown-widget',
@@ -130,6 +131,8 @@ import { interval, Subscription } from 'rxjs';
   `]
 })
 export class CountdownWidgetComponent implements OnInit, OnDestroy {
+  constructor(private clock: ClockService) {}
+
   @Input() config: any = {
     targetDate: '2026-12-25',
     title: 'Christmas Vacation',
@@ -147,7 +150,7 @@ export class CountdownWidgetComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.updateCountdown();
-    this.timerSub = interval(1000).subscribe(() => this.updateCountdown());
+    this.timerSub = this.clock.tick$.subscribe(() => this.updateCountdown());
   }
 
   private updateCountdown(): void {

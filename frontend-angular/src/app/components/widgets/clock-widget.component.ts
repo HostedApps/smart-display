@@ -1,4 +1,6 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { ClockService } from '../../services/clock.service';
 
 @Component({
   selector: 'app-clock-widget',
@@ -112,9 +114,11 @@ import { Component, Input, OnInit, OnDestroy } from '@angular/core';
   `]
 })
 export class ClockWidgetComponent implements OnInit, OnDestroy {
+  constructor(private clock: ClockService) {}
+
   @Input() config: any = { showDate: true, format: 'hh:mm:ss a' };
   currentTime: Date = new Date();
-  private timerId: any;
+  private timerId?: Subscription;
 
   get is24Hour(): boolean {
     return this.config.format ? this.config.format.includes('HH') : false;
@@ -125,12 +129,12 @@ export class ClockWidgetComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.timerId = setInterval(() => {
+    this.timerId = this.clock.tick$.subscribe(() => {
       this.currentTime = new Date();
-    }, 1000);
+    });
   }
 
   ngOnDestroy(): void {
-    if (this.timerId) clearInterval(this.timerId);
+    this.timerId?.unsubscribe();
   }
 }

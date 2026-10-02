@@ -1,4 +1,6 @@
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { ClockService } from '../../services/clock.service';
 
 export interface AnalogClockConfig {
   showSeconds?: boolean;
@@ -194,6 +196,8 @@ interface ClockNumber {
   `]
 })
 export class AnalogClockWidgetComponent implements OnInit, OnDestroy, OnChanges {
+  constructor(private clock: ClockService) {}
+
   @Input() config: any = {
     showSeconds: true,
     showNumbers: true,
@@ -220,7 +224,7 @@ export class AnalogClockWidgetComponent implements OnInit, OnDestroy, OnChanges 
     { val: 12, x: 100, y: 32 }
   ];
 
-  private intervalId: any;
+  private intervalId?: Subscription;
 
   get safeConfig(): AnalogClockConfig {
     return {
@@ -233,9 +237,9 @@ export class AnalogClockWidgetComponent implements OnInit, OnDestroy, OnChanges 
   ngOnInit(): void {
     this.initTicks();
     this.updateClock();
-    this.intervalId = setInterval(() => {
+    this.intervalId = this.clock.tick$.subscribe(() => {
       this.updateClock();
-    }, 1000);
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -245,9 +249,7 @@ export class AnalogClockWidgetComponent implements OnInit, OnDestroy, OnChanges 
   }
 
   ngOnDestroy(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
+    this.intervalId?.unsubscribe();
   }
 
   private initTicks(): void {

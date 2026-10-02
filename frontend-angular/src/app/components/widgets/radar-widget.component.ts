@@ -3,6 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { RadarConfig } from '../../models/display.model';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 interface RainViewerFrame {
   time: number;
@@ -219,7 +222,7 @@ export class RadarWidgetComponent implements OnInit, OnDestroy, OnChanges {
   private animSub?: Subscription;
   private pollSub?: Subscription;
 
-  constructor(private http: HttpClient) {}
+  constructor(private dataCache: DataCacheService, private http: HttpClient) {}
 
   ngOnInit(): void {
     this.updateMapTiles();
@@ -244,7 +247,7 @@ export class RadarWidgetComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   private fetchRadarMetadata(): void {
-    this.http.get<any>('https://api.rainviewer.com/public/weather-maps.json')
+    this.dataCache.get<any>('https://api.rainviewer.com/public/weather-maps.json', 2 * MINUTE)
       .pipe(catchError(() => of(null)))
       .subscribe(res => {
         if (res && res.host && res.radar && res.radar.past) {

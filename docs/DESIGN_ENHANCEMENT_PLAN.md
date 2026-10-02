@@ -58,7 +58,9 @@ Smart Display already ships more widgets (35) than DAKboard's block catalog and 
 | Phase 0 — Hygiene & quick wins | ✅ Done |
 | 3.1 Widget registry (single widget list) | ✅ Done — `components/widgets/widget-registry.ts`; palette, defaults, labels, help and both renderers read from it. Inspector forms are still per-widget (schema-driven forms remain in 3.1/3.2). |
 | Phase 1 — Design system | ✅ Done — `src/theme-tokens.css` (tokens, container-relative type scale, `.sd-card` frame), six theme presets + accent colour, all 35 widgets on tokens (803 → 203 hardcoded colour lines; the rest are brand marks, data scales and media overlays), Lucide SVG icons in editor/fleet chrome. |
-| Phase 2 onward | Not started |
+| Save fix | ✅ Done — widget schedules, rules, links, lock/hide and names now persist; widget ids stay stable across saves. |
+| Phase 2 — Display runtime | ✅ Done — Fit/Fill/Stretch/Actual-size scaling with TV safe area (`utils/canvas-size.util.ts`), instant publish via a version stamp on the 5 s poll (needs `database/migrations/migration_display_updated_at.sql`), performance mode (auto on Raspberry Pi), shared second-aligned `ClockService`, cached active-widget list, shared `DataCacheService` (dedupe + stale-if-error), page transitions, burn-in orbit. Not done: OnPush on every widget (too risky without tests), SSE push (polling stamp chosen for shared-hosting compatibility). |
+| Phase 3 onward | Not started |
 
 ## 2. Design principles
 

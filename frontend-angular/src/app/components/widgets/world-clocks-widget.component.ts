@@ -1,4 +1,6 @@
 import { Component, Input, OnInit, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { ClockService } from '../../services/clock.service';
 
 interface ClockEntry {
   label: string;
@@ -160,6 +162,8 @@ interface ClockEntry {
   `]
 })
 export class WorldClocksWidgetComponent implements OnInit, OnChanges, OnDestroy {
+  constructor(private clock: ClockService) {}
+
   @Input() config: any = {
     clocks: [
       { label: 'New York', timezone: 'America/New_York' },
@@ -169,13 +173,13 @@ export class WorldClocksWidgetComponent implements OnInit, OnChanges, OnDestroy 
   };
 
   clockItems: ClockEntry[] = [];
-  private timerId: any;
+  private timerId?: Subscription;
 
   ngOnInit(): void {
     this.updateClocks();
-    this.timerId = setInterval(() => {
+    this.timerId = this.clock.tick$.subscribe(() => {
       this.updateClocks();
-    }, 1000);
+    });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -183,9 +187,7 @@ export class WorldClocksWidgetComponent implements OnInit, OnChanges, OnDestroy 
   }
 
   ngOnDestroy(): void {
-    if (this.timerId) {
-      clearInterval(this.timerId);
-    }
+    this.timerId?.unsubscribe();
   }
 
   private updateClocks(): void {

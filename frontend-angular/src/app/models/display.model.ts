@@ -529,6 +529,18 @@ export interface DisplayConfig {
   font_family?: string;
   /** Theme accent colour override (hex); empty uses the preset's accent */
   accent_color?: string;
+  /** Custom design-canvas size, used when orientation is 'freeform' */
+  canvas_width?: number;
+  canvas_height?: number;
+  /** How the design canvas is scaled onto the physical screen */
+  scale_mode?: 'fit' | 'fill' | 'stretch' | 'none';
+  /** Overscan inset as a fraction of each screen edge (0 – 0.1) */
+  safe_area?: number;
+  page_transition?: 'none' | 'fade' | 'slide' | 'zoom';
+  /** 'auto' turns on for low-power devices such as Raspberry Pi */
+  performance_mode?: 'auto' | 'on' | 'off';
+  /** Slowly shifts the whole layout a few pixels to prevent OLED/plasma burn-in */
+  burn_in_shift?: boolean;
   weather_alerts_enabled?: boolean;
   weather_alert?: { title?: string; message: string; severity?: string } | string;
   custom_css?: string;

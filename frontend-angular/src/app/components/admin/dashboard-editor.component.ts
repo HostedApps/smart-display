@@ -15,6 +15,7 @@ import {
   User
 } from '../../models/display.model';
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, WidgetDefinition, getWidgetDefinition } from '../widgets/widget-registry';
+import { getCanvasSize } from '../../utils/canvas-size.util';
 import { THEME_PRESETS, ThemePreset, ThemePresetInfo, resolveTheme, themeClasses } from '../../utils/theme.util';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
@@ -1532,6 +1533,47 @@ import { NotificationService } from '../../services/notification.service';
 
           <hr class="divider" />
 
+          <h4 class="section-heading"><app-icon name="monitor" [size]="15"></app-icon> Screen & Performance</h4>
+          <div class="form-group">
+            <label for="scale-mode">Fit Layout to Screen</label>
+            <select id="scale-mode" [(ngModel)]="displayConfig.scale_mode" class="input-control">
+              <option [ngValue]="undefined">Fit — show everything, letterbox if needed (recommended)</option>
+              <option value="fill">Fill — cover the screen, edges may crop</option>
+              <option value="stretch">Stretch — cover exactly, may distort</option>
+              <option value="none">Actual size — 1:1 pixels from top-left</option>
+            </select>
+            <p class="field-hint">Your {{ canvasWidth }}×{{ canvasHeight }} layout is scaled to whatever screen the display runs on.</p>
+          </div>
+          <div class="form-group">
+            <label for="safe-area">TV Overscan Safe Area ({{ ((displayConfig.safe_area || 0) * 100) | number:'1.0-1' }}%)</label>
+            <input id="safe-area" type="range" min="0" max="0.08" step="0.005" [(ngModel)]="displayConfig.safe_area" class="slider-control" />
+            <p class="field-hint">Increase if your TV cuts off the edges of the picture.</p>
+          </div>
+          <div class="form-group">
+            <label for="page-transition">Page Transition</label>
+            <select id="page-transition" [(ngModel)]="displayConfig.page_transition" class="input-control">
+              <option [ngValue]="undefined">Fade (default)</option>
+              <option value="slide">Slide up</option>
+              <option value="zoom">Zoom</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="perf-mode">Performance Mode</label>
+            <select id="perf-mode" [(ngModel)]="displayConfig.performance_mode" class="input-control">
+              <option [ngValue]="undefined">Auto — on for Raspberry Pi and low-power devices</option>
+              <option value="on">Always on — no blur or widget animations</option>
+              <option value="off">Off — full effects</option>
+            </select>
+          </div>
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" [ngModel]="displayConfig.burn_in_shift !== false" (ngModelChange)="displayConfig.burn_in_shift = $event" /> Burn-in protection (shift layout a few pixels every few minutes)
+            </label>
+          </div>
+
+          <hr class="divider" />
+
           <h4 class="section-heading"><app-icon name="triangle-alert" [size]="15"></app-icon> Severe Weather Auto-Alerts</h4>
           <div class="form-group checkbox-group">
             <label>
@@ -2295,6 +2337,12 @@ import { NotificationService } from '../../services/notification.service';
       font-size: 0.72rem;
       font-weight: 600;
       text-align: center;
+    }
+    .field-hint {
+      margin-top: 4px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      line-height: 1.4;
     }
     .theme-description {
       margin-top: 6px;
@@ -4201,6 +4249,10 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
               if (w.style?.fontFamily) loadGoogleFont(w.style.fontFamily);
             });
 
+            if (res.display.orientation === 'freeform') {
+              this.canvasWidth = res.display.canvas_width || 1024;
+              this.canvasHeight = res.display.canvas_height || 1024;
+            }
             this.updateOrientation();
           }
         });
@@ -4224,68 +4276,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   }
 
   updateOrientation(): void {
-    const orient = this.displayConfig.orientation || 'landscape_720p';
-    switch (orient) {
-      case 'landscape_1440p':
-        this.canvasWidth = 2560;
-        this.canvasHeight = 1440;
-        break;
-      case 'landscape_4k':
-        this.canvasWidth = 3840;
-        this.canvasHeight = 2160;
-        break;
-      case 'landscape_1080p':
-        this.canvasWidth = 1920;
-        this.canvasHeight = 1080;
-        break;
-      case 'portrait_1440p':
-        this.canvasWidth = 1440;
-        this.canvasHeight = 2560;
-        break;
-      case 'portrait_4k':
-        this.canvasWidth = 2160;
-        this.canvasHeight = 3840;
-        break;
-      case 'portrait_1080p':
-        this.canvasWidth = 1080;
-        this.canvasHeight = 1920;
-        break;
-      case 'portrait_720p':
-        this.canvasWidth = 720;
-        this.canvasHeight = 1280;
-        break;
-      case 'landscape_16_10':
-        this.canvasWidth = 1920;
-        this.canvasHeight = 1200;
-        break;
-      case 'portrait_16_10':
-        this.canvasWidth = 1200;
-        this.canvasHeight = 1920;
-        break;
-      case 'landscape_4_3':
-        this.canvasWidth = 1600;
-        this.canvasHeight = 1200;
-        break;
-      case 'portrait_4_3':
-        this.canvasWidth = 1200;
-        this.canvasHeight = 1600;
-        break;
-      case 'ultrawide':
-        this.canvasWidth = 3440;
-        this.canvasHeight = 1440;
-        break;
-      case 'freeform':
-        // For freeform, keep the current values, allow user to resize via input.
-        // E.g., defaulting to 1024x1024 if currently undefined.
-        this.canvasWidth = this.canvasWidth || 1024;
-        this.canvasHeight = this.canvasHeight || 1024;
-        break;
-      case 'landscape_720p':
-      default:
-        this.canvasWidth = 1280;
-        this.canvasHeight = 720;
-        break;
-    }
+    const size = getCanvasSize(this.displayConfig.orientation, { width: this.canvasWidth, height: this.canvasHeight });
+    this.canvasWidth = size.width;
+    this.canvasHeight = size.height;
 
     if (this.autoFit) {
       this.calculateAutoFit();
@@ -4943,6 +4936,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       show_logo_kiosk: this.showLogoKiosk,
       font_family: this.displayConfig.font_family,
       accent_color: this.displayConfig.accent_color || '',
+      canvas_width: this.canvasWidth,
+      canvas_height: this.canvasHeight,
+      scale_mode: this.displayConfig.scale_mode || 'fit',
+      safe_area: this.displayConfig.safe_area || 0,
+      page_transition: this.displayConfig.page_transition || 'fade',
+      performance_mode: this.displayConfig.performance_mode || 'auto',
+      burn_in_shift: this.displayConfig.burn_in_shift !== false,
       weather_alerts_enabled: this.weatherAlertsEnabled,
       weather_alert: this.weatherAlertText ? this.weatherAlertText : null,
       custom_css: this.customCss,
