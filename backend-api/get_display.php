@@ -78,14 +78,18 @@ try {
     $rawWidgets = $stmt->fetchAll();
 
     $widgets = array_map(function($w) {
-        return [
+        $style = !empty($w['style_json']) ? json_decode($w['style_json'], true) : ['opacity' => 1, 'borderRadius' => 12, 'backdropBlur' => true];
+        // Editor fields (schedule, rules, links, lock/hide, nickname) are stored under style._meta
+        $meta = (is_array($style) && isset($style['_meta']) && is_array($style['_meta'])) ? $style['_meta'] : [];
+        unset($style['_meta']);
+        return array_merge([
             'id' => (int)$w['id'],
             'page_id' => $w['page_id'] ?? 'default',
             'type' => $w['type'],
             'position' => !empty($w['position_json']) ? json_decode($w['position_json'], true) : ['x' => 0, 'y' => 0, 'width' => 320, 'height' => 200],
-            'style' => !empty($w['style_json']) ? json_decode($w['style_json'], true) : ['opacity' => 1, 'borderRadius' => 12, 'backdropBlur' => true],
-            'config' => !empty($w['config_json']) ? json_decode($w['config_json'], true) : []
-        ];
+            'style' => !empty($style) ? $style : new stdClass(),
+            'config' => (!empty($w['config_json']) && ($cfg = json_decode($w['config_json'], true))) ? $cfg : new stdClass()
+        ], array_intersect_key($meta, array_flip(['schedule', 'rules', 'linkedWidgetId', 'locked', 'hidden', 'customName'])));
     }, $rawWidgets);
 
     echo json_encode([
