@@ -1,12 +1,14 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Inject, Input, OnInit, OnDestroy, Optional } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { SlackConfig, SlackMessage } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-slack-widget',
   template: `
     <div class="slack-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="slack-header">
         <div class="header-left">
           <svg class="slack-logo" viewBox="0 0 24 24" fill="currentColor">
@@ -14,7 +16,7 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
           </svg>
           <span class="channel-tag">#{{ config.channelName || 'general' }}</span>
         </div>
-        <span class="live-pill">
+        <span class="live-pill" *ngIf="!(isLive && showingSample)">
           <span class="pulse-dot"></span> Live
         </span>
       </div>
@@ -35,6 +37,7 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
   `,
   styles: [`
     .slack-card {
+      position: relative;
       height: 100%;
       box-sizing: border-box;
       background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
@@ -177,6 +180,11 @@ export class SlackWidgetComponent implements OnInit, OnDestroy {
     }
   ];
 
+  /** True when showing the built-in example messages instead of configured ones. */
+  get showingSample(): boolean {
+    return !(Array.isArray(this.config.messages) && this.config.messages.length > 0);
+  }
+
   get displayMessages(): SlackMessage[] {
     if (this.config.messages && Array.isArray(this.config.messages) && this.config.messages.length > 0) {
       return this.config.messages.slice(0, this.config.maxItems || 5);
@@ -184,7 +192,11 @@ export class SlackWidgetComponent implements OnInit, OnDestroy {
     return this.defaultMessages.slice(0, this.config.maxItems || 5);
   }
 
-  constructor(private http: HttpClient) {}
+  readonly isLive: boolean;
+
+  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     // If webhook configured, poll periodically

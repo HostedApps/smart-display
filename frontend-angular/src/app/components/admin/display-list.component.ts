@@ -4,6 +4,7 @@ import { DisplayFleetService } from '../../services/display-fleet.service';
 import { EmergencyService } from '../../services/emergency.service';
 import { AuthService } from '../../services/auth.service';
 import { DisplaySummary, Device, User } from '../../models/display.model';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-display-list',
@@ -29,7 +30,7 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
           <button *ngIf="currentUser?.role === 'superadmin'" (click)="openSuperAdmin()" class="btn-superadmin-header" title="Open Super Admin Fleet Hub & Security Monitor">
             👑 Super Admin Hub
           </button>
-          <button (click)="showHelpModal = true" class="btn-help-header" title="Open Interactive Documentation & 19-Widget Catalog">
+          <button (click)="showHelpModal = true" class="btn-help-header" title="Open Interactive Documentation & Widget Catalog">
             📖 Help & Docs
           </button>
           <button (click)="openInstallationGuide()" class="btn-guide-header" title="Open Client Hardware Installation Guide (Printable PDF)">
@@ -1045,7 +1046,8 @@ export class DisplayListComponent implements OnInit {
     private fleetService: DisplayFleetService,
     private emergencyService: EmergencyService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private notifications: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -1121,8 +1123,12 @@ export class DisplayListComponent implements OnInit {
     });
   }
 
-  deleteDisplay(d: DisplaySummary): void {
-    if (!confirm(`Are you sure you want to delete "${d.name}"? This action cannot be undone.`)) {
+  async deleteDisplay(d: DisplaySummary): Promise<void> {
+    const confirmed = await this.notifications.confirm(
+      `"${d.name}" and its layout will be permanently deleted. This action cannot be undone.`,
+      { title: 'Delete display?', confirmLabel: 'Delete', danger: true }
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -1212,8 +1218,12 @@ export class DisplayListComponent implements OnInit {
     });
   }
 
-  revokeDevice(dev: Device): void {
-    if (!confirm(`Revoke access for "${dev.device_name}"? It will disconnect from the screen.`)) {
+  async revokeDevice(dev: Device): Promise<void> {
+    const confirmed = await this.notifications.confirm(
+      `"${dev.device_name}" will be disconnected from its screen and must be paired again.`,
+      { title: 'Revoke device access?', confirmLabel: 'Revoke', danger: true }
+    );
+    if (!confirmed) {
       return;
     }
 

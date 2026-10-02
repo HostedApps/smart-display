@@ -12,7 +12,8 @@ import {
   DisplayOrientation,
   SleepScheduleConfig,
   DisplayBackground,
-  User
+  User,
+  WIDGET_TYPES
 } from '../../models/display.model';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
@@ -20,6 +21,7 @@ import { AudioChimeService } from '../../services/audio-chime.service';
 import { AVAILABLE_FONTS, loadGoogleFont, getFontFamilyString, FontOption } from '../../utils/font-loader.util';
 import { DASHBOARD_TEMPLATES, DashboardTemplate } from '../../utils/dashboard-templates.util';
 import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.component';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-dashboard-editor',
@@ -111,7 +113,7 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
 
           <div class="palette-header">
             <h3>Add Widget</h3>
-            <span class="palette-badge">29 Widgets</span>
+            <span class="palette-badge">{{ widgetTypeCount }} Widgets</span>
           </div>
           <div class="widget-palette">
             <button (click)="addWidget('youtube')" class="palette-item" title="Embed ambient YouTube videos or live news/music streams with auto-play and loop">
@@ -295,6 +297,21 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
             <div class="form-group">
               <label>Corner Radius ({{ selectedWidget.style?.borderRadius || 12 }}px)</label>
               <input type="range" min="0" max="28" step="2" [ngModel]="selectedWidget.style?.borderRadius || 12" (ngModelChange)="setWidgetRadius($event)" class="slider-control" />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Card Background</label>
+                <div class="color-reset-row">
+                  <input type="color" [ngModel]="selectedWidget.style?.backgroundColor || '#1e293b'" (ngModelChange)="setWidgetBackground($event)" class="input-control color-input" aria-label="Card background colour" />
+                  <button type="button" class="btn-reset-color" (click)="setWidgetBackground('')" [disabled]="!selectedWidget.style?.backgroundColor" title="Use the theme's default card background">Reset</button>
+                </div>
+              </div>
+              <div class="form-group checkbox-group" style="margin-top: 24px;">
+                <label>
+                  <input type="checkbox" [ngModel]="selectedWidget.style?.backdropBlur !== false" (ngModelChange)="setWidgetBlur($event)" /> Frosted Glass Blur
+                </label>
+              </div>
             </div>
 
             <div class="form-group">
@@ -1222,37 +1239,19 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
                 <input type="text" [(ngModel)]="selectedWidget.config.channelName" placeholder="announcements" class="input-control" />
               </div>
               <div class="form-group">
-                <label>Workspace / Team Name</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.workspaceName" placeholder="Acme Workspace" class="input-control" />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Max Messages Shown</label>
-                  <input type="number" min="1" max="15" [(ngModel)]="selectedWidget.config.maxMessages" class="input-control" />
-                </div>
-                <div class="form-group checkbox-group" style="margin-top: 24px;">
-                  <label>
-                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showAvatars" /> Show User Avatars
-                  </label>
-                </div>
+                <label>Max Messages Shown</label>
+                <input type="number" min="1" max="15" [(ngModel)]="selectedWidget.config.maxItems" class="input-control" />
               </div>
             </ng-container>
 
             <ng-container *ngIf="selectedWidget.type === 'gmail'">
               <div class="form-group">
                 <label>Google / Gmail Account</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.emailAddress" placeholder="user@gmail.com" class="input-control" />
+                <input type="text" [(ngModel)]="selectedWidget.config.accountEmail" placeholder="user@gmail.com" class="input-control" />
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Unread Badge Count</label>
-                  <input type="number" min="0" [(ngModel)]="selectedWidget.config.unreadCount" class="input-control" />
-                </div>
-                <div class="form-group checkbox-group" style="margin-top: 24px;">
-                  <label>
-                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showSnippet" /> Show Subject & Snippet Previews
-                  </label>
-                </div>
+              <div class="form-group">
+                <label>Unread Badge Count</label>
+                <input type="number" min="0" [(ngModel)]="selectedWidget.config.unreadCount" class="input-control" />
               </div>
             </ng-container>
 
@@ -1564,7 +1563,7 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
             <select [(ngModel)]="displayConfig.orientation" (ngModelChange)="updateOrientation()" class="input-control">
               <option value="landscape_720p">Landscape 720p (1280 × 720) - Standard HD</option>
               <option value="landscape_1080p">Landscape 1080p (1920 × 1080) - Full HD</option>
-              <option value="landscape_1440p">Landscape 1440p (2560 × 1440) - 2K QHD (Your Monitor)</option>
+              <option value="landscape_1440p">Landscape 1440p (2560 × 1440) - 2K QHD</option>
               <option value="landscape_4k">Landscape 4K (3840 × 2160) - 4K Ultra HD</option>
               <option value="portrait_720p">Portrait 720p (720 × 1280) - Vertical HD</option>
               <option value="portrait_1080p">Portrait 1080p (1080 × 1920) - Vertical Full HD</option>
@@ -1632,6 +1631,10 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
               <label>
                 <input type="checkbox" [(ngModel)]="sleepSchedule.nightMode" /> Ambient Night Clock (Red Minimal Mode)
               </label>
+            </div>
+            <div class="form-group" *ngIf="sleepSchedule.nightMode">
+              <label>Night Clock Brightness ({{ ((sleepSchedule.dimLevel || 0.75) * 100) | number:'1.0-0' }}%)</label>
+              <input type="range" min="0.1" max="1" step="0.05" [(ngModel)]="sleepSchedule.dimLevel" class="slider-control" />
             </div>
           </div>
 
@@ -1915,7 +1918,10 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
                 <span class="widget-size">{{ widget.position.width }}×{{ widget.position.height }}</span>
               </div>
 
-              <div class="widget-preview-content">
+              <div class="widget-preview-content"
+                [class.sd-has-bg]="!!widget.style?.backgroundColor"
+                [class.sd-no-blur]="widget.style?.backdropBlur === false"
+                [style.--sd-widget-bg]="widget.style?.backgroundColor || null">
                 <app-clock-widget *ngIf="widget.type === 'clock'" [config]="widget.config"></app-clock-widget>
                 <app-weather-widget *ngIf="widget.type === 'weather'" [config]="widget.config"></app-weather-widget>
                 <app-calendar-widget *ngIf="widget.type === 'calendar'" [config]="widget.config"></app-calendar-widget>
@@ -2371,6 +2377,30 @@ import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.c
     }
     .form-row .form-group {
       flex: 1;
+    }
+    .color-reset-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .color-input {
+      height: 38px;
+      padding: 2px;
+      flex: 1;
+      min-width: 0;
+    }
+    .btn-reset-color {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .btn-reset-color:disabled {
+      opacity: 0.4;
+      cursor: default;
     }
     .input-control {
       background: rgba(0, 0, 0, 0.35);
@@ -3812,6 +3842,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   token: string = '';
   saving: boolean = false;
   activeTab: 'layout' | 'layers' | 'pages' | 'settings' = 'layout';
+  readonly widgetTypeCount = WIDGET_TYPES.length;
   weekDays: string[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   displayConfig: DisplayConfig = {
@@ -3830,7 +3861,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     sleepTime: '23:00',
     wakeTime: '06:30',
     nightMode: true,
-    dimLevel: 0.5
+    dimLevel: 0.75
   };
 
   backgroundConfig: DisplayBackground = {
@@ -3982,9 +4013,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     this.showTemplatesModal = true;
   }
 
-  applyTemplateToCurrentPage(tmpl: DashboardTemplate): void {
+  async applyTemplateToCurrentPage(tmpl: DashboardTemplate): Promise<void> {
     if (this.pageWidgets.length > 0) {
-      if (!confirm(`Apply "${tmpl.name}"? This will replace the ${this.pageWidgets.length} widgets on the current page.`)) {
+      const confirmed = await this.notifications.confirm(
+        `This will replace the ${this.pageWidgets.length} widgets on the current page. You can undo afterwards.`,
+        { title: `Apply "${tmpl.name}"?`, confirmLabel: 'Apply template' }
+      );
+      if (!confirmed) {
         return;
       }
     }
@@ -4043,7 +4078,8 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     private http: HttpClient,
     private authService: AuthService,
     private sanitizer: DomSanitizer,
-    private chimeService: AudioChimeService
+    private chimeService: AudioChimeService,
+    private notifications: NotificationService
   ) {}
 
   goToFleet(): void {
@@ -4441,20 +4477,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         initialSize = { width: 460, height: 200 };
         break;
       case 'chores':
+        // No members/chores seeded: the widget shows its built-in example (badged as sample on live displays)
         initialConfig = {
-          title: 'Family Chores',
-          members: [
-            { id: '1', name: 'Lucas', avatar: '🦁', points: 140, streak: 5 },
-            { id: '2', name: 'Emma', avatar: '🦄', points: 180, streak: 7 },
-            { id: '3', name: 'Mom', avatar: '👑', points: 90, streak: 12 },
-            { id: '4', name: 'Dad', avatar: '⚡', points: 110, streak: 4 }
-          ],
-          chores: [
-            { id: 'c1', memberId: '1', title: 'Make Bedroom Bed', points: 10, completed: true },
-            { id: 'c2', memberId: '1', title: 'Feed the Dog 🐕', points: 15, completed: false },
-            { id: 'c3', memberId: '2', title: 'Violin Practice 🎻', points: 25, completed: false },
-            { id: 'c4', memberId: '3', title: 'Morning 5k Run 🏃‍♀️', points: 30, completed: true }
-          ]
+          title: 'Family Chores'
         };
         initialSize = { width: 380, height: 320 };
         break;
@@ -4469,12 +4494,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         initialSize = { width: 380, height: 240 };
         break;
       case 'commute':
+        // No destinations seeded: the widget shows its built-in example (badged as sample on live displays)
         initialConfig = {
-          title: 'Morning Commute',
-          destinations: [
-            { id: '1', name: 'Downtown Office', icon: '🏢', durationMinutes: 24, trafficStatus: 'fast', viaRoute: 'via I-280 N', delayMinutes: 0 },
-            { id: '2', name: 'San Jose Airport (SJC)', icon: '✈️', durationMinutes: 18, trafficStatus: 'moderate', viaRoute: 'via US-101 S', delayMinutes: 4 }
-          ]
+          title: 'Morning Commute'
         };
         initialSize = { width: 360, height: 240 };
         break;
@@ -4572,8 +4594,8 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         initialSize = { width: 280, height: 180 };
         break;
       case 'gauge':
+        // No value seeded: set one in the inspector or push it via the webhook API
         initialConfig = {
-          value: 68,
           min: 0,
           max: 100,
           unit: '%',
@@ -4608,27 +4630,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       case 'slack':
         initialConfig = {
           channelName: 'announcements',
-          workspaceName: 'Acme Team',
-          showAvatars: true,
-          maxMessages: 5,
-          mockMessages: [
-            { id: '1', user: 'Sarah Connor', handle: 'sarah', text: 'All systems operational for deployment today 🚀', time: '10:24 AM', avatarColor: '#10b981' },
-            { id: '2', user: 'Alex Chen', handle: 'achen', text: 'Reminder: Kitchen fridge cleanout at 4 PM!', time: '11:15 AM', avatarColor: '#3b82f6' },
-            { id: '3', user: 'Taylor Swift', handle: 'taylor', text: 'New release candidate v3.0 is live on staging.', time: '12:02 PM', avatarColor: '#ec4899' }
-          ]
+          maxItems: 5
         };
         initialSize = { width: 380, height: 300 };
         break;
       case 'gmail':
         initialConfig = {
-          emailAddress: 'family@smart-display.online',
-          unreadCount: 3,
-          showSnippet: true,
-          previews: [
-            { from: 'School Principal', subject: 'Spring Break Schedule & Parent Night', snippet: 'Please note school will be closed on Friday...', time: '8:45 AM', isUnread: true },
-            { from: 'Amazon Deliveries', subject: 'Your package will arrive today by 7 PM', snippet: 'Track your order #112-984219...', time: '10:12 AM', isUnread: true },
-            { from: 'City Utility Services', subject: 'Monthly Statement Ready for Review', snippet: 'Your e-statement for the billing cycle is now ready...', time: '1:30 PM', isUnread: false }
-          ]
+          accountEmail: 'family@smart-display.online'
         };
         initialSize = { width: 360, height: 280 };
         break;
@@ -4723,6 +4731,19 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     if (!this.selectedWidget) return;
     if (!this.selectedWidget.style) this.selectedWidget.style = {};
     this.selectedWidget.style.opacity = Number(val);
+  }
+
+  setWidgetBackground(color: string): void {
+    if (!this.selectedWidget) return;
+    if (!this.selectedWidget.style) this.selectedWidget.style = {};
+    this.selectedWidget.style.backgroundColor = color || undefined;
+  }
+
+  setWidgetBlur(enabled: boolean): void {
+    if (!this.selectedWidget) return;
+    if (!this.selectedWidget.style) this.selectedWidget.style = {};
+    this.selectedWidget.style.backdropBlur = enabled;
+    this.pushHistory();
   }
 
   setWidgetRadius(val: number): void {
@@ -5272,11 +5293,11 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       .subscribe({
         next: () => {
           this.saving = false;
-          alert('Display layout and settings saved successfully!');
+          this.notifications.success('Layout and settings published to the display.');
         },
         error: (err) => {
           this.saving = false;
-          alert('Failed to save layout: ' + (err.error?.error || err.message));
+          this.notifications.error('Failed to save layout: ' + (err.error?.error || err.message));
         }
       });
   }
@@ -5659,9 +5680,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         }
         this.activePageId = this.pages[0]?.id || 'default';
         this.selectedWidget = null;
-        alert('Configuration imported successfully! Click Save & Publish to apply.');
+        this.notifications.info('Configuration imported. Click Save & Publish to apply it.');
       } catch (err) {
-        alert('Invalid JSON file.');
+        this.notifications.error('That file is not a valid Smart Display JSON export.');
       }
     };
     reader.readAsText(file);

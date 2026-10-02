@@ -420,10 +420,50 @@ export interface TouchHubConfig {
   items?: TouchHubItem[];
 }
 
+export const WIDGET_TYPES = [
+  'clock',
+  'weather',
+  'calendar',
+  'photo',
+  'rss',
+  'todo',
+  'homeassistant',
+  'spotify',
+  'stock_crypto',
+  'sticky_note',
+  'countdown',
+  'meal_planner',
+  'radar',
+  'quote',
+  'ai_briefing',
+  'chores',
+  'camera_pip',
+  'commute',
+  'youtube',
+  'text',
+  'qrcode',
+  'world_clocks',
+  'shapes',
+  'scheduled_text',
+  'button',
+  'sun_moon',
+  'analog_clock',
+  'rest_fetch',
+  'gauge',
+  'google_maps',
+  'whiteboard',
+  'slack',
+  'gmail',
+  'tradingview',
+  'reddit',
+] as const;
+
+export type WidgetType = typeof WIDGET_TYPES[number];
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge' | 'google_maps' | 'whiteboard' | 'slack' | 'gmail' | 'tradingview' | 'reddit';
+  type: WidgetType;
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;

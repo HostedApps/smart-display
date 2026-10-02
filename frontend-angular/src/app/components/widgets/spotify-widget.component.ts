@@ -1,10 +1,12 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Inject, Input, OnInit, OnDestroy, Optional } from '@angular/core';
 import { interval, Subscription } from 'rxjs';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-spotify-widget',
   template: `
     <div class="spotify-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="spotify-top">
         <div class="brand">
           <svg class="spotify-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -13,7 +15,7 @@ import { interval, Subscription } from 'rxjs';
           <span class="now-playing-label">{{ isPlaying ? 'Now Playing' : 'Paused' }}</span>
         </div>
 
-        <div class="top-meta">
+        <div class="top-meta" *ngIf="!(isLive && showingSample)">
           <span class="device-pill" *ngIf="deviceName">
             <span class="device-icon">🔊</span> {{ deviceName }}
           </span>
@@ -391,6 +393,22 @@ export class SpotifyWidgetComponent implements OnInit, OnDestroy {
   get albumArt(): string { return this.config.albumArtUrl || this.playlist[this.currentTrackIndex].albumArtUrl; }
   get isPlaying(): boolean { return this.config.isPlaying !== false; }
   get deviceName(): string { return this.config.deviceName || 'Smart Kiosk Audio'; }
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /**
+   * True when the track shown comes from the built-in demo playlist: track/artist not configured,
+   * or matching a playlist entry (the editor seeds new widgets with one, and skipping writes them).
+   */
+  get showingSample(): boolean {
+    const { track, artist } = this.config || {};
+    if (!track || !artist) return true;
+    return this.playlist.some(p => p.track === track && p.artist === artist);
+  }
 
   get progressPercent(): number {
     if (this.totalDurationMs <= 0) return 0;

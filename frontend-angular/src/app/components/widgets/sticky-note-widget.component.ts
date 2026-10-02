@@ -1,10 +1,12 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Inject, Input, OnInit, Optional } from '@angular/core';
 import { StickyNote } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-sticky-note-widget',
   template: `
     <div class="sticky-board">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="board-header">
         <div class="title-wrap">
           <span class="pin-icon">📌</span>
@@ -36,6 +38,7 @@ import { StickyNote } from '../../models/display.model';
   `,
   styles: [`
     .sticky-board {
+      position: relative;
       height: 100%;
       box-sizing: border-box;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
@@ -144,6 +147,17 @@ export class StickyNoteWidgetComponent implements OnInit {
     { id: '1', text: 'Don\'t forget soccer practice at 5:00 PM today! ⚽', author: 'Mom', color: '#fef08a', date: 'Today' },
     { id: '2', text: 'I picked up sourdough bread and apples 🥖🍏', author: 'Dad', color: '#bbf7d0', date: 'Yesterday' }
   ];
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when the built-in example notes are shown instead of configured ones. */
+  get showingSample(): boolean {
+    return !(Array.isArray(this.config.notes) && this.config.notes.length > 0);
+  }
 
   get notesList(): StickyNote[] {
     if (this.config.notes && Array.isArray(this.config.notes) && this.config.notes.length > 0) {

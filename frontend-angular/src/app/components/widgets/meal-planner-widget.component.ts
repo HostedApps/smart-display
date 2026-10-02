@@ -1,16 +1,18 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Inject, Input, OnInit, Optional } from '@angular/core';
 import { MealPlanDay } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-meal-planner-widget',
   template: `
     <div class="meal-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="meal-header">
         <div class="title-wrap">
           <span class="chef-icon">🍽️</span>
           <h3 class="widget-title">{{ config.title || 'Weekly Menu' }}</h3>
         </div>
-        <span class="today-tag">Today: {{ todayName }}</span>
+        <span class="today-tag" *ngIf="!(isLive && showingSample)">Today: {{ todayName }}</span>
       </div>
 
       <div class="days-list">
@@ -42,6 +44,7 @@ import { MealPlanDay } from '../../models/display.model';
   `,
   styles: [`
     .meal-card {
+      position: relative;
       height: 100%;
       box-sizing: border-box;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
@@ -177,6 +180,17 @@ export class MealPlannerWidgetComponent implements OnInit {
     { day: 'Saturday', lunch: 'Leftovers / Cafe', dinner: 'BBQ Burgers 🍔' },
     { day: 'Sunday', lunch: 'Sunday Roast', dinner: 'Light Charcuterie Board' }
   ];
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when the built-in example menu is shown instead of configured days. */
+  get showingSample(): boolean {
+    return !(Array.isArray(this.config.days) && this.config.days.length > 0);
+  }
 
   get weeklyPlan(): MealPlanDay[] {
     if (this.config.days && Array.isArray(this.config.days) && this.config.days.length > 0) {

@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { interval, Subscription, forkJoin, of } from 'rxjs';
@@ -6,6 +6,7 @@ import { catchError } from 'rxjs/operators';
 import { ICalParserService, CalendarEvent } from '../../services/ical-parser.service';
 import { environment } from '../../../environments/environment';
 import { CalendarFeed } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 interface MonthDay {
   date: Date;
@@ -87,6 +88,11 @@ interface MonthDay {
         </div>
       </div>
 
+      <!-- Live display with nothing real to show -->
+      <app-widget-state *ngIf="calState === 'empty'" message="No calendars connected" hint="Add an iCal / Google / Outlook calendar link in the editor."></app-widget-state>
+      <app-widget-state *ngIf="calState === 'error'" kind="error" message="Calendar unavailable" hint="Couldn't load your calendar feeds. Retrying automatically."></app-widget-state>
+
+      <ng-container *ngIf="calState === 'ok'">
       <!-- VIEW MODE 1: AGENDA LIST VIEW -->
       <div class="agenda-view" *ngIf="config.viewMode !== 'month_grid'">
         <div class="events-list" *ngIf="events.length > 0; else noEvents">
@@ -138,6 +144,7 @@ interface MonthDay {
           </div>
         </div>
       </div>
+      </ng-container>
     </div>
   `,
   styles: [`
@@ -501,6 +508,9 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
   currentDate: Date = new Date();
   private pollSub?: Subscription;
   private displayToken: string = '';
+  /** Live displays only: 'empty' (nothing configured) / 'error' (all feeds failed) replace the event views. */
+  calState: 'ok' | 'empty' | 'error' = 'ok';
+  readonly isLive: boolean;
 
   showAddModal: boolean = false;
   newEventTitle: string = '';
@@ -530,6 +540,9 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     if (this.config.icalUrl) {
       return [{ name: 'Calendar', url: this.config.icalUrl, color: '#38bdf8' }];
     }
+    if (this.isLive) {
+      return [];
+    }
     return [
       { name: 'Kids', url: '', color: '#ec4899' },
       { name: 'Work', url: '', color: '#3b82f6' },
@@ -540,8 +553,11 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
   constructor(
     private http: HttpClient, 
     private icalParser: ICalParserService,
-    private route: ActivatedRoute
-  ) {}
+    private route: ActivatedRoute,
+    @Optional() @Inject(LIVE_DISPLAY) live: boolean | null
+  ) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     this.displayToken = this.route.snapshot.paramMap.get('token') || '';
@@ -590,6 +606,7 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     };
 
     this.events.push(newEv);
+    this.calState = 'ok';
     this.events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
     this.buildMonthGrid();
     this.closeAddModal();
@@ -634,7 +651,13 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
     const feeds = this.activeFeeds.filter(f => !!f.url);
     if (feeds.length === 0) {
-      this.events = customEvents.length > 0 ? customEvents : this.defaultEvents;
+      if (this.isLive) {
+        // Never show sample events on a live display
+        this.calState = customEvents.length > 0 ? 'ok' : 'empty';
+        this.events = customEvents;
+      } else {
+        this.events = customEvents.length > 0 ? customEvents : this.defaultEvents;
+      }
       this.events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       this.buildMonthGrid();
       return;
@@ -649,15 +672,23 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
     forkJoin(requests).subscribe(results => {
       let combined: CalendarEvent[] = [...customEvents];
+      let loadedFeeds = 0;
       results.forEach((rawIcal, idx) => {
         if (rawIcal) {
+          loadedFeeds++;
           const parsed = this.icalParser.parse(rawIcal, feeds[idx].name, feeds[idx].color);
           combined = combined.concat(parsed);
         }
       });
 
       combined.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-      this.events = combined.length > 0 ? combined : (customEvents.length > 0 ? customEvents : this.defaultEvents);
+      if (this.isLive) {
+        // Real events only; error state when every feed failed and there is nothing else to show
+        this.events = combined;
+        this.calState = (loadedFeeds === 0 && customEvents.length === 0) ? 'error' : 'ok';
+      } else {
+        this.events = combined.length > 0 ? combined : (customEvents.length > 0 ? customEvents : this.defaultEvents);
+      }
       this.buildMonthGrid();
     });
   }
