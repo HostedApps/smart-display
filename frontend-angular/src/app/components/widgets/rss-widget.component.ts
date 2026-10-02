@@ -8,7 +8,7 @@ import { LIVE_DISPLAY } from './widget-context';
 @Component({
   selector: 'app-rss-widget',
   template: `
-    <div class="rss-card">
+    <div class="rss-card sd-card">
       <div class="rss-header">
         <div class="header-left">
           <svg class="rss-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -47,12 +47,7 @@ import { LIVE_DISPLAY } from './widget-context';
     .rss-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -63,7 +58,7 @@ import { LIVE_DISPLAY } from './widget-context';
       justify-content: space-between;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .header-left {
       display: flex;
@@ -77,14 +72,14 @@ import { LIVE_DISPLAY } from './widget-context';
       filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.5));
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .refresh-indicator {
-      font-size: 0.65rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       font-weight: 600;
     }
     .rss-items {
@@ -96,16 +91,16 @@ import { LIVE_DISPLAY } from './widget-context';
     }
     .news-item {
       padding: 6px 10px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--sd-surface-2);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
       display: flex;
       flex-direction: column;
       gap: 2px;
       transition: background 0.2s;
     }
     .news-item:hover {
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--sd-surface-3);
     }
     .news-top {
       display: flex;
@@ -114,23 +109,23 @@ import { LIVE_DISPLAY } from './widget-context';
       gap: 8px;
     }
     .news-title {
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 600;
-      color: #ffffff;
+      color: var(--sd-text);
       line-height: 1.3;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .news-time {
-      font-size: 0.65rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       white-space: nowrap;
       font-variant-numeric: tabular-nums;
     }
     .news-desc {
-      font-size: 0.75rem;
-      color: #cbd5e1;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       line-height: 1.3;
       margin: 0;
       display: -webkit-box;
@@ -143,8 +138,8 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       justify-content: center;
       flex: 1;
-      color: #94a3b8;
-      font-size: 0.85rem;
+      color: var(--sd-text-muted);
+      font-size: var(--sd-fs-body);
     }
   `]
 })

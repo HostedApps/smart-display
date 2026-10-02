@@ -13,6 +13,7 @@ import { loadGoogleFont, getFontFamilyString } from '../utils/font-loader.util';
 import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.component';
 import { LIVE_DISPLAY } from './widgets/widget-context';
 import { getWidgetDefinition } from './widgets/widget-registry';
+import { themeClasses } from '../utils/theme.util';
 
 @Component({
   selector: 'app-display-viewer',
@@ -20,7 +21,8 @@ import { getWidgetDefinition } from './widgets/widget-registry';
   template: `
     <div 
       class="display-canvas" 
-      [ngClass]="[displayConfig?.theme || 'dark', displayConfig?.orientation || 'landscape_720p']"
+      [ngClass]="canvasThemeClasses"
+      [style.--sd-accent]="displayConfig?.accent_color || null"
       [style.background]="canvasBackgroundStyle"
       [style.fontFamily]="canvasFontFamily"
     >
@@ -99,8 +101,9 @@ import { getWidgetDefinition } from './widgets/widget-registry';
       <div class="widgets-container" *ngIf="!isSleeping">
         <div 
           *ngFor="let widget of activeWidgets; trackBy: trackWidgetById" 
-          class="widget-wrapper"
+          class="widget-wrapper sd-widget-box"
           [ngClass]="getWidgetRuleClasses(widget)"
+          [style.--sd-radius]="widget.style?.borderRadius != null ? widget.style!.borderRadius + 'px' : null"
           [style.left.px]="widget.position.x"
           [style.top.px]="widget.position.y"
           [style.width.px]="widget.position.width"
@@ -211,8 +214,6 @@ import { getWidgetDefinition } from './widgets/widget-registry';
       height: 100vh;
       position: relative;
       overflow: hidden;
-      background-color: #080c14;
-      color: #f8fafc;
       font-family: var(--font-main, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
     }
     .bg-image-layer {
@@ -604,6 +605,10 @@ import { getWidgetDefinition } from './widgets/widget-registry';
 })
 export class DisplayViewerComponent implements OnInit, OnDestroy {
   displayConfig?: DisplayConfig;
+
+  get canvasThemeClasses(): string[] {
+    return [...themeClasses(this.displayConfig?.theme), this.displayConfig?.orientation || 'landscape_720p'];
+  }
 
   widgetComponent(type: string): Type<unknown> | null {
     return getWidgetDefinition(type)?.component ?? null;

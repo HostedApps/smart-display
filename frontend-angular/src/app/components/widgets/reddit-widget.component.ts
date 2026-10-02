@@ -6,7 +6,7 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
 @Component({
   selector: 'app-reddit-widget',
   template: `
-    <div class="reddit-card">
+    <div class="reddit-card sd-card">
       <!-- Background / Active Image -->
       <div
         class="reddit-image-bg"
@@ -56,12 +56,9 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      border-radius: 16px;
       overflow: hidden;
       position: relative;
-      background: #0f172a;
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #000;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -109,14 +106,13 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
       align-items: center;
       gap: 6px;
       background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(8px);
       padding: 4px 10px;
       border-radius: 20px;
       border: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     .sub-name {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       color: #f8fafc;
       letter-spacing: 0.4px;
@@ -128,12 +124,11 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
     }
 
     .chip {
-      font-size: 0.7rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       padding: 3px 8px;
-      border-radius: 12px;
+      border-radius: var(--sd-radius-sm);
       background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(8px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       color: #e2e8f0;
     }
@@ -158,7 +153,6 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
       font-size: 1.4rem;
       cursor: pointer;
       user-select: none;
-      backdrop-filter: blur(6px);
       opacity: 0;
       transition: opacity 0.2s, background 0.2s;
     }
@@ -183,7 +177,7 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
 
     .post-title {
       margin: 0 0 4px 0;
-      font-size: 0.88rem;
+      font-size: var(--sd-fs-body);
       font-weight: 600;
       color: #ffffff;
       line-height: 1.35;
@@ -201,7 +195,7 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
     }
 
     .author-label {
-      font-size: 0.72rem;
+      font-size: var(--sd-fs-sm);
       color: #94a3b8;
     }
 
@@ -217,7 +211,7 @@ import { RedditConfig, RedditPost } from '../../models/display.model';
       justify-content: center;
       gap: 10px;
       color: #94a3b8;
-      font-size: 0.82rem;
+      font-size: var(--sd-fs-body);
       z-index: 4;
       background: rgba(15, 23, 42, 0.85);
     }

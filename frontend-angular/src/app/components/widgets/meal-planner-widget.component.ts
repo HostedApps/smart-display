@@ -5,7 +5,7 @@ import { LIVE_DISPLAY } from './widget-context';
 @Component({
   selector: 'app-meal-planner-widget',
   template: `
-    <div class="meal-card">
+    <div class="meal-card sd-card">
       <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="meal-header">
         <div class="title-wrap">
@@ -47,12 +47,7 @@ import { LIVE_DISPLAY } from './widget-context';
       position: relative;
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -63,7 +58,7 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .title-wrap {
       display: flex;
@@ -74,19 +69,19 @@ import { LIVE_DISPLAY } from './widget-context';
       font-size: 1rem;
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .today-tag {
-      font-size: 0.65rem;
-      color: var(--accent-blue, #0ea5e9);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-accent);
       font-weight: 700;
-      background: rgba(14, 165, 233, 0.15);
-      border: 1px solid rgba(14, 165, 233, 0.3);
+      background: var(--sd-accent-soft);
+      border: 1px solid var(--sd-accent-border);
       padding: 2px 8px;
-      border-radius: 12px;
+      border-radius: var(--sd-radius-sm);
       letter-spacing: 0.3px;
     }
     .days-list {
@@ -101,30 +96,30 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       gap: 8px;
       padding: 5px 8px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--sd-surface-2);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
       transition: all 0.2s;
     }
     .day-row.active-today {
-      background: rgba(14, 165, 233, 0.12);
-      border-color: rgba(14, 165, 233, 0.4);
-      box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
+      background: var(--sd-accent-soft);
+      border-color: var(--sd-accent-border);
+      box-shadow: 0 0 12px var(--sd-accent-soft);
     }
     .day-badge {
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--sd-surface-3);
       border-radius: 6px;
       padding: 2px 6px;
       min-width: 34px;
       text-align: center;
     }
     .day-row.active-today .day-badge {
-      background: #0ea5e9;
-      color: #ffffff;
+      background: var(--sd-accent);
+      color: var(--sd-on-accent);
       font-weight: 700;
     }
     .day-short {
-      font-size: 0.7rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -140,18 +135,18 @@ import { LIVE_DISPLAY } from './widget-context';
       display: flex;
       align-items: baseline;
       gap: 6px;
-      font-size: 0.8rem;
+      font-size: var(--sd-fs-sm);
     }
     .slot-label {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       text-transform: uppercase;
       width: 44px;
       flex-shrink: 0;
     }
     .slot-text {
-      color: #f1f5f9;
+      color: var(--sd-text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;

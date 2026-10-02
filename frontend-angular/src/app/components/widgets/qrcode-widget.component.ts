@@ -3,7 +3,7 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
 @Component({
   selector: 'app-qrcode-widget',
   template: `
-    <div class="qrcode-card">
+    <div class="qrcode-card sd-card">
       <div class="qrcode-content">
         <div class="qr-frame">
           <img 
@@ -23,12 +23,6 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
     .qrcode-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       padding: 16px;
       display: flex;
       align-items: center;
@@ -51,7 +45,7 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
       background: #ffffff;
       padding: 12px;
       border-radius: 14px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      border: var(--sd-border);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -74,12 +68,11 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
     .qr-label {
       margin: 12px 0 0 0;
       font-family: var(--font-main, sans-serif);
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
-      color: #ffffff;
+      color: var(--sd-text);
       letter-spacing: 0.2px;
       line-height: 1.35;
-      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
       max-width: 90%;
       word-break: break-word;
     }

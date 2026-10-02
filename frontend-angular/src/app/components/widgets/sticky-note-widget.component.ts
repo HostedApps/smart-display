@@ -5,7 +5,7 @@ import { LIVE_DISPLAY } from './widget-context';
 @Component({
   selector: 'app-sticky-note-widget',
   template: `
-    <div class="sticky-board">
+    <div class="sticky-board sd-card">
       <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="board-header">
         <div class="title-wrap">
@@ -41,12 +41,7 @@ import { LIVE_DISPLAY } from './widget-context';
       position: relative;
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -66,10 +61,10 @@ import { LIVE_DISPLAY } from './widget-context';
       font-size: 1rem;
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .notes-grid {
       display: grid;
@@ -108,7 +103,7 @@ import { LIVE_DISPLAY } from './widget-context';
       filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
     }
     .note-text {
-      font-size: 1.05rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       line-height: 1.3;
       margin: 2px 0 6px 0;
@@ -120,7 +115,7 @@ import { LIVE_DISPLAY } from './widget-context';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       color: #475569;
       font-weight: 700;
     }
@@ -132,8 +127,8 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       justify-content: center;
       flex: 1;
-      color: #94a3b8;
-      font-size: 0.85rem;
+      color: var(--sd-text-muted);
+      font-size: var(--sd-fs-body);
     }
   `]
 })

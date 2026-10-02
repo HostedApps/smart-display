@@ -9,7 +9,7 @@ interface ClockEntry {
 @Component({
   selector: 'app-world-clocks-widget',
   template: `
-    <div class="world-clocks-card">
+    <div class="world-clocks-card sd-card">
       <div class="clocks-header">
         <div class="header-badge">
           <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -39,18 +39,11 @@ interface ClockEntry {
     .world-clocks-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       padding: 18px 20px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       position: relative;
-      color: #ffffff;
     }
 
     .clocks-header {
@@ -65,8 +58,8 @@ interface ClockEntry {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
       padding: 4px 10px;
       border-radius: 20px;
     }
@@ -74,15 +67,15 @@ interface ClockEntry {
     .header-icon {
       width: 14px;
       height: 14px;
-      color: var(--accent-cyan, #06b6d4);
+      color: var(--sd-accent);
     }
 
     .header-title {
-      font-size: 0.72rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       letter-spacing: 1px;
       text-transform: uppercase;
-      color: #e2e8f0;
+      color: var(--sd-text);
     }
 
     .clocks-list {
@@ -99,14 +92,14 @@ interface ClockEntry {
       align-items: center;
       justify-content: space-between;
       padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
+      border-radius: var(--sd-radius-sm);
       transition: background 0.15s ease;
     }
 
     .clock-row:hover {
-      background: rgba(255, 255, 255, 0.07);
+      background: var(--sd-surface-3);
     }
 
     .clock-left {
@@ -120,16 +113,16 @@ interface ClockEntry {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: var(--accent-cyan, #06b6d4);
-      box-shadow: 0 0 6px var(--accent-cyan, #06b6d4);
+      background: var(--sd-accent);
+      box-shadow: 0 0 6px var(--sd-accent);
       flex-shrink: 0;
     }
 
     .clock-label {
       font-family: var(--font-main, sans-serif);
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 500;
-      color: #f1f5f9;
+      color: var(--sd-text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -137,12 +130,11 @@ interface ClockEntry {
 
     .clock-time {
       font-family: var(--font-display, 'Outfit', monospace);
-      font-size: 1.15rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
-      color: #ffffff;
+      color: var(--sd-text);
       letter-spacing: 0.5px;
       font-variant-numeric: tabular-nums;
-      text-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
       flex-shrink: 0;
       margin-left: 12px;
     }
@@ -152,8 +144,8 @@ interface ClockEntry {
       align-items: center;
       justify-content: center;
       height: 100%;
-      color: #94a3b8;
-      font-size: 0.9rem;
+      color: var(--sd-text-muted);
+      font-size: var(--sd-fs-body);
       font-style: italic;
     }
 
@@ -162,7 +154,7 @@ interface ClockEntry {
       width: 4px;
     }
     .clocks-list::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
+      background: var(--sd-surface-3);
       border-radius: 4px;
     }
   `]

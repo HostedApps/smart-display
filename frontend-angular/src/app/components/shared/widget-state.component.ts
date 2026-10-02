@@ -21,12 +21,17 @@ import { Component, Input } from '@angular/core';
       gap: 6px;
       padding: 12px;
       text-align: center;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
     .state-icon { font-size: 1.6rem; opacity: 0.85; }
-    .state-message { font-size: 0.95rem; font-weight: 600; color: #cbd5e1; }
-    .state-hint { font-size: 0.78rem; max-width: 32ch; line-height: 1.4; }
-    .widget-state.error .state-message { color: #fca5a5; }
+    .state-message { font-size: var(--sd-fs-title); font-weight: 600; color: var(--sd-text); }
+    .state-hint { font-size: var(--sd-fs-sm); max-width: 32ch; line-height: 1.4; }
+    .widget-state.error .state-message { color: var(--sd-danger); }
+    /* Short widgets (e.g. ticker strips): keep just the one-line message */
+    @container (max-height: 170px) {
+      .widget-state { gap: 2px; padding: 4px; }
+      .state-icon, .state-hint { display: none; }
+    }
   `]
 })
 export class WidgetStateComponent {
@@ -46,9 +51,9 @@ export class WidgetStateComponent {
       display: inline-block;
       padding: 3px 8px;
       border-radius: 999px;
-      background: rgba(250, 204, 21, 0.18);
-      border: 1px solid rgba(250, 204, 21, 0.45);
-      color: #fde68a;
+      background: var(--sd-warning-soft);
+      border: 1px solid var(--sd-warning);
+      color: var(--sd-text);
       font-size: 0.65rem;
       font-weight: 700;
       letter-spacing: 0.04em;

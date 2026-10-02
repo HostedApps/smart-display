@@ -10,7 +10,7 @@ export interface ScheduledTextConfig {
 @Component({
   selector: 'app-scheduled-text-widget',
   template: `
-    <div class="scheduled-text-card" [class.inactive]="!isActive">
+    <div class="scheduled-text-card sd-card" [class.inactive]="!isActive">
       <!-- Active Announcement Mode -->
       <ng-container *ngIf="isActive; else scheduledInactive">
         <div class="card-header">
@@ -61,18 +61,12 @@ export interface ScheduledTextConfig {
     .scheduled-text-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 18px 20px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       overflow: hidden;
       position: relative;
-      color: #ffffff;
       transition: all 0.3s ease;
     }
 
@@ -92,8 +86,8 @@ export interface ScheduledTextConfig {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: rgba(34, 197, 94, 0.15);
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: var(--sd-success-soft);
+      border: 1px solid color-mix(in srgb, var(--sd-success) 40%, transparent);
       padding: 3px 10px;
       border-radius: 20px;
     }
@@ -102,38 +96,38 @@ export interface ScheduledTextConfig {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background-color: #22c55e;
-      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      background-color: var(--sd-success);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--sd-success) 70%, transparent);
       animation: pulse-green 2s infinite;
     }
 
     @keyframes pulse-green {
       0% {
         transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--sd-success) 70%, transparent);
       }
       70% {
         transform: scale(1);
-        box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+        box-shadow: 0 0 0 8px transparent;
       }
       100% {
         transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+        box-shadow: 0 0 0 0 transparent;
       }
     }
 
     .status-label {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
-      color: #4ade80;
+      color: var(--sd-success);
     }
 
     .time-window-hint {
-      font-size: 0.78rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 500;
-      color: rgba(255, 255, 255, 0.55);
+      color: var(--sd-text-muted);
       font-variant-numeric: tabular-nums;
     }
 
@@ -148,20 +142,21 @@ export interface ScheduledTextConfig {
     }
 
     .quote-mark {
-      font-size: 2.4rem;
+      font-size: var(--sd-fs-xl);
       line-height: 1;
-      color: rgba(255, 255, 255, 0.2);
+      color: var(--sd-text-subtle);
+      opacity: 0.5;
       font-family: Georgia, serif;
       margin-bottom: -10px;
     }
 
     .announcement-text {
-      font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       line-height: 1.4;
-      color: #ffffff;
+      color: var(--sd-text);
       margin: 0;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      text-shadow: var(--sd-text-shadow);
       letter-spacing: -0.2px;
     }
 
@@ -173,10 +168,10 @@ export interface ScheduledTextConfig {
     }
 
     .active-badge {
-      font-size: 0.72rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       letter-spacing: 0.3px;
-      color: rgba(255, 255, 255, 0.45);
+      color: var(--sd-text-subtle);
     }
 
     /* Inactive / Dimmed Scheduled State */
@@ -194,8 +189,8 @@ export interface ScheduledTextConfig {
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      background: rgba(255, 255, 255, 0.07);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
       border-radius: 20px;
       padding: 5px 14px;
     }
@@ -205,17 +200,17 @@ export interface ScheduledTextConfig {
     }
 
     .badge-title {
-      font-size: 0.8rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.6px;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
 
     .badge-range {
-      font-size: 0.8rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
-      color: #cbd5e1;
+      color: var(--sd-text-muted);
       font-variant-numeric: tabular-nums;
     }
 
@@ -228,10 +223,10 @@ export interface ScheduledTextConfig {
     }
 
     .dimmed-message {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 400;
       line-height: 1.4;
-      color: rgba(255, 255, 255, 0.4);
+      color: var(--sd-text-subtle);
       margin: 0;
       font-style: italic;
       display: -webkit-box;
@@ -248,19 +243,20 @@ export interface ScheduledTextConfig {
     }
 
     .day-pill {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 600;
       padding: 2px 6px;
       border-radius: 6px;
-      background: rgba(255, 255, 255, 0.04);
-      color: rgba(255, 255, 255, 0.25);
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: var(--sd-surface-2);
+      color: var(--sd-text-subtle);
+      opacity: 0.6;
+      border: var(--sd-border);
     }
 
     .day-pill.day-active {
-      color: rgba(255, 255, 255, 0.7);
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.18);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-3);
+      opacity: 1;
     }
   `]
 })

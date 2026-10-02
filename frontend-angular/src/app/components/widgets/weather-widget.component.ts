@@ -71,7 +71,7 @@ const US_STATES: Record<string, string> = {
 @Component({
   selector: 'app-weather-widget',
   template: `
-    <div class="weather-card">
+    <div class="weather-card sd-card">
       <!-- Severe Weather Alert Banner (Pulsing Warning Strip) -->
       <div class="weather-alert-banner" *ngIf="activeAlert">
         <span class="alert-icon">⚠️</span>
@@ -172,12 +172,7 @@ const US_STATES: Record<string, string> = {
     .weather-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -202,13 +197,13 @@ const US_STATES: Record<string, string> = {
     .pin-icon {
       width: 12px;
       height: 12px;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
       flex-shrink: 0;
     }
     .city-name {
-      font-size: 0.8rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       letter-spacing: 0.5px;
       text-transform: uppercase;
       max-width: 170px;
@@ -219,7 +214,7 @@ const US_STATES: Record<string, string> = {
     .updating-dot {
       width: 6px;
       height: 6px;
-      background-color: var(--accent-blue, #0ea5e9);
+      background-color: var(--sd-accent);
       border-radius: 50%;
       display: inline-block;
       animation: pulseSync 1.2s infinite ease-in-out;
@@ -231,8 +226,8 @@ const US_STATES: Record<string, string> = {
       50% { opacity: 1; transform: scale(1.3); }
     }
     .weather-err-tag {
-      font-size: 0.6rem;
-      color: #f87171;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-danger);
       font-weight: 600;
       white-space: nowrap;
     }
@@ -243,22 +238,22 @@ const US_STATES: Record<string, string> = {
       margin: 2px 0;
     }
     .temp-num {
-      font-size: 2.7rem;
-      font-weight: 800;
+      font-size: var(--sd-fs-xl);
+      font-weight: var(--sd-weight-display);
       font-family: var(--font-display, inherit);
-      color: #ffffff;
+      color: var(--sd-text);
       letter-spacing: -1.5px;
     }
     .temp-unit {
-      font-size: 1.1rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
       margin-top: 2px;
       margin-left: 2px;
     }
     .weather-desc {
-      font-size: 0.78rem;
-      color: #cbd5e1;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       text-transform: capitalize;
       font-weight: 500;
     }
@@ -271,7 +266,7 @@ const US_STATES: Record<string, string> = {
       position: relative;
       width: 52px;
       height: 52px;
-      background: radial-gradient(circle, rgba(14, 165, 233, 0.25) 0%, transparent 70%);
+      background: radial-gradient(circle, var(--sd-accent-soft) 0%, transparent 70%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -287,8 +282,8 @@ const US_STATES: Record<string, string> = {
       gap: 5px;
     }
     .metric-pill {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
       padding: 3px 6px;
       border-radius: 6px;
       display: flex;
@@ -296,28 +291,28 @@ const US_STATES: Record<string, string> = {
       align-items: center;
     }
     .metric-label {
-      font-size: 0.52rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       text-transform: uppercase;
       font-weight: 600;
     }
     .metric-val {
-      font-size: 0.68rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #f1f5f9;
+      color: var(--sd-text);
     }
 
     .weather-alert-banner {
-      background: linear-gradient(90deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.95));
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 8px;
+      background: var(--sd-danger);
+      border: var(--sd-border-width) solid var(--sd-danger);
+      border-radius: var(--sd-radius-sm);
       padding: 4px 8px;
       display: flex;
       align-items: center;
       gap: 6px;
       margin-bottom: 6px;
       animation: alertPulse 2s infinite ease-in-out;
-      box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+      box-shadow: 0 0 12px var(--sd-danger-soft);
     }
     @keyframes alertPulse {
       0%, 100% { opacity: 1; transform: scale(1); }
@@ -325,9 +320,9 @@ const US_STATES: Record<string, string> = {
     }
     .alert-icon { font-size: 0.85rem; }
     .alert-text {
-      font-size: 0.68rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-on-accent);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -340,7 +335,7 @@ const US_STATES: Record<string, string> = {
       margin-top: 2px;
     }
     .aqi-pill {
-      font-size: 0.58rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 800;
       color: #0f172a;
       padding: 1px 6px;
@@ -353,7 +348,7 @@ const US_STATES: Record<string, string> = {
     .forecast-section {
       padding-top: 8px;
       margin-top: 6px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-top: var(--sd-border);
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -365,9 +360,9 @@ const US_STATES: Record<string, string> = {
     }
     .mode-tab-btn {
       background: none;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #64748b;
-      font-size: 0.62rem;
+      border: var(--sd-border);
+      color: var(--sd-text-subtle);
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 4px;
@@ -375,9 +370,9 @@ const US_STATES: Record<string, string> = {
       transition: all 0.15s;
     }
     .mode-tab-btn.active {
-      background: rgba(14, 165, 233, 0.2);
-      border-color: #0ea5e9;
-      color: #38bdf8;
+      background: var(--sd-accent-soft);
+      border-color: var(--sd-accent-border);
+      color: var(--sd-accent);
     }
     .forecast-grid {
       display: grid;
@@ -388,14 +383,14 @@ const US_STATES: Record<string, string> = {
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: rgba(255, 255, 255, 0.03);
+      background: var(--sd-surface-2);
       padding: 3px 2px;
       border-radius: 6px;
     }
     .forecast-day {
-      font-size: 0.62rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 600;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       text-transform: uppercase;
     }
     .forecast-mini-icon {
@@ -404,9 +399,9 @@ const US_STATES: Record<string, string> = {
       margin: 1px 0;
     }
     .forecast-temp {
-      font-size: 0.72rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-text);
     }
   `]
 })
