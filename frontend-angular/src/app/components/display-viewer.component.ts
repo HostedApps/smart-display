@@ -11,9 +11,11 @@ import { EmergencyService } from '../services/emergency.service';
 import { AudioChimeService } from '../services/audio-chime.service';
 import { loadGoogleFont, getFontFamilyString } from '../utils/font-loader.util';
 import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.component';
+import { LIVE_DISPLAY } from './widgets/widget-context';
 
 @Component({
   selector: 'app-display-viewer',
+  providers: [{ provide: LIVE_DISPLAY, useValue: true }],
   template: `
     <div 
       class="display-canvas" 
@@ -81,7 +83,7 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
       ></app-severe-weather-alert-banner>
 
       <!-- Ambient Night Mode Clock Overlay -->
-      <div class="night-mode-overlay" *ngIf="isSleeping && displayConfig?.sleep_schedule?.nightMode">
+      <div class="night-mode-overlay" *ngIf="isSleeping && displayConfig?.sleep_schedule?.nightMode" [style.opacity]="nightClockOpacity">
         <div class="night-clock">
           <div class="night-time">{{ currentTime | date:'hh:mm' }}</div>
           <div class="night-period">{{ currentTime | date:'a' }}</div>
@@ -105,6 +107,9 @@ import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.co
           [style.opacity]="widget.style?.opacity !== undefined ? widget.style?.opacity : 1"
           [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
           [style.fontFamily]="getWidgetFont(widget)"
+          [class.sd-has-bg]="!!widget.style?.backgroundColor"
+          [class.sd-no-blur]="widget.style?.backdropBlur === false"
+          [style.--sd-widget-bg]="widget.style?.backgroundColor || null"
         >
           <app-clock-widget *ngIf="widget.type === 'clock'" [config]="widget.config"></app-clock-widget>
           <app-weather-widget *ngIf="widget.type === 'weather'" [config]="widget.config"></app-weather-widget>
@@ -643,6 +648,13 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   isOnline: boolean = true;
   offlineReason: string = '';
   isSleeping: boolean = false;
+
+  /** Night clock brightness from the sleep schedule's dim level (0.1 – 1.0). */
+  get nightClockOpacity(): number {
+    const level = Number(this.displayConfig?.sleep_schedule?.dimLevel);
+    if (!Number.isFinite(level) || level <= 0) return 0.75;
+    return Math.min(1, Math.max(0.1, level));
+  }
   currentTime: Date = new Date();
 
   activeEmergency?: EmergencyBroadcast;

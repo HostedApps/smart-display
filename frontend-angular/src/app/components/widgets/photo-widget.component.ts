@@ -1,13 +1,15 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Inject, Input, OnInit, OnDestroy, OnChanges, Optional, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-photo-widget',
   template: `
     <div class="photo-card" [ngClass]="config.fitMode || 'cover'">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div 
         *ngIf="config.blurBackground && config.fitMode === 'contain' && currentImageUrl" 
         class="blur-backdrop" 
@@ -199,7 +201,11 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   private errorCount: number = 0;
   private lastErrorTime: number = 0;
 
-  constructor(private http: HttpClient) {}
+  readonly isLive: boolean;
+
+  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
 
   private static getStorageKey(url: string): string {
     let hash = 0;
@@ -254,6 +260,11 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
       if (urls.length > 0) return urls.map((u: string) => this.normalizeImageUrl(u));
     }
     return this.defaultImages;
+  }
+
+  /** True when no album is configured and only the built-in example images are shown. */
+  get showingSample(): boolean {
+    return !this.getAlbumUrl() && this.effectiveImages.every(u => this.defaultImages.includes(u));
   }
 
   get currentImageUrl(): string {

@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 
 @Component({
   selector: 'app-root',
-  template: `<router-outlet></router-outlet>`,
+  template: `<router-outlet></router-outlet><app-notification-host></app-notification-host>`,
   styles: [`
     :host {
       display: block;

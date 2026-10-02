@@ -1,10 +1,12 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Inject, Input, OnInit, Optional } from '@angular/core';
 import { GmailConfig, GmailEmailPreview } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-gmail-widget',
   template: `
     <div class="gmail-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="gmail-header">
         <div class="header-left">
           <svg class="gmail-icon" viewBox="0 0 24 24" fill="none">
@@ -18,7 +20,7 @@ import { GmailConfig, GmailEmailPreview } from '../../models/display.model';
           </div>
         </div>
 
-        <div class="unread-badge">
+        <div class="unread-badge" *ngIf="!(isLive && showingSample)">
           <span class="badge-count">{{ unreadCount }}</span>
           <span class="badge-label">unread</span>
         </div>
@@ -41,6 +43,7 @@ import { GmailConfig, GmailEmailPreview } from '../../models/display.model';
   `,
   styles: [`
     .gmail-card {
+      position: relative;
       height: 100%;
       box-sizing: border-box;
       background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
@@ -210,6 +213,18 @@ export class GmailWidgetComponent implements OnInit {
       unread: true
     }
   ];
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when showing the built-in example inbox (or the default unread count) instead of configured data. */
+  get showingSample(): boolean {
+    const hasEmails = Array.isArray(this.config.emails) && this.config.emails.length > 0;
+    return !hasEmails || this.config.unreadCount === undefined;
+  }
 
   get unreadCount(): number {
     return this.config.unreadCount !== undefined ? this.config.unreadCount : 3;

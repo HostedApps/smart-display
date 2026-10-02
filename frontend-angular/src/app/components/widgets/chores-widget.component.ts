@@ -1,17 +1,19 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Inject, Input, OnInit, Optional } from '@angular/core';
 import { ChoresConfig, FamilyMember, ChoreItem } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-chores-widget',
   template: `
     <div class="chores-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <canvas id="confetti-canvas-{{ widgetId }}" class="confetti-canvas"></canvas>
 
       <!-- Header with Title & Active Member Filter -->
       <div class="chores-header">
         <div class="title-row">
           <span class="widget-badge">🏆 FAMILY CHORES & HABITS</span>
-          <span class="total-pts-badge">🪙 {{ totalFamilyPoints }} pts</span>
+          <span class="total-pts-badge" *ngIf="!(isLive && showingSample)">🪙 {{ totalFamilyPoints }} pts</span>
         </div>
 
         <!-- Family Member Avatar Tabs -->
@@ -277,6 +279,18 @@ export class ChoresWidgetComponent implements OnInit {
   ];
 
   selectedMemberId: string = '1';
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when the built-in example family or chore list is shown instead of configured data. */
+  get showingSample(): boolean {
+    return !(this.config.members && this.config.members.length > 0)
+      || !(this.config.chores && this.config.chores.length > 0);
+  }
 
   ngOnInit(): void {
     if (this.config.members && this.config.members.length > 0) {

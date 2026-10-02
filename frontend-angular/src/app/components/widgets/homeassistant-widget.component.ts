@@ -1,7 +1,8 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { HomeAssistantEntity } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-homeassistant-widget',
@@ -19,6 +20,9 @@ import { HomeAssistantEntity } from '../../models/display.model';
         </span>
       </div>
 
+      <app-widget-state *ngIf="isLive && !hasRealConfig; else haBody" message="Home Assistant not connected" hint="Add your Home Assistant URL and token in the editor."></app-widget-state>
+
+      <ng-template #haBody>
       <div class="entities-grid" *ngIf="entitiesList.length > 0; else emptyState">
         <div 
           *ngFor="let entity of entitiesList" 
@@ -44,6 +48,7 @@ import { HomeAssistantEntity } from '../../models/display.model';
         <div class="empty-state">
           <p>No smart entities configured</p>
         </div>
+      </ng-template>
       </ng-template>
     </div>
   `,
@@ -181,6 +186,7 @@ export class HomeAssistantWidgetComponent implements OnInit, OnDestroy, OnChange
   };
 
   isError: boolean = false;
+  readonly isLive: boolean;
   private pollSub?: Subscription;
 
   defaultEntities: HomeAssistantEntity[] = [
@@ -194,14 +200,22 @@ export class HomeAssistantWidgetComponent implements OnInit, OnDestroy, OnChange
     return !!(this.config.haUrl && this.config.token);
   }
 
+  /** URL, token and at least one entity are configured (the only case a live display shows entities). */
+  get hasRealConfig(): boolean {
+    return this.isLiveHA && Array.isArray(this.config.entities) && this.config.entities.length > 0;
+  }
+
   get entitiesList(): HomeAssistantEntity[] {
     if (this.config.entities && Array.isArray(this.config.entities) && this.config.entities.length > 0) {
       return this.config.entities;
     }
+    if (this.isLive) return [];
     return this.defaultEntities;
   }
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     if (this.isLiveHA) {

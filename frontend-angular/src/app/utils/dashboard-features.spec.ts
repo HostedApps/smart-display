@@ -65,6 +65,29 @@ describe('Phase 2C Features: Typography & Starter Templates', () => {
       }
     });
 
+    it('should only assign chores to members the template defines', () => {
+      for (const template of DASHBOARD_TEMPLATES) {
+        for (const w of template.generateWidgets(1920, 1080).filter(x => x.type === 'chores')) {
+          const memberIds = (w.config!['members'] || []).map((m: { id: string }) => m.id);
+          expect(memberIds.length).toBeGreaterThan(0);
+          for (const chore of w.config!['chores'] || []) {
+            expect(memberIds).toContain(chore.memberId);
+          }
+        }
+      }
+    });
+
+    it('should use the commute fields the commute widget renders', () => {
+      for (const template of DASHBOARD_TEMPLATES) {
+        for (const w of template.generateWidgets(1920, 1080).filter(x => x.type === 'commute')) {
+          for (const dest of w.config!['destinations'] || []) {
+            expect(typeof dest.durationMinutes).toBe('number');
+            expect(['fast', 'moderate', 'heavy']).toContain(dest.trafficStatus);
+          }
+        }
+      }
+    });
+
     it('should scale appropriately for 720p portrait canvas', () => {
       const cw = 720;
       const ch = 1280;

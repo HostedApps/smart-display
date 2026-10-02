@@ -1,8 +1,9 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { LIVE_DISPLAY } from './widget-context';
 
 export interface FinancialAsset {
   symbol: string;
@@ -11,6 +12,8 @@ export interface FinancialAsset {
   change24h: number;
   type: 'crypto' | 'stock';
   sparkline: number[];
+  /** Set on live displays when no real quote could be fetched for this symbol. */
+  unavailable?: boolean;
 }
 
 @Component({
@@ -31,6 +34,9 @@ export interface FinancialAsset {
         </div>
       </div>
 
+      <app-widget-state *ngIf="allUnavailable; else assetList" kind="error" message="Market data unavailable" hint="Couldn't reach the market data service. Retrying automatically."></app-widget-state>
+
+      <ng-template #assetList>
       <div class="asset-grid" *ngIf="displayedAssets.length > 0; else noAssets">
         <div *ngFor="let asset of displayedAssets" class="asset-item">
           <div class="asset-left">
@@ -41,7 +47,7 @@ export interface FinancialAsset {
             <span class="name">{{ asset.name }}</span>
           </div>
 
-          <div class="sparkline-wrap" *ngIf="config.showSparklines !== false">
+          <div class="sparkline-wrap" *ngIf="config.showSparklines !== false && !asset.unavailable && (!isLive || (asset.sparkline && asset.sparkline.length > 1))">
             <svg class="sparkline-svg" viewBox="0 0 60 20">
               <path 
                 [attr.d]="generateSparklinePath(asset.sparkline)" 
@@ -55,8 +61,9 @@ export interface FinancialAsset {
           </div>
 
           <div class="asset-right">
-            <span class="price">{{ getCurrencySymbol() }}{{ asset.price | number:'1.2-2' }}</span>
-            <span class="change-badge" [class.positive]="asset.change24h >= 0" [class.negative]="asset.change24h < 0">
+            <span class="price" *ngIf="asset.unavailable" title="Price unavailable">—</span>
+            <span class="price" *ngIf="!asset.unavailable">{{ getCurrencySymbol() }}{{ asset.price | number:'1.2-2' }}</span>
+            <span class="change-badge" *ngIf="!asset.unavailable" [class.positive]="asset.change24h >= 0" [class.negative]="asset.change24h < 0">
               {{ asset.change24h >= 0 ? '+' : '' }}{{ asset.change24h | number:'1.2-2' }}%
             </span>
           </div>
@@ -67,6 +74,7 @@ export interface FinancialAsset {
         <div class="empty-state">
           <p>No symbols configured</p>
         </div>
+      </ng-template>
       </ng-template>
     </div>
   `,
@@ -251,7 +259,17 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
   stockAssets: FinancialAsset[] = [];
   cryptoAssets: FinancialAsset[] = [];
 
-  constructor(private http: HttpClient) {}
+  readonly isLive: boolean;
+
+  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when every displayed symbol failed to load (live displays only). */
+  get allUnavailable(): boolean {
+    const assets = this.displayedAssets;
+    return assets.length > 0 && assets.every(a => a.unavailable);
+  }
 
   get displayedAssets(): FinancialAsset[] {
     const mode = this.config.mode || 'all';
@@ -316,6 +334,9 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
       .subscribe(res => {
         if (res && res.success && Array.isArray(res.stocks)) {
           this.stockAssets = res.stocks;
+        } else if (this.isLive) {
+          // Never fabricate prices on a live display: mark each symbol unavailable
+          this.stockAssets = syms.map(sym => this.unavailableAsset(sym, sym, 'stock'));
         } else {
           // Fallback mock representation if network drops
           this.stockAssets = syms.map(sym => ({
@@ -349,8 +370,6 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
     this.http.get<any>(url)
       .pipe(catchError(() => of(null)))
       .subscribe(data => {
-        if (!data) return;
-        
         const cryptoMeta: { [key: string]: { symbol: string; name: string } } = {
           bitcoin: { symbol: 'BTC', name: 'Bitcoin' },
           ethereum: { symbol: 'ETH', name: 'Ethereum' },
@@ -360,9 +379,22 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
           ripple: { symbol: 'XRP', name: 'XRP' }
         };
 
+        if (!data) {
+          if (this.isLive) {
+            this.cryptoAssets = coins.map(coin => {
+              const meta = cryptoMeta[coin] || { symbol: coin.toUpperCase().substring(0, 4), name: coin };
+              return this.unavailableAsset(meta.symbol, meta.name, 'crypto');
+            });
+          }
+          return;
+        }
+
         this.cryptoAssets = coins.map(coin => {
           const coinData = data[coin];
           const meta = cryptoMeta[coin] || { symbol: coin.toUpperCase().substring(0, 4), name: coin };
+          if (this.isLive && (coinData?.usd === undefined || coinData?.usd === null)) {
+            return this.unavailableAsset(meta.symbol, meta.name, 'crypto');
+          }
           const price = coinData?.usd || 0;
           const change = coinData?.usd_24h_change || 0;
           return {
@@ -371,10 +403,15 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
             price: price,
             change24h: change,
             type: 'crypto',
-            sparkline: [price * 0.98, price * 0.99, price * 1.01, price * 1.0, price]
-          };
+            // No price history is fetched, so this sparkline is illustrative only: omit it on live
+            sparkline: this.isLive ? [] : [price * 0.98, price * 0.99, price * 1.01, price * 1.0, price]
+          } as FinancialAsset;
         });
       });
+  }
+
+  private unavailableAsset(symbol: string, name: string, type: 'crypto' | 'stock'): FinancialAsset {
+    return { symbol, name, price: 0, change24h: 0, type, sparkline: [], unavailable: true };
   }
 
   generateSparklinePath(data: number[]): string {

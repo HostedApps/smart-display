@@ -1,8 +1,9 @@
-import { Component, Input, OnInit, OnDestroy, DoCheck } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, DoCheck, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { AIBriefingConfig } from '../../models/display.model';
 import { environment } from '../../../environments/environment';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-ai-briefing-widget',
@@ -27,13 +28,18 @@ import { environment } from '../../../environments/environment';
         </div>
       </div>
 
+      <app-widget-state *ngIf="briefingFailed && !loading; else briefingBody" kind="error" message="Briefing unavailable" hint="Couldn't generate today's briefing. Retrying automatically."></app-widget-state>
+
+      <ng-template #briefingBody>
       <div class="ai-content">
         <p class="briefing-text" [class.loading-shimmer]="loading">
           {{ displayedText || 'Synthesizing daily schedule, weather outlook, and reminders...' }}
         </p>
       </div>
 
-      <div class="ai-footer">
+      </ng-template>
+
+      <div class="ai-footer" *ngIf="!(briefingFailed && !loading)">
         <span class="provider-pill" [class.is-gemini]="provider === 'gemini'" [class.has-error]="!!geminiError" [title]="geminiError || (provider === 'gemini' ? 'Synthesized via Google Gemini 1.5 Flash' : 'Using contextual rule-based ambient engine')">
           <ng-container *ngIf="provider === 'gemini'">✨ Powered by Google Gemini</ng-container>
           <ng-container *ngIf="provider !== 'gemini' && geminiError">⚠️ Gemini Error (Fallback Active)</ng-container>
@@ -191,13 +197,18 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
   provider: string = 'ambient_engine';
   geminiError: string = '';
   lastSync: string = 'Updated just now';
+  /** Live displays only: set when the briefing could not be generated (no canned text is shown). */
+  briefingFailed: boolean = false;
+  readonly isLive: boolean;
   private pollSub?: Subscription;
 
   private lastApiKey: string = '';
   private lastUserName: string = '';
   private lastTone: string = '';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     this.lastApiKey = this.config?.apiKey || '';
@@ -246,10 +257,15 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
       next: (res) => {
         this.loading = false;
         if (res && res.success && res.briefing) {
+          this.briefingFailed = false;
           this.displayedText = res.briefing;
           this.provider = res.provider || 'ambient_engine';
           this.geminiError = res.geminiError || '';
           this.lastSync = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (this.isLive) {
+          this.briefingFailed = true;
+          this.displayedText = '';
+          this.geminiError = res?.geminiError || '';
         } else {
           this.displayedText = "Good day! Everything is currently running smoothly on your schedule and home systems.";
           this.provider = 'ambient_engine';
@@ -258,6 +274,12 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
       },
       error: (err) => {
         this.loading = false;
+        if (this.isLive) {
+          this.briefingFailed = true;
+          this.displayedText = '';
+          this.geminiError = err?.error?.error || 'Network error';
+          return;
+        }
         this.displayedText = "Welcome to your day! All calendar appointments and ambient notifications are synced.";
         this.provider = 'ambient_engine';
         this.geminiError = err?.error?.error || 'Network error';

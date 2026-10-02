@@ -1,5 +1,6 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Inject, Input, OnInit, Optional } from '@angular/core';
 import { CommuteConfig, CommuteDestination } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-commute-widget',
@@ -53,7 +54,9 @@ import { CommuteConfig, CommuteDestination } from '../../models/display.model';
         <span class="live-traffic-tag">
           <span class="pulse-green"></span> Live Traffic Sync
         </span>
-        <span class="calc-time">Recalculated every 5 mins</span>
+        <span class="calc-time" *ngIf="!(isLive && showingSample)">Recalculated every 5 mins</span>
+        <!-- Sits in the footer (not top-right) so it doesn't cover the Drive/Transit toggle -->
+        <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       </div>
     </div>
   `,
@@ -73,7 +76,11 @@ import { CommuteConfig, CommuteDestination } from '../../models/display.model';
       backdrop-filter: blur(16px);
       color: #f1f5f9;
       font-family: var(--font-main, sans-serif);
+      position: relative;
       overflow: hidden;
+    }
+    .commute-footer app-sample-badge {
+      position: static;
     }
     .commute-header {
       display: flex;
@@ -252,6 +259,18 @@ export class CommuteWidgetComponent implements OnInit {
     { line: 'Express 500', destination: 'Financial District', nextMinutes: [4, 16, 28] },
     { line: 'Metro Red Line', destination: 'Airport Terminal', nextMinutes: [2, 9, 17] }
   ];
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when the list in view is the built-in example (no destinations / transit lines configured). */
+  get showingSample(): boolean {
+    const list = this.viewMode === 'transit' ? this.config.transitLines : this.config.destinations;
+    return !(list && list.length > 0);
+  }
 
   ngOnInit(): void {
     if (this.config.destinations && this.config.destinations.length > 0) {

@@ -1,7 +1,8 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, DoCheck, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, DoCheck, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { LIVE_DISPLAY } from './widget-context';
 
 interface ForecastItem {
   date: string;
@@ -77,6 +78,7 @@ const US_STATES: Record<string, string> = {
         <span class="alert-text">{{ activeAlert }}</span>
       </div>
 
+      <ng-container *ngIf="!showUnavailable; else weatherUnavailable">
       <div class="weather-main-row">
         <div class="weather-left">
           <div class="location-tag">
@@ -96,7 +98,7 @@ const US_STATES: Record<string, string> = {
           
           <div class="desc-row">
             <span class="weather-desc">{{ displayWeather.desc }}</span>
-            <span class="aqi-pill" [style.backgroundColor]="aqiColor" [title]="'Air Quality Index: ' + displayAqi + ' (' + aqiLevel + ')'">
+            <span class="aqi-pill" *ngIf="displayAqi !== null" [style.backgroundColor]="aqiColor" [title]="'Air Quality Index: ' + displayAqi + ' (' + aqiLevel + ')'">
               AQI {{ displayAqi }}
             </span>
           </div>
@@ -116,7 +118,7 @@ const US_STATES: Record<string, string> = {
               <span class="metric-label">Wind</span>
               <span class="metric-val">{{ displayWeather.wind }} {{ config.units === 'metric' ? 'm/s' : 'mph' }}</span>
             </div>
-            <div class="metric-pill">
+            <div class="metric-pill" *ngIf="displayUv !== null">
               <span class="metric-label">UV Index</span>
               <span class="metric-val">{{ displayUv }} ({{ uvLevel }})</span>
             </div>
@@ -150,6 +152,20 @@ const US_STATES: Record<string, string> = {
           </div>
         </div>
       </div>
+      </ng-container>
+
+      <!-- Live display without real data: never show sample weather -->
+      <ng-template #weatherUnavailable>
+        <div class="location-tag">
+          <svg class="pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          <span class="city-name" [title]="resolvedLocationText || displayCity">{{ displayCity }}</span>
+          <span class="updating-dot" *ngIf="loading" title="Fetching live weather..."></span>
+        </div>
+        <app-widget-state *ngIf="!loading" kind="error" message="Weather unavailable" hint="Couldn't reach the weather service. Retrying automatically."></app-widget-state>
+      </ng-template>
     </div>
   `,
   styles: [`
@@ -456,30 +472,40 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
     return this.config?.city || this.resolvedCityName || 'San Jose';
   }
 
+  /** Live display with no real weather yet: show an unavailable state instead of sample data. */
+  get showUnavailable(): boolean {
+    return this.isLive && !this.currentWeather;
+  }
+
   get displayWeather(): any {
     return this.currentWeather || this.defaultWeather;
   }
 
   get displayForecast(): ForecastItem[] {
+    if (this.isLive) return this.forecast;
     return this.forecast.length > 0 ? this.forecast : this.defaultForecast;
   }
 
   get displayHourly(): HourlyItem[] {
+    if (this.isLive) return this.hourly;
     return this.hourly.length > 0 ? this.hourly : this.defaultHourly;
   }
 
-  get displayAqi(): number {
+  get displayAqi(): number | null {
     if (this.config?.aqi !== undefined && this.config?.aqi !== null) {
       return Number(this.config.aqi);
     }
     if (this.realAqi !== null) {
       return this.realAqi;
     }
+    if (this.isLive) {
+      return this.currentWeather?.aqi ?? null;
+    }
     return this.currentWeather?.aqi || 38;
   }
 
   get aqiLevel(): string {
-    const a = this.displayAqi;
+    const a = this.displayAqi ?? 0;
     if (a <= 50) return 'Good';
     if (a <= 100) return 'Moderate';
     if (a <= 150) return 'Sensitive';
@@ -489,7 +515,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
   }
 
   get aqiColor(): string {
-    const a = this.displayAqi;
+    const a = this.displayAqi ?? 0;
     if (a <= 50) return '#4ade80';    // Green
     if (a <= 100) return '#facc15';   // Yellow
     if (a <= 150) return '#fb923c';   // Orange
@@ -498,15 +524,18 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
     return '#f43f5e';                 // Rose
   }
 
-  get displayUv(): number {
+  get displayUv(): number | null {
     if (this.config?.uvIndex !== undefined && this.config?.uvIndex !== null) {
       return Number(this.config.uvIndex);
+    }
+    if (this.isLive) {
+      return this.currentWeather?.uv ?? null;
     }
     return this.currentWeather?.uv || 4;
   }
 
   get uvLevel(): string {
-    const uv = this.displayUv;
+    const uv = this.displayUv ?? 0;
     if (uv <= 2) return 'Low';
     if (uv <= 5) return 'Mod';
     if (uv <= 7) return 'High';
@@ -514,7 +543,11 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
     return 'Extreme';
   }
 
-  constructor(private http: HttpClient) {}
+  readonly isLive: boolean;
+
+  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     this.lastCity = this.config?.city;
@@ -724,7 +757,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
       const cond = this.getConditionInfo(cur.weather_code, isDay);
       const uvVal = (data.daily?.uv_index_max && data.daily.uv_index_max.length > 0)
         ? Math.round(data.daily.uv_index_max[0])
-        : (this.config?.uvIndex !== undefined && this.config?.uvIndex !== null ? Number(this.config.uvIndex) : 4);
+        : (this.config?.uvIndex !== undefined && this.config?.uvIndex !== null ? Number(this.config.uvIndex) : (this.isLive ? null : 4));
 
       this.currentWeather = {
         temp: Math.round(cur.temperature_2m),
@@ -802,8 +835,9 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
       icon: current.weather[0].icon,
       humidity: current.main.humidity,
       wind: Math.round(current.wind.speed),
-      aqi: computedAqi,
-      uv: computedUv
+      // OWM's forecast endpoint has no AQI/UV; the computed values are estimates, so never show them live
+      aqi: this.isLive ? null : computedAqi,
+      uv: this.isLive ? null : computedUv
     };
 
     // Parse Daily (5 days)

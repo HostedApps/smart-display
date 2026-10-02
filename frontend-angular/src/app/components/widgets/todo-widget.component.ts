@@ -1,8 +1,9 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { TodoItem } from '../../models/display.model';
 import { environment } from '../../../environments/environment';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-todo-widget',
@@ -90,9 +91,12 @@ import { environment } from '../../../environments/environment';
       </div>
 
       <ng-template #emptyState>
-        <div class="empty-state">
-          <p>No active tasks</p>
-        </div>
+        <app-widget-state *ngIf="isLive && items.length === 0; else noActiveTasks" icon="📝" message="No tasks yet" hint="Tap Add to create a task."></app-widget-state>
+        <ng-template #noActiveTasks>
+          <div class="empty-state">
+            <p>No active tasks</p>
+          </div>
+        </ng-template>
       </ng-template>
     </div>
   `,
@@ -364,7 +368,8 @@ export class TodoWidgetComponent implements OnInit {
 
   get items(): TodoItem[] {
     if (!this.config.items || !Array.isArray(this.config.items)) {
-      this.config.items = [...this.defaultItems];
+      // Live displays start empty: sample tasks must never be written into (and saved with) the config
+      this.config.items = this.isLive ? [] : [...this.defaultItems];
     }
     return this.config.items;
   }
@@ -381,7 +386,15 @@ export class TodoWidgetComponent implements OnInit {
     return this.items.filter(i => i.completed).length;
   }
 
-  constructor(private http: HttpClient, private route: ActivatedRoute) {}
+  readonly isLive: boolean;
+
+  constructor(
+    private http: HttpClient,
+    private route: ActivatedRoute,
+    @Optional() @Inject(LIVE_DISPLAY) live: boolean | null
+  ) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     this.displayToken = this.route.snapshot.paramMap.get('token') || '';

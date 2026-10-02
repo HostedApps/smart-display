@@ -35,7 +35,7 @@ import { Router } from '@angular/router';
             🚀 Quick Start
           </button>
           <button [class.active]="activeTab === 'widgets'" (click)="activeTab = 'widgets'">
-            🧩 19-Widget Catalog
+            🧩 {{ widgetCatalog.length }}-Widget Catalog
           </button>
           <button [class.active]="activeTab === 'hardware'" (click)="activeTab = 'hardware'">
             🛠️ Hardware & Kiosks
@@ -771,7 +771,23 @@ export class HelpDocsModalComponent {
     { icon: '⏳', title: 'Countdown Timer', tag: 'Events', description: 'Live countdown timer to vacations, weddings, birthdays, or product launches.', configTips: 'Pick target date & time and give the event a title.' },
     { icon: '🍽️', title: 'Meal Planner', tag: 'Lifestyle', description: 'Weekly Monday-to-Sunday dinner and lunch meal schedule for the whole family.', configTips: 'Edit daily menu items directly in the inspector.' },
     { icon: '🛰️', title: 'Weather Radar', tag: 'Weather', description: 'Live animated Doppler rain and cloud radar map. Powered by RainViewer — 100% Free & Zero API Key Required.', configTips: 'Pick a quick city preset or enter Lat/Lon coordinates. No API key needed!' },
-    { icon: '💬', title: 'Daily Quotes', tag: 'Inspiration', description: 'Daily motivational thoughts, stoic philosophy, or custom family mottos.', configTips: 'Select category or enter custom family quote.' }
+    { icon: '💬', title: 'Daily Quotes', tag: 'Inspiration', description: 'Daily motivational thoughts, stoic philosophy, or custom family mottos.', configTips: 'Select category or enter custom family quote.' },
+    { icon: '🔤', title: 'Text & Announcements', tag: 'Core', description: 'Rich static text blocks for welcome messages, notices, and headings.', configTips: 'Set text, size, alignment, and optional gradient header.' },
+    { icon: '🔳', title: 'QR Code', tag: 'Utility', description: 'Scannable QR codes for guest WiFi, URLs, menus, or contact cards.', configTips: 'Enter the URL or WiFi credentials to encode.' },
+    { icon: '🌍', title: 'World Clocks', tag: 'Core', description: 'Side-by-side clocks for multiple cities and time zones.', configTips: 'Add cities with their IANA time zone (e.g. Europe/London).' },
+    { icon: '🔷', title: 'Shapes & Dividers', tag: 'Decor', description: 'Rectangles, circles, and divider lines to structure your layout.', configTips: 'Pick shape, fill colour, border, and opacity.' },
+    { icon: '🗓️', title: 'Scheduled Text', tag: 'Core', description: 'Announcements that automatically show and hide on chosen days and times.', configTips: 'Add messages with start/end time and active weekdays.' },
+    { icon: '🔘', title: 'Button / Link', tag: 'Interactive', description: 'Touch buttons that jump to another page or open a URL.', configTips: 'Choose a label, icon, and target page or link.' },
+    { icon: '🌅', title: 'Sun & Moon', tag: 'Weather', description: 'Sunrise, sunset, golden hour, and current moon phase for your location.', configTips: 'Enter a city name — coordinates are looked up automatically.' },
+    { icon: '🕰️', title: 'Analog Clock', tag: 'Core', description: 'Classic dial clock with hour, minute, and optional second hands.', configTips: 'Choose dial style and whether to show the second hand.' },
+    { icon: '🔌', title: 'External Data (REST)', tag: 'Data', description: 'Poll any JSON API and display a value with a label and unit.', configTips: 'Set the URL, optional auth header, and a JSONPath to the value.' },
+    { icon: '🎯', title: 'Radial Gauge', tag: 'Data', description: 'Semicircular gauge with warning and critical thresholds; can receive pushed values.', configTips: 'Set min/max, thresholds, and unit, or push values via the webhook API.' },
+    { icon: '🗺️', title: 'Google Maps', tag: 'Maps', description: 'Interactive or satellite map of any location with live traffic.', configTips: 'Search a location and adjust zoom level and map type.' },
+    { icon: '✏️', title: 'Whiteboard', tag: 'Family Board', description: 'Touch and stylus drawing board with pen, highlighter, and eraser that syncs across devices.', configTips: 'Choose a background and default pen colour.' },
+    { icon: '💼', title: 'Slack Channel', tag: 'Productivity', description: 'Latest messages from a Slack channel with avatars and timestamps.', configTips: 'Provide a Slack bot token and channel ID.' },
+    { icon: '✉️', title: 'Gmail Unread', tag: 'Productivity', description: 'Unread email count with sender and subject previews.', configTips: 'Connect a Google account with Gmail read access.' },
+    { icon: '📊', title: 'TradingView Chart', tag: 'Finance', description: 'Live candlestick, line, or area charts for stocks, crypto, and forex.', configTips: 'Enter a symbol (e.g. NASDAQ:AAPL), interval, and theme.' },
+    { icon: '👽', title: 'Reddit Media', tag: 'Media', description: 'Photo slideshow from top posts of image subreddits like r/EarthPorn or r/space.', configTips: 'List subreddits and choose the time range (day, week, all).' }
   ];
 
   get filteredWidgets() {

@@ -1,8 +1,9 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { RssParserService, RssItem } from '../../services/rss-parser.service';
 import { environment } from '../../../environments/environment';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-rss-widget',
@@ -19,6 +20,9 @@ import { environment } from '../../../environments/environment';
         <span class="refresh-indicator" *ngIf="loading">Updating...</span>
       </div>
 
+      <app-widget-state *ngIf="isLive && fetchFailed && items.length === 0; else feedBody" kind="error" message="News feed unavailable" hint="Couldn't load this feed. Retrying automatically."></app-widget-state>
+
+      <ng-template #feedBody>
       <div class="rss-items" *ngIf="displayItems.length > 0; else emptyState">
         <div *ngFor="let item of displayItems | slice:0:(config.maxItems || 5)" class="news-item">
           <div class="news-top">
@@ -35,6 +39,7 @@ import { environment } from '../../../environments/environment';
           <p *ngIf="!loading && !config.feedUrl">No RSS feed configured</p>
           <p *ngIf="!loading && config.feedUrl">Unable to load feed content</p>
         </div>
+      </ng-template>
       </ng-template>
     </div>
   `,
@@ -154,6 +159,8 @@ export class RssWidgetComponent implements OnInit, OnDestroy, OnChanges {
   feedTitle: string = '';
   items: RssItem[] = [];
   loading: boolean = false;
+  fetchFailed: boolean = false;
+  readonly isLive: boolean;
   private pollSub?: Subscription;
 
   private defaultItems: RssItem[] = [
@@ -163,10 +170,17 @@ export class RssWidgetComponent implements OnInit, OnDestroy, OnChanges {
   ];
 
   get displayItems(): RssItem[] {
+    if (this.isLive) return this.items;
     return this.items.length > 0 ? this.items : this.defaultItems;
   }
 
-  constructor(private http: HttpClient, private rssParser: RssParserService) {}
+  constructor(
+    private http: HttpClient,
+    private rssParser: RssParserService,
+    @Optional() @Inject(LIVE_DISPLAY) live: boolean | null
+  ) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     this.fetchFeed();
@@ -194,12 +208,14 @@ export class RssWidgetComponent implements OnInit, OnDestroy, OnChanges {
     this.http.get(proxyUrl, { responseType: 'text' }).subscribe({
       next: (xmlData) => {
         this.loading = false;
+        this.fetchFailed = false;
         const result = this.rssParser.parse(xmlData);
         this.feedTitle = result.title;
         this.items = result.items;
       },
       error: () => {
         this.loading = false;
+        this.fetchFailed = true;
       }
     });
   }

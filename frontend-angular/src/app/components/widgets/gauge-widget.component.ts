@@ -1,4 +1,5 @@
-import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Inject, Input, OnInit, OnChanges, Optional, SimpleChanges } from '@angular/core';
+import { LIVE_DISPLAY } from './widget-context';
 
 export interface GaugeConfig {
   value?: number;
@@ -16,12 +17,13 @@ export interface GaugeConfig {
   selector: 'app-gauge-widget',
   template: `
     <div class="gauge-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="card-header">
         <div class="title-wrap">
           <span class="widget-icon">{{ safeConfig.icon || '⚡' }}</span>
           <span class="widget-title">{{ safeConfig.title || 'Metric Gauge' }}</span>
         </div>
-        <span class="threshold-badge" [ngClass]="severityClass">{{ severityLabel }}</span>
+        <span class="threshold-badge" [ngClass]="severityClass" *ngIf="!(isLive && showingSample)">{{ severityLabel }}</span>
       </div>
 
       <div class="gauge-svg-container">
@@ -87,6 +89,7 @@ export interface GaugeConfig {
   `,
   styles: [`
     .gauge-card {
+      position: relative;
       width: 100%;
       height: 100%;
       background: rgba(15, 23, 42, 0.65);
@@ -251,6 +254,17 @@ export class GaugeWidgetComponent implements OnInit, OnChanges {
 
   get max(): number {
     return this.safeConfig.max !== undefined ? Number(this.safeConfig.max) : 100;
+  }
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when no value is configured and the built-in example reading (68) is shown. */
+  get showingSample(): boolean {
+    return this.safeConfig.value === undefined;
   }
 
   get value(): number {

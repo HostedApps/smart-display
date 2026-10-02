@@ -1,4 +1,4 @@
-import { Widget } from '../models/display.model';
+import { Widget, ChoresConfig, CommuteConfig } from '../models/display.model';
 
 export interface DashboardTemplate {
   id: string;
@@ -52,13 +52,17 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
         position: { x: Math.round(cw * 0.50), y: Math.round(ch * 0.33), width: Math.round(cw * 0.48), height: Math.round(ch * 0.36) },
         config: {
           title: 'Daily Family Chores',
+          members: [
+            { id: 'emma', name: 'Emma', avatar: '🦄', points: 0, streak: 0 },
+            { id: 'lucas', name: 'Lucas', avatar: '🦁', points: 0, streak: 0 }
+          ],
           chores: [
-            { id: '1', title: 'Make bed & tidy room', assignedTo: 'Emma', emoji: '🛏️', completed: true, streak: 5 },
-            { id: '2', title: 'Feed & walk puppy', assignedTo: 'Lucas', emoji: '🐕', completed: false, streak: 3 },
-            { id: '3', title: 'Finish homework & reading', assignedTo: 'Emma', emoji: '📚', completed: false, streak: 7 },
-            { id: '4', title: 'Empty dishwasher', assignedTo: 'Lucas', emoji: '🍽️', completed: false, streak: 2 }
+            { id: '1', memberId: 'emma', title: 'Make bed & tidy room 🛏️', points: 10, completed: false },
+            { id: '2', memberId: 'lucas', title: 'Feed & walk puppy 🐕', points: 15, completed: false },
+            { id: '3', memberId: 'emma', title: 'Finish homework & reading 📚', points: 20, completed: false },
+            { id: '4', memberId: 'lucas', title: 'Empty dishwasher 🍽️', points: 10, completed: false }
           ]
-        },
+        } satisfies ChoresConfig,
         style: { borderRadius: 16 }
       },
       {
@@ -120,10 +124,10 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
         position: { x: Math.round(cw * 0.02), y: Math.round(ch * 0.51), width: Math.round(cw * 0.48), height: Math.round(ch * 0.45) },
         config: {
           destinations: [
-            { name: 'Office (Downtown)', destination: 'Downtown San Jose', mode: 'driving', etaMinutes: 24, trafficDelayMinutes: 5, trafficLevel: 'moderate' },
-            { name: 'Airport (SJC)', destination: 'San Jose International Airport', mode: 'driving', etaMinutes: 14, trafficDelayMinutes: 0, trafficLevel: 'light' }
+            { id: '1', name: 'Office (Downtown)', icon: '🏢', durationMinutes: 24, trafficStatus: 'moderate', viaRoute: 'via Downtown San Jose', delayMinutes: 5 },
+            { id: '2', name: 'Airport (SJC)', icon: '✈️', durationMinutes: 14, trafficStatus: 'fast', viaRoute: 'via US-101 S', delayMinutes: 0 }
           ]
-        },
+        } satisfies CommuteConfig,
         style: { borderRadius: 16 }
       },
       {
@@ -245,11 +249,11 @@ export const DASHBOARD_TEMPLATES: DashboardTemplate[] = [
         position: { x: Math.round(cw * 0.02), y: Math.round(ch * 0.03), width: Math.round(cw * 0.48), height: Math.round(ch * 0.45) },
         config: {
           destinations: [
-            { name: 'Headquarters Office', destination: 'Palo Alto, CA', mode: 'driving', etaMinutes: 28, trafficDelayMinutes: 6, trafficLevel: 'moderate' },
-            { name: 'Elementary School', destination: 'Willow Glen School', mode: 'driving', etaMinutes: 8, trafficDelayMinutes: 0, trafficLevel: 'light' },
-            { name: 'San Francisco Downtown', destination: 'Market St, San Francisco', mode: 'transit', etaMinutes: 65, trafficDelayMinutes: 0, trafficLevel: 'light' }
+            { id: '1', name: 'Headquarters Office', icon: '🏢', durationMinutes: 28, trafficStatus: 'moderate', viaRoute: 'via Palo Alto, CA', delayMinutes: 6 },
+            { id: '2', name: 'Elementary School', icon: '🏫', durationMinutes: 8, trafficStatus: 'fast', viaRoute: 'via Willow Glen', delayMinutes: 0 },
+            { id: '3', name: 'San Francisco Downtown', icon: '🚆', durationMinutes: 65, trafficStatus: 'fast', viaRoute: 'via Caltrain to Market St', delayMinutes: 0 }
           ]
-        },
+        } satisfies CommuteConfig,
         style: { borderRadius: 16 }
       },
       {
