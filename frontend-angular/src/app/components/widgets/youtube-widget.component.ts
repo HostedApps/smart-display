@@ -4,7 +4,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 @Component({
   selector: 'app-youtube-widget',
   template: `
-    <div class="youtube-widget-card">
+    <div class="youtube-widget-card sd-card">
       <!-- Top Title Bar (if title is provided) -->
       <div class="youtube-header" *ngIf="config.title">
         <div class="yt-badge">
@@ -45,12 +45,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      border-radius: 16px;
       overflow: hidden;
-      background: rgba(10, 15, 26, 0.85);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.8);
+      background: #000;
       display: flex;
       flex-direction: column;
       position: relative;
@@ -58,8 +54,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
     .youtube-header {
       padding: 6px 12px;
-      background: rgba(0, 0, 0, 0.6);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--sd-surface);
+      border-bottom: var(--sd-border);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -74,11 +70,11 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
     }
 
     .yt-live-pulse {
-      font-size: 0.6rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 800;
-      color: #ef4444;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--sd-danger);
+      background: var(--sd-danger-soft);
+      border: var(--sd-border-width) solid var(--sd-danger);
       padding: 1px 4px;
       border-radius: 4px;
       letter-spacing: 0.5px;
@@ -91,9 +87,9 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
     }
 
     .yt-title {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
-      color: #f1f5f9;
+      color: var(--sd-text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -131,7 +127,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
       justify-content: center;
       padding: 16px;
       text-align: center;
-      background: radial-gradient(circle at center, rgba(239, 68, 68, 0.08) 0%, rgba(15, 23, 42, 0.95) 70%);
+      background: radial-gradient(circle at center, var(--sd-danger-soft) 0%, transparent 70%), var(--sd-surface);
       box-sizing: border-box;
       gap: 6px;
     }
@@ -141,14 +137,14 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
     }
 
     .yt-empty-title {
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 700;
-      color: #f8fafc;
+      color: var(--sd-text);
     }
 
     .yt-empty-subtitle {
-      font-size: 0.7rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       max-width: 240px;
       line-height: 1.3;
     }

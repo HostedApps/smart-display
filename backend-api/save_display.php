@@ -40,12 +40,20 @@ try {
 
     $token = preg_replace('/[^a-zA-Z0-9_\-]/', '', $input['token']);
     $name = sanitizeText($input['name'] ?? 'Main Display');
-    $theme = in_array($input['theme'] ?? '', ['dark', 'light', 'glass', 'minimal']) ? $input['theme'] : 'dark';
+    $theme = in_array($input['theme'] ?? '', ['glass', 'paper', 'solid', 'mirror', 'ambient', 'contrast', 'dark', 'light', 'minimal', 'oled'], true) ? $input['theme'] : 'glass';
     $orientation = $input['orientation'] ?? 'landscape_720p';
     $refreshInterval = max(10, (int)($input['refresh_interval'] ?? 60));
     $backgroundArr = isset($input['background']) && is_array($input['background']) ? $input['background'] : [];
     if (isset($input['font_family'])) {
         $backgroundArr['font_family'] = sanitizeText($input['font_family']);
+    }
+    if (isset($input['accent_color'])) {
+        $accent = trim((string)$input['accent_color']);
+        if (preg_match('/^#[0-9a-fA-F]{6}$/', $accent)) {
+            $backgroundArr['accent_color'] = $accent;
+        } else {
+            unset($backgroundArr['accent_color']);
+        }
     }
     if (isset($input['weather_alerts_enabled'])) {
         $backgroundArr['weather_alerts_enabled'] = (bool)$input['weather_alerts_enabled'];

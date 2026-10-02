@@ -527,6 +527,8 @@ export interface DisplayConfig {
   logo_url?: string;
   show_logo_kiosk?: boolean;
   font_family?: string;
+  /** Theme accent colour override (hex); empty uses the preset's accent */
+  accent_color?: string;
   weather_alerts_enabled?: boolean;
   weather_alert?: { title?: string; message: string; severity?: string } | string;
   custom_css?: string;

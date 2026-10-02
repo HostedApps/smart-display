@@ -8,7 +8,7 @@ import { LIVE_DISPLAY } from './widget-context';
 @Component({
   selector: 'app-ai-briefing-widget',
   template: `
-    <div class="ai-card">
+    <div class="ai-card sd-card">
       <div class="ai-header">
         <div class="ai-orb-wrap">
           <div class="ai-orb"></div>
@@ -58,12 +58,6 @@ import { LIVE_DISPLAY } from './widget-context';
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(16px);
-      color: #f1f5f9;
       font-family: var(--font-main, sans-serif);
       overflow: hidden;
       position: relative;
@@ -111,34 +105,34 @@ import { LIVE_DISPLAY } from './widget-context';
       flex: 1;
     }
     .ai-badge {
-      font-size: 0.62rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 800;
       letter-spacing: 1px;
-      color: #c084fc;
+      color: var(--sd-accent);
     }
     .ai-time-label {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 1.05rem;
+      font-size: var(--sd-fs-title);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .btn-action {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
+      border-radius: var(--sd-radius-sm);
       padding: 4px 8px;
       font-size: 0.85rem;
       cursor: pointer;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       transition: all 0.2s;
       display: inline-flex;
       align-items: center;
       justify-content: center;
     }
     .btn-action:hover, .btn-action.speaking {
-      background: rgba(168, 85, 247, 0.2);
-      border-color: #a855f7;
-      color: #fff;
+      background: var(--sd-accent-soft);
+      border-color: var(--sd-accent);
+      color: var(--sd-text);
     }
 
     .ai-content {
@@ -151,10 +145,10 @@ import { LIVE_DISPLAY } from './widget-context';
     }
     .briefing-text {
       font-family: var(--font-editorial, 'Newsreader', serif);
-      font-size: 1.12rem;
+      font-size: var(--sd-fs-title);
       font-style: italic;
       line-height: 1.5;
-      color: #e2e8f0;
+      color: var(--sd-text);
       margin: 0;
     }
     .loading-shimmer {
@@ -167,22 +161,22 @@ import { LIVE_DISPLAY } from './widget-context';
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.68rem;
-      color: #64748b;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-subtle);
+      border-top: var(--sd-border);
       padding-top: 8px;
     }
     .provider-pill {
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       font-weight: 600;
       transition: all 0.2s;
     }
     .provider-pill.is-gemini {
-      color: #38bdf8;
-      text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+      color: var(--sd-accent);
+      text-shadow: 0 0 10px var(--sd-accent-soft);
     }
     .provider-pill.has-error {
-      color: #fbbf24;
+      color: var(--sd-warning);
       cursor: help;
     }
   `]

@@ -12,7 +12,7 @@ interface RainViewerFrame {
 @Component({
   selector: 'app-radar-widget',
   template: `
-    <div class="radar-card">
+    <div class="radar-card sd-card">
       <div class="radar-header">
         <div class="title-wrap">
           <svg class="radar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -61,12 +61,7 @@ interface RainViewerFrame {
     .radar-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 12px 14px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -85,29 +80,29 @@ interface RainViewerFrame {
     .radar-icon {
       width: 16px;
       height: 16px;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .radar-badge {
       display: flex;
       align-items: center;
       gap: 5px;
-      background: rgba(0, 0, 0, 0.45);
+      background: var(--sd-surface-2);
       padding: 2px 8px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
     }
     .live-dot {
       width: 6px;
       height: 6px;
-      background: #ef4444;
+      background: var(--sd-danger);
       border-radius: 50%;
-      box-shadow: 0 0 8px #ef4444;
+      box-shadow: 0 0 8px var(--sd-danger);
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
@@ -115,9 +110,9 @@ interface RainViewerFrame {
       50% { opacity: 0.4; transform: scale(0.8); }
     }
     .timestamp-label {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #38bdf8;
+      color: var(--sd-accent);
       font-family: monospace;
       letter-spacing: 0.5px;
     }
@@ -125,10 +120,10 @@ interface RainViewerFrame {
     .map-viewport {
       flex: 1;
       position: relative;
-      background: #090d16;
-      border-radius: 10px;
+      background: #000;
+      border-radius: var(--sd-radius-sm);
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: var(--sd-border);
     }
     .tile-layer {
       position: absolute;
@@ -161,7 +156,7 @@ interface RainViewerFrame {
     .center-crosshair .ring {
       width: 24px;
       height: 24px;
-      border: 1.5px dashed rgba(56, 189, 248, 0.8);
+      border: 1.5px dashed var(--sd-accent);
       border-radius: 50%;
       animation: spin 10s linear infinite;
     }
@@ -172,9 +167,9 @@ interface RainViewerFrame {
       position: absolute;
       width: 5px;
       height: 5px;
-      background: #38bdf8;
+      background: var(--sd-accent);
       border-radius: 50%;
-      box-shadow: 0 0 8px #38bdf8;
+      box-shadow: 0 0 8px var(--sd-accent);
     }
 
     .intensity-legend {
@@ -188,10 +183,9 @@ interface RainViewerFrame {
       display: flex;
       align-items: center;
       gap: 4px;
-      backdrop-filter: blur(4px);
     }
     .legend-label {
-      font-size: 0.55rem;
+      font-size: var(--sd-fs-xs);
       color: #94a3b8;
       text-transform: uppercase;
       font-weight: 700;

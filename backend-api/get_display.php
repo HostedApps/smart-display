@@ -62,6 +62,7 @@ try {
         'logo_url' => $display['logo_url'] ?? null,
         'show_logo_kiosk' => (bool)($display['show_logo_kiosk'] ?? false),
         'font_family' => $bgData['font_family'] ?? null,
+        'accent_color' => $bgData['accent_color'] ?? null,
         'weather_alerts_enabled' => $bgData['weather_alerts_enabled'] ?? true,
         'weather_alert' => $bgData['weather_alert'] ?? null,
         'custom_css' => $bgData['custom_css'] ?? null,

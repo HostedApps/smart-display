@@ -5,7 +5,7 @@ import { LIVE_DISPLAY } from './widget-context';
 @Component({
   selector: 'app-chores-widget',
   template: `
-    <div class="chores-card">
+    <div class="chores-card sd-card">
       <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <canvas id="confetti-canvas-{{ widgetId }}" class="confetti-canvas"></canvas>
 
@@ -69,12 +69,6 @@ import { LIVE_DISPLAY } from './widget-context';
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(16px);
-      color: #f1f5f9;
       font-family: var(--font-main, sans-serif);
       position: relative;
       overflow: hidden;
@@ -99,19 +93,19 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
     }
     .widget-badge {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 800;
       letter-spacing: 1px;
-      color: #fbbf24;
+      color: var(--sd-warning);
     }
     .total-pts-badge {
-      background: rgba(251, 191, 36, 0.15);
-      border: 1px solid rgba(251, 191, 36, 0.3);
-      color: #f59e0b;
-      font-size: 0.75rem;
+      background: var(--sd-warning-soft);
+      border: 1px solid var(--sd-warning);
+      color: var(--sd-warning);
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       padding: 2px 8px;
-      border-radius: 12px;
+      border-radius: var(--sd-radius-sm);
     }
 
     .members-bar {
@@ -121,32 +115,32 @@ import { LIVE_DISPLAY } from './widget-context';
       padding-bottom: 2px;
     }
     .member-pill {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
+      border-radius: var(--sd-radius-sm);
       padding: 5px 10px;
       display: flex;
       align-items: center;
       gap: 6px;
-      color: #cbd5e1;
-      font-size: 0.78rem;
+      color: var(--sd-text-muted);
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
       white-space: nowrap;
     }
     .member-pill:hover {
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--sd-surface-3);
     }
     .member-pill.active {
-      background: #0ea5e9;
-      border-color: #38bdf8;
-      color: #ffffff;
-      box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
+      background: var(--sd-accent);
+      border-color: var(--sd-accent);
+      color: var(--sd-on-accent);
+      box-shadow: 0 0 10px var(--sd-accent-border);
     }
     .member-avatar { font-size: 0.95rem; }
     .member-streak {
-      font-size: 0.68rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       color: #f97316;
       background: rgba(249, 115, 22, 0.15);
@@ -155,7 +149,7 @@ import { LIVE_DISPLAY } from './widget-context';
     }
     .member-pill.active .member-streak {
       background: rgba(0, 0, 0, 0.25);
-      color: #ffedd5;
+      color: var(--sd-on-accent);
     }
 
     .chores-list {
@@ -167,9 +161,9 @@ import { LIVE_DISPLAY } from './widget-context';
       overflow-y: auto;
     }
     .chore-row {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 10px;
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
+      border-radius: var(--sd-radius-sm);
       padding: 8px 12px;
       display: flex;
       align-items: center;
@@ -179,80 +173,80 @@ import { LIVE_DISPLAY } from './widget-context';
       user-select: none;
     }
     .chore-row:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(14, 165, 233, 0.3);
+      background: var(--sd-surface-3);
+      border-color: var(--sd-accent-border);
       transform: translateX(2px);
     }
     .chore-row.completed {
       opacity: 0.55;
-      background: rgba(34, 197, 94, 0.05);
-      border-color: rgba(34, 197, 94, 0.2);
+      background: var(--sd-success-soft);
+      border-color: var(--sd-success-soft);
     }
     .chore-check {
       width: 18px;
       height: 18px;
       border-radius: 6px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
+      border: 2px solid var(--sd-text-subtle);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 800;
-      color: #fff;
+      color: var(--sd-on-accent);
       transition: all 0.2s;
       flex-shrink: 0;
     }
     .chore-row.completed .chore-check {
-      background: #22c55e;
-      border-color: #22c55e;
+      background: var(--sd-success);
+      border-color: var(--sd-success);
     }
     .chore-title {
       flex: 1;
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 500;
-      color: #e2e8f0;
+      color: var(--sd-text);
     }
     .chore-row.completed .chore-title {
       text-decoration: line-through;
     }
     .chore-pts-tag {
-      font-size: 0.72rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
-      color: #38bdf8;
-      background: rgba(14, 165, 233, 0.12);
+      color: var(--sd-accent);
+      background: var(--sd-accent-soft);
       padding: 2px 6px;
       border-radius: 6px;
     }
     .no-chores {
       text-align: center;
       padding: 20px;
-      font-size: 0.85rem;
-      color: #4ade80;
+      font-size: var(--sd-fs-body);
+      color: var(--sd-success);
     }
 
     .chores-footer {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: var(--sd-border);
       padding-top: 8px;
     }
     .progress-track {
       width: 100%;
       height: 6px;
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--sd-surface-3);
       border-radius: 3px;
       overflow: hidden;
     }
     .progress-bar {
       height: 100%;
-      background: linear-gradient(90deg, #0ea5e9, #22c55e);
+      background: linear-gradient(90deg, var(--sd-accent), var(--sd-success));
       border-radius: 3px;
       transition: width 0.4s ease;
     }
     .progress-label {
-      font-size: 0.7rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       text-align: right;
     }
   `]

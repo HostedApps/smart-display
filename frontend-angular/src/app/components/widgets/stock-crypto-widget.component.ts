@@ -19,7 +19,7 @@ export interface FinancialAsset {
 @Component({
   selector: 'app-stock-crypto-widget',
   template: `
-    <div class="market-card">
+    <div class="market-card sd-card">
       <div class="market-header">
         <div class="title-group">
           <svg class="market-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -51,7 +51,7 @@ export interface FinancialAsset {
             <svg class="sparkline-svg" viewBox="0 0 60 20">
               <path 
                 [attr.d]="generateSparklinePath(asset.sparkline)" 
-                [attr.stroke]="asset.change24h >= 0 ? '#10b981' : '#ef4444'" 
+                [style.stroke]="asset.change24h >= 0 ? 'var(--sd-success)' : 'var(--sd-danger)'" 
                 fill="none" 
                 stroke-width="2"
                 stroke-linecap="round"
@@ -82,12 +82,7 @@ export interface FinancialAsset {
     .market-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -98,7 +93,7 @@ export interface FinancialAsset {
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .title-group {
       display: flex;
@@ -108,13 +103,13 @@ export interface FinancialAsset {
     .market-icon {
       width: 16px;
       height: 16px;
-      color: #10b981;
+      color: var(--sd-success);
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .header-tags {
       display: flex;
@@ -122,17 +117,17 @@ export interface FinancialAsset {
       gap: 6px;
     }
     .view-tag {
-      font-size: 0.6rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
+      color: var(--sd-accent);
+      background: var(--sd-accent-soft);
       padding: 1px 5px;
       border-radius: 4px;
     }
     .currency-tag {
-      font-size: 0.65rem;
-      color: #94a3b8;
-      background: rgba(255, 255, 255, 0.05);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-2);
       padding: 2px 6px;
       border-radius: 4px;
       font-weight: 600;
@@ -150,14 +145,13 @@ export interface FinancialAsset {
       align-items: center;
       justify-content: space-between;
       padding: 6px 8px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--sd-surface-2);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
       transition: all 0.2s;
     }
     .asset-item:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255, 255, 255, 0.1);
+      background: var(--sd-surface-3);
     }
     .asset-left {
       display: flex;
@@ -171,25 +165,25 @@ export interface FinancialAsset {
     }
     .symbol {
       font-weight: 700;
-      font-size: 0.85rem;
-      color: #ffffff;
+      font-size: var(--sd-fs-body);
+      color: var(--sd-text);
       letter-spacing: 0.5px;
     }
     .type-badge {
-      font-size: 0.55rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 800;
-      color: #94a3b8;
-      background: rgba(255, 255, 255, 0.08);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-3);
       padding: 1px 4px;
       border-radius: 3px;
     }
     .type-badge.type-crypto {
-      color: #fbbf24;
-      background: rgba(245, 158, 11, 0.15);
+      color: var(--sd-warning);
+      background: var(--sd-warning-soft);
     }
     .name {
-      font-size: 0.68rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -212,13 +206,13 @@ export interface FinancialAsset {
     }
     .price {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 0.92rem;
+      font-size: var(--sd-fs-body);
       font-weight: 600;
-      color: #ffffff;
+      color: var(--sd-text);
       font-variant-numeric: tabular-nums;
     }
     .change-badge {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       padding: 1px 5px;
       border-radius: 4px;
@@ -226,20 +220,20 @@ export interface FinancialAsset {
       margin-top: 1px;
     }
     .change-badge.positive {
-      color: #34d399;
-      background: rgba(16, 185, 129, 0.15);
+      color: var(--sd-success);
+      background: var(--sd-success-soft);
     }
     .change-badge.negative {
-      color: #f87171;
-      background: rgba(239, 68, 68, 0.15);
+      color: var(--sd-danger);
+      background: var(--sd-danger-soft);
     }
     .empty-state {
       display: flex;
       align-items: center;
       justify-content: center;
       flex: 1;
-      color: #64748b;
-      font-size: 0.8rem;
+      color: var(--sd-text-subtle);
+      font-size: var(--sd-fs-sm);
     }
   `]
 })

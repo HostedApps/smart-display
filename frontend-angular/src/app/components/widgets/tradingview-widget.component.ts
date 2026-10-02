@@ -5,7 +5,7 @@ import { TradingViewConfig } from '../../models/display.model';
 @Component({
   selector: 'app-tradingview-widget',
   template: `
-    <div class="tradingview-card" [class.light-mode]="config.theme === 'light'">
+    <div class="tradingview-card sd-card" [class.light-mode]="config.theme === 'light'">
       <!-- Header -->
       <div class="tv-header">
         <div class="tv-badge">
@@ -45,12 +45,8 @@ import { TradingViewConfig } from '../../models/display.model';
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      border-radius: 16px;
       overflow: hidden;
-      background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(10, 15, 26, 0.85));
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7);
+      background: #000;
       display: flex;
       flex-direction: column;
       position: relative;
@@ -64,8 +60,8 @@ import { TradingViewConfig } from '../../models/display.model';
 
     .tv-header {
       padding: 6px 12px;
-      background: rgba(0, 0, 0, 0.35);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--sd-surface-2);
+      border-bottom: var(--sd-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -86,10 +82,10 @@ import { TradingViewConfig } from '../../models/display.model';
     }
 
     .tv-symbol-name {
-      font-size: 0.82rem;
+      font-size: var(--sd-fs-body);
       font-weight: 700;
       letter-spacing: 0.5px;
-      color: #f8fafc;
+      color: var(--sd-text);
     }
 
     .light-mode .tv-symbol-name {
@@ -103,18 +99,18 @@ import { TradingViewConfig } from '../../models/display.model';
     }
 
     .tv-interval-chip {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.15);
-      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--sd-accent);
+      background: var(--sd-accent-soft);
+      border: 1px solid var(--sd-accent-border);
       padding: 1px 6px;
       border-radius: 6px;
     }
 
     .tv-custom-title {
-      font-size: 0.72rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
     }
 
     .tv-frame-container {
@@ -138,18 +134,18 @@ import { TradingViewConfig } from '../../models/display.model';
       align-items: center;
       justify-content: center;
       height: 100%;
-      color: #64748b;
+      color: var(--sd-text-subtle);
       gap: 4px;
     }
 
     .tv-empty-title {
       font-weight: 600;
-      font-size: 0.9rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-body);
+      color: var(--sd-text-muted);
     }
 
     .tv-empty-desc {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
     }
   `]
 })

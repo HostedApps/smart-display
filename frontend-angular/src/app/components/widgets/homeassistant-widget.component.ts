@@ -7,7 +7,7 @@ import { LIVE_DISPLAY } from './widget-context';
 @Component({
   selector: 'app-homeassistant-widget',
   template: `
-    <div class="ha-card">
+    <div class="ha-card sd-card">
       <div class="ha-header">
         <div class="header-title">
           <svg class="ha-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -56,12 +56,7 @@ import { LIVE_DISPLAY } from './widget-context';
     .ha-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -72,7 +67,7 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .header-title {
       display: flex;
@@ -82,22 +77,22 @@ import { LIVE_DISPLAY } from './widget-context';
     .ha-icon {
       width: 16px;
       height: 16px;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .status-indicator {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       padding: 2px 6px;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
     }
-    .status-indicator.online { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .status-indicator.offline { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .status-indicator.online { background: var(--sd-success-soft); color: var(--sd-success); }
+    .status-indicator.offline { background: var(--sd-danger-soft); color: var(--sd-danger); }
 
     .entities-grid {
       display: grid;
@@ -112,28 +107,28 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       gap: 8px;
       padding: 8px 10px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: var(--sd-surface-2);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
       transition: all 0.2s;
       cursor: pointer;
       user-select: none;
     }
     .entity-item:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: var(--sd-surface-3);
+      border-color: var(--sd-accent-border);
       transform: translateY(-1px);
     }
     .entity-item.active {
-      background: rgba(14, 165, 233, 0.15);
-      border-color: rgba(14, 165, 233, 0.35);
-      box-shadow: 0 0 12px rgba(14, 165, 233, 0.15);
+      background: var(--sd-accent-soft);
+      border-color: var(--sd-accent-border);
+      box-shadow: 0 0 12px var(--sd-accent-soft);
     }
     .entity-icon-wrap {
       width: 32px;
       height: 32px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.3);
+      border-radius: var(--sd-radius-sm);
+      background: var(--sd-surface-2);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -147,9 +142,9 @@ import { LIVE_DISPLAY } from './widget-context';
       flex: 1;
     }
     .entity-label {
-      font-size: 0.78rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
-      color: #e2e8f0;
+      color: var(--sd-text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -158,12 +153,12 @@ import { LIVE_DISPLAY } from './widget-context';
       display: flex;
       align-items: center;
       gap: 3px;
-      font-size: 0.72rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       font-weight: 500;
     }
     .entity-item.active .entity-state {
-      color: #38bdf8;
+      color: var(--sd-accent);
       font-weight: 700;
     }
     .empty-state {
@@ -171,8 +166,8 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       justify-content: center;
       flex: 1;
-      color: #64748b;
-      font-size: 0.8rem;
+      color: var(--sd-text-subtle);
+      font-size: var(--sd-fs-sm);
     }
   `]
 })

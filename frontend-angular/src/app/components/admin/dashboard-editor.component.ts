@@ -15,6 +15,7 @@ import {
   User
 } from '../../models/display.model';
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, WidgetDefinition, getWidgetDefinition } from '../widgets/widget-registry';
+import { THEME_PRESETS, ThemePreset, ThemePresetInfo, resolveTheme, themeClasses } from '../../utils/theme.util';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
 import { AudioChimeService } from '../../services/audio-chime.service';
@@ -35,10 +36,10 @@ import { NotificationService } from '../../services/notification.service';
             <span>‹</span> All Displays
           </button>
           <button (click)="showHelpModal = true" class="btn-help-mini" title="Open Help Center & Widget Documentation">
-            📖 Help
+            <app-icon name="book-open" [size]="14"></app-icon> Help
           </button>
           <button (click)="openInstallationGuide()" class="btn-guide-mini" title="Open Client Hardware Installation Guide (PDF)">
-            📄 PDF Guide
+            <app-icon name="file-text" [size]="14"></app-icon> PDF Guide
           </button>
           <div class="user-info">
             <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
@@ -96,7 +97,7 @@ import { NotificationService } from '../../services/notification.service';
               (click)="openTemplatesModal()"
               title="Explore pre-built starter templates for the canvas"
             >
-              🎨 Templates
+              <app-icon name="layout-template" [size]="15"></app-icon> Templates
             </button>
             <button 
               type="button"
@@ -105,7 +106,7 @@ import { NotificationService } from '../../services/notification.service';
               [disabled]="pageWidgets.length < 2"
               title="Auto-arrange widgets into aesthetic layouts"
             >
-              ✨ Auto Arrange
+              <app-icon name="wand-sparkles" [size]="15"></app-icon> Auto Arrange
             </button>
           </div>
 
@@ -124,7 +125,7 @@ import { NotificationService } from '../../services/notification.service';
               <div class="palette-category">{{ group.label }}</div>
               <div class="widget-palette">
                 <button *ngFor="let def of group.widgets; trackBy: trackByType" type="button" (click)="addWidget(def.type)" class="palette-item" [title]="def.tooltip">
-                  <span class="palette-icon" aria-hidden="true">{{ def.icon }}</span>
+                  <span class="palette-icon"><app-icon [name]="def.svgIcon" [size]="16"></app-icon></span>
                   <span class="palette-title">{{ def.label }}</span>
                 </button>
               </div>
@@ -357,7 +358,7 @@ import { NotificationService } from '../../services/notification.service';
                   <input type="color" [(ngModel)]="feed.color" class="color-picker-mini" />
                   <input type="text" [(ngModel)]="feed.name" placeholder="Name (e.g. Mom)" class="input-control feed-name-input" />
                   <input type="text" [(ngModel)]="feed.url" placeholder="iCal URL (.ics)" class="input-control feed-url-input" />
-                  <button type="button" (click)="removeCalendarFeed(selectedWidget, fi)" class="btn-icon-danger">✕</button>
+                  <button type="button" (click)="removeCalendarFeed(selectedWidget, fi)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
                 </div>
               </div>
             </ng-container>
@@ -460,7 +461,7 @@ import { NotificationService } from '../../services/notification.service';
                 <div class="note-config-top">
                   <input type="text" [(ngModel)]="ent.icon" placeholder="💡" style="width:36px; text-align:center;" class="input-control" />
                   <input type="text" [(ngModel)]="ent.label" placeholder="Entity Label (e.g. Living Room)" class="input-control" />
-                  <button type="button" (click)="removeSmartHomeEntity(selectedWidget, ei)" class="btn-icon-danger">✕</button>
+                  <button type="button" (click)="removeSmartHomeEntity(selectedWidget, ei)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
                 </div>
                 <div class="form-row" style="margin-top:4px;">
                   <input type="text" [(ngModel)]="ent.entityId" placeholder="light.living_room" class="input-control" />
@@ -564,7 +565,7 @@ import { NotificationService } from '../../services/notification.service';
                 <div class="note-config-top">
                   <input type="color" [(ngModel)]="note.color" class="color-picker-mini" />
                   <input type="text" [(ngModel)]="note.author" placeholder="Author (e.g. Mom)" class="input-control note-author-input" />
-                  <button type="button" (click)="removeStickyNote(selectedWidget, ni)" class="btn-icon-danger">✕</button>
+                  <button type="button" (click)="removeStickyNote(selectedWidget, ni)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
                 </div>
                 <textarea [(ngModel)]="note.text" placeholder="Note message..." rows="2" class="input-control"></textarea>
               </div>
@@ -1246,7 +1247,7 @@ import { NotificationService } from '../../services/notification.service';
               </div>
 
               <div *ngFor="let rule of selectedWidget.rules; let ri = index" class="rule-item">
-                <button type="button" class="rule-delete-btn" (click)="removeRuleFromSelectedWidget(ri)" title="Delete Rule">✕</button>
+                <button type="button" class="rule-delete-btn" (click)="removeRuleFromSelectedWidget(ri)" title="Delete Rule" aria-label="Delete rule"><app-icon name="x" [size]="14"></app-icon></button>
                 <div class="form-row" style="margin-bottom: 6px;">
                   <div class="form-group" style="flex: 1;">
                     <label style="font-size: 0.72rem;">Field</label>
@@ -1464,12 +1465,29 @@ import { NotificationService } from '../../services/notification.service';
           </div>
 
           <div class="form-group">
-            <label>Theme</label>
-            <select [(ngModel)]="displayConfig.theme" class="input-control">
-              <option value="dark">Dark Slate</option>
-              <option value="light">Minimal Light</option>
-              <option value="oled">True Black (OLED)</option>
-            </select>
+            <label id="theme-picker-label">Theme</label>
+            <div class="theme-grid" role="radiogroup" aria-labelledby="theme-picker-label">
+              <button *ngFor="let t of themePresets" type="button" class="theme-option" role="radio"
+                      [class.active]="activeTheme === t.id" [attr.aria-checked]="activeTheme === t.id"
+                      (click)="selectTheme(t.id)" [title]="t.description">
+                <span class="theme-swatch" [style.background]="t.swatch.canvas" aria-hidden="true">
+                  <span class="theme-swatch-card" [style.background]="t.swatch.card" [style.borderColor]="t.id === 'contrast' ? '#ffffff' : 'transparent'">
+                    <span class="theme-swatch-line" [style.background]="t.swatch.text"></span>
+                    <span class="theme-swatch-line short" [style.background]="displayConfig.accent_color || t.swatch.accent"></span>
+                  </span>
+                </span>
+                <span class="theme-name">{{ t.name }}</span>
+              </button>
+            </div>
+            <p class="theme-description">{{ activeThemeInfo.description }}</p>
+          </div>
+
+          <div class="form-group">
+            <label>Accent Colour</label>
+            <div class="color-reset-row">
+              <input type="color" [ngModel]="displayConfig.accent_color || '#38bdf8'" (ngModelChange)="setAccentColor($event)" class="input-control color-input" aria-label="Theme accent colour" />
+              <button type="button" class="btn-reset-color" (click)="setAccentColor('')" [disabled]="!displayConfig.accent_color" title="Use the theme's own accent colour">Reset</button>
+            </div>
           </div>
 
           <div class="form-group">
@@ -1514,7 +1532,7 @@ import { NotificationService } from '../../services/notification.service';
 
           <hr class="divider" />
 
-          <h4>⚠️ Severe Weather Auto-Alerts</h4>
+          <h4 class="section-heading"><app-icon name="triangle-alert" [size]="15"></app-icon> Severe Weather Auto-Alerts</h4>
           <div class="form-group checkbox-group">
             <label>
               <input type="checkbox" [(ngModel)]="weatherAlertsEnabled" /> Screen-Wide Emergency Alert Banner
@@ -1590,7 +1608,7 @@ import { NotificationService } from '../../services/notification.service';
 
           <hr class="divider" />
 
-          <h4>🔔 Audio Chimes & Sound Synthesis</h4>
+          <h4 class="section-heading"><app-icon name="bell" [size]="15"></app-icon> Audio Chimes & Sound Synthesis</h4>
           <p class="tab-desc">Synthesized browser audio chimes for calendar events and hourly wall clock gongs (no external sound files required).</p>
 
           <div class="form-group checkbox-group">
@@ -1617,7 +1635,7 @@ import { NotificationService } from '../../services/notification.service';
 
           <hr class="divider" />
 
-          <h4>📱 TouchHub Navigation Dock</h4>
+          <h4 class="section-heading"><app-icon name="tablet-smartphone" [size]="15"></app-icon> TouchHub Navigation Dock</h4>
           <p class="tab-desc">Floating touch navigation dock on kiosk screens for switching pages, quick drawing whiteboard, task lists, and sleep toggle.</p>
           <div class="form-group checkbox-group">
             <label>
@@ -1643,7 +1661,7 @@ import { NotificationService } from '../../services/notification.service';
 
           <hr class="divider" />
 
-          <h4>🎨 Custom CSS Overrides</h4>
+          <h4 class="section-heading"><app-icon name="code" [size]="15"></app-icon> Custom CSS Overrides</h4>
           <p class="tab-desc">Inject custom CSS directly into your kiosk viewer for bespoke styling, typography, glow effects, or component layout tweaks.</p>
           <div class="form-group">
             <textarea 
@@ -1675,10 +1693,10 @@ import { NotificationService } from '../../services/notification.service';
         <div class="canvas-power-toolbar" (click)="$event.stopPropagation()">
           <div class="power-tool-group">
             <button (click)="undo()" [disabled]="!canUndo()" class="power-btn" title="Undo (Ctrl+Z / ⌘Z)">
-              <span>↩</span> Undo
+              <app-icon name="undo-2" [size]="14"></app-icon> Undo
             </button>
             <button (click)="redo()" [disabled]="!canRedo()" class="power-btn" title="Redo (Ctrl+Y / ⌘Y)">
-              <span>↪</span> Redo
+              <app-icon name="redo-2" [size]="14"></app-icon> Redo
             </button>
           </div>
 
@@ -1687,28 +1705,28 @@ import { NotificationService } from '../../services/notification.service';
           <!-- Selection & Alignment Tools -->
           <div class="power-tool-group" *ngIf="selectedWidget">
             <button (click)="duplicateSelectedWidget()" class="power-btn" title="Duplicate Widget (Ctrl+D / ⌘D)">
-              <span>📋</span> Duplicate
+              <app-icon name="copy-plus" [size]="14"></app-icon> Duplicate
             </button>
             <button (click)="alignSelectedWidget('left')" class="power-btn" title="Align Left">
-              <span>⇤</span>
+              <app-icon name="align-horizontal-justify-start" [size]="15"></app-icon>
             </button>
             <button (click)="alignSelectedWidget('center_h')" class="power-btn" title="Center Horizontally">
-              <span>↔</span>
+              <app-icon name="align-horizontal-justify-center" [size]="15"></app-icon>
             </button>
             <button (click)="alignSelectedWidget('right')" class="power-btn" title="Align Right">
-              <span>⇥</span>
+              <app-icon name="align-horizontal-justify-end" [size]="15"></app-icon>
             </button>
             <button (click)="alignSelectedWidget('top')" class="power-btn" title="Align Top">
-              <span>⤒</span>
+              <app-icon name="align-vertical-justify-start" [size]="15"></app-icon>
             </button>
             <button (click)="alignSelectedWidget('center_v')" class="power-btn" title="Center Vertically">
-              <span>↕</span>
+              <app-icon name="align-vertical-justify-center" [size]="15"></app-icon>
             </button>
             <button (click)="alignSelectedWidget('bottom')" class="power-btn" title="Align Bottom">
-              <span>⤓</span>
+              <app-icon name="align-vertical-justify-end" [size]="15"></app-icon>
             </button>
             <button (click)="removeSelectedWidget()" class="power-btn power-btn-danger" title="Delete Widget (Delete)">
-              <span>🗑️</span>
+              <app-icon name="trash-2" [size]="15"></app-icon>
             </button>
           </div>
 
@@ -1720,7 +1738,8 @@ import { NotificationService } from '../../services/notification.service';
         <div class="canvas-stage" [style.width.px]="canvasWidth * zoomLevel" [style.height.px]="canvasHeight * zoomLevel">
           <div 
             class="screen-canvas" 
-            [ngClass]="[displayConfig.theme, displayConfig.orientation || 'landscape_720p', gridSnapSize > 0 ? 'grid-overlay-' + gridSnapSize : '']" 
+            [ngClass]="canvasThemeClasses"
+            [style.--sd-accent]="displayConfig.accent_color || null"
             [style.width.px]="canvasWidth"
             [style.height.px]="canvasHeight"
             [style.transform]="'scale(' + zoomLevel + ')'"
@@ -1773,6 +1792,7 @@ import { NotificationService } from '../../services/notification.service';
               [style.height.px]="widget.position.height"
               [style.opacity]="widget.hidden ? 0.35 : (widget.style?.opacity !== undefined ? widget.style?.opacity : 1)"
               [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
+              [style.--sd-radius]="widget.style?.borderRadius != null ? widget.style!.borderRadius + 'px' : null"
               [style.fontFamily]="getWidgetFont(widget)"
               (mousedown)="startDrag($event, widget)"
               (click)="selectWidget(widget, $event)"
@@ -1792,7 +1812,7 @@ import { NotificationService } from '../../services/notification.service';
                 <span class="widget-size">{{ widget.position.width }}×{{ widget.position.height }}</span>
               </div>
 
-              <div class="widget-preview-content"
+              <div class="widget-preview-content sd-widget-box"
                 [class.sd-has-bg]="!!widget.style?.backgroundColor"
                 [class.sd-no-blur]="widget.style?.backdropBlur === false"
                 [style.--sd-widget-bg]="widget.style?.backgroundColor || null">
@@ -1838,10 +1858,10 @@ import { NotificationService } from '../../services/notification.service';
         <div class="auto-arrange-modal" (click)="$event.stopPropagation()">
           <div class="auto-arrange-header">
             <div>
-              <h2>✨ Auto Arrange Layouts</h2>
+              <h2 class="section-heading"><app-icon name="wand-sparkles" [size]="20"></app-icon> Auto Arrange Layouts</h2>
               <p class="auto-arrange-subtitle">Choose a layout style for your {{ pageWidgets.length }} widgets</p>
             </div>
-            <button class="auto-arrange-close" (click)="showAutoArrangeModal = false">✕</button>
+            <button class="auto-arrange-close" (click)="showAutoArrangeModal = false" aria-label="Close"><app-icon name="x" [size]="16"></app-icon></button>
           </div>
 
           <div class="layout-grid">
@@ -1892,10 +1912,10 @@ import { NotificationService } from '../../services/notification.service';
         <div class="templates-modal" (click)="$event.stopPropagation()">
           <div class="templates-header">
             <div>
-              <h2>🎨 Starter Dashboard Templates</h2>
+              <h2 class="section-heading"><app-icon name="layout-template" [size]="20"></app-icon> Starter Dashboard Templates</h2>
               <p class="templates-subtitle">Jumpstart your display with pre-built, pixel-perfect curated layouts</p>
             </div>
-            <button type="button" class="templates-close" (click)="showTemplatesModal = false">✕</button>
+            <button type="button" class="templates-close" (click)="showTemplatesModal = false" aria-label="Close"><app-icon name="x" [size]="16"></app-icon></button>
           </div>
 
           <div class="templates-grid">
@@ -2218,6 +2238,69 @@ import { NotificationService } from '../../services/notification.service';
     .form-row .form-group {
       flex: 1;
     }
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .theme-option {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      color: #e2e8f0;
+      cursor: pointer;
+    }
+    .theme-option:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+    }
+    .theme-option.active {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px #38bdf8;
+    }
+    .theme-option:focus-visible {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
+    }
+    .theme-swatch {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 46px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .theme-swatch-card {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 62%;
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+    }
+    .theme-swatch-line {
+      display: block;
+      height: 3px;
+      border-radius: 2px;
+    }
+    .theme-swatch-line.short {
+      width: 55%;
+    }
+    .theme-name {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .theme-description {
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
     .color-reset-row {
       display: flex;
       gap: 6px;
@@ -2368,7 +2451,13 @@ import { NotificationService } from '../../services/notification.service';
       transform: translateY(-1px);
     }
     .palette-icon {
-      font-size: 1.05rem;
+      display: inline-flex;
+      color: #38bdf8;
+    }
+    .section-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     .palette-title {
       font-size: 0.78rem;
@@ -2696,7 +2785,7 @@ import { NotificationService } from '../../services/notification.service';
       top: 0;
       left: 0;
       box-sizing: border-box;
-      background: #000;
+      background-color: var(--sd-canvas-bg);
       border: 10px solid #1e293b;
       border-radius: 20px;
       box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0, 0, 0, 0.8);
@@ -3738,6 +3827,32 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   trackByType(_: number, d: WidgetDefinition): string {
     return d.type;
+  }
+
+  readonly themePresets = THEME_PRESETS;
+
+  get activeTheme(): ThemePreset {
+    return resolveTheme(this.displayConfig?.theme);
+  }
+
+  get activeThemeInfo(): ThemePresetInfo {
+    return THEME_PRESETS.find(t => t.id === this.activeTheme) || THEME_PRESETS[0];
+  }
+
+  get canvasThemeClasses(): string[] {
+    return [
+      ...themeClasses(this.displayConfig?.theme),
+      this.displayConfig?.orientation || 'landscape_720p',
+      this.gridSnapSize > 0 ? 'grid-overlay-' + this.gridSnapSize : ''
+    ];
+  }
+
+  selectTheme(id: ThemePreset): void {
+    this.displayConfig.theme = id;
+  }
+
+  setAccentColor(color: string): void {
+    this.displayConfig.accent_color = color || undefined;
   }
 
   widgetComponent(type: string): Type<unknown> | null {
@@ -4827,6 +4942,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       logo_url: this.logoUrl,
       show_logo_kiosk: this.showLogoKiosk,
       font_family: this.displayConfig.font_family,
+      accent_color: this.displayConfig.accent_color || '',
       weather_alerts_enabled: this.weatherAlertsEnabled,
       weather_alert: this.weatherAlertText ? this.weatherAlertText : null,
       custom_css: this.customCss,

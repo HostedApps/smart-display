@@ -51,6 +51,15 @@ Smart Display already ships more widgets (35) than DAKboard's block catalog and 
 
 ---
 
+## Progress
+
+| Phase | Status |
+|---|---|
+| Phase 0 — Hygiene & quick wins | ✅ Done |
+| 3.1 Widget registry (single widget list) | ✅ Done — `components/widgets/widget-registry.ts`; palette, defaults, labels, help and both renderers read from it. Inspector forms are still per-widget (schema-driven forms remain in 3.1/3.2). |
+| Phase 1 — Design system | ✅ Done — `src/theme-tokens.css` (tokens, container-relative type scale, `.sd-card` frame), six theme presets + accent colour, all 35 widgets on tokens (803 → 203 hardcoded colour lines; the rest are brand marks, data scales and media overlays), Lucide SVG icons in editor/fleet chrome. |
+| Phase 2 onward | Not started |
+
 ## 2. Design principles
 
 1. **Glanceable from 3 m.** Every widget has one hero number/word; secondary info is ≥ 60 % smaller; minimum on-screen text = 1.6 % of screen height.

@@ -10,7 +10,7 @@ interface QuoteItem {
 @Component({
   selector: 'app-quote-widget',
   template: `
-    <div class="quote-card">
+    <div class="quote-card sd-card">
       <div class="quote-header">
         <span class="category-chip">{{ categoryLabel }}</span>
         <span class="quote-mark">“</span>
@@ -29,12 +29,7 @@ interface QuoteItem {
     .quote-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 16px 18px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -48,21 +43,22 @@ interface QuoteItem {
       margin-bottom: 6px;
     }
     .category-chip {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.8px;
-      color: var(--accent-cyan, #06b6d4);
-      background: rgba(6, 182, 212, 0.12);
-      border: 1px solid rgba(6, 182, 212, 0.25);
+      color: var(--sd-accent);
+      background: var(--sd-accent-soft);
+      border: 1px solid var(--sd-accent-border);
       padding: 2px 8px;
-      border-radius: 12px;
+      border-radius: var(--sd-radius-sm);
     }
     .quote-mark {
-      font-size: 2.8rem;
+      font-size: var(--sd-fs-xl);
       line-height: 0.6;
       font-family: var(--font-serif, Georgia, serif);
-      color: rgba(255, 255, 255, 0.18);
+      color: var(--sd-text-subtle);
+      opacity: 0.5;
       margin-top: 8px;
     }
     .quote-body {
@@ -73,11 +69,11 @@ interface QuoteItem {
     }
     .quote-text {
       font-family: var(--font-serif, 'Newsreader', Georgia, serif);
-      font-size: 1.05rem;
+      font-size: var(--sd-fs-title);
       font-weight: 400;
       line-height: 1.4;
       font-style: italic;
-      color: #ffffff;
+      color: var(--sd-text);
       margin: 0 0 8px 0;
       letter-spacing: 0.2px;
     }
@@ -88,13 +84,13 @@ interface QuoteItem {
       gap: 4px;
     }
     .dash {
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       font-weight: 300;
     }
     .author-name {
-      font-size: 0.8rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
-      color: #cbd5e1;
+      color: var(--sd-text-muted);
       letter-spacing: 0.3px;
     }
   `]

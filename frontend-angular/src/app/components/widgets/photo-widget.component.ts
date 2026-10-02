@@ -8,7 +8,7 @@ import { LIVE_DISPLAY } from './widget-context';
 @Component({
   selector: 'app-photo-widget',
   template: `
-    <div class="photo-card" [ngClass]="config.fitMode || 'cover'">
+    <div class="photo-card sd-card" [ngClass]="config.fitMode || 'cover'">
       <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div 
         *ngIf="config.blurBackground && config.fitMode === 'contain' && currentImageUrl" 
@@ -63,10 +63,7 @@ import { LIVE_DISPLAY } from './widget-context';
       height: 100%;
       position: relative;
       overflow: hidden;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background-color: rgba(0, 0, 0, 0.6);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      background: #000;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -110,11 +107,10 @@ import { LIVE_DISPLAY } from './widget-context';
       left: 10px;
       background: rgba(15, 23, 42, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(8px);
       padding: 3px 8px;
-      border-radius: 12px;
+      border-radius: var(--sd-radius-sm);
       color: #38bdf8;
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       letter-spacing: 0.3px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -125,11 +121,10 @@ import { LIVE_DISPLAY } from './widget-context';
       left: 12px;
       background: rgba(15, 23, 42, 0.75);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(8px);
       padding: 4px 12px;
       border-radius: 20px;
       color: #ffffff;
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       letter-spacing: 0.2px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -140,26 +135,26 @@ import { LIVE_DISPLAY } from './widget-context';
       align-items: center;
       justify-content: center;
       color: rgba(255, 255, 255, 0.5);
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       gap: 8px;
     }
     .photo-icon {
       width: 32px;
       height: 32px;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
     }
     .loading-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 8px;
-      color: #38bdf8;
+      color: var(--sd-accent);
     }
     .spinner-mini {
       width: 20px;
       height: 20px;
-      border: 2px solid rgba(56, 189, 248, 0.2);
-      border-top-color: #38bdf8;
+      border: 2px solid var(--sd-accent-soft);
+      border-top-color: var(--sd-accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
