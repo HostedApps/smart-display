@@ -3,6 +3,9 @@ import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 interface ForecastItem {
   date: string;
@@ -540,7 +543,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
 
   readonly isLive: boolean;
 
-  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+  constructor(private dataCache: DataCacheService, private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
     this.isLive = !!live;
   }
 
@@ -615,7 +618,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
       this.loading = true;
       this.errorMessage = null;
 
-      this.http.get<any>(owmUrl).pipe(
+      this.dataCache.get<any>(owmUrl, 5 * MINUTE).pipe(
         catchError(() => of(null))
       ).subscribe({
         next: (data) => {
@@ -662,7 +665,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
 
     const geocodeUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=10&language=en&format=json`;
 
-    this.http.get<any>(geocodeUrl).pipe(
+    this.dataCache.get<any>(geocodeUrl, 24 * 60 * MINUTE).pipe(
       catchError((err) => {
         console.warn('[WeatherWidget] Geocode error:', err);
         return of(null);
@@ -674,7 +677,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
       } else if (trimmed !== queryCity) {
         // Fallback: try raw query string directly
         const rawUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trimmed)}&count=5&language=en&format=json`;
-        this.http.get<any>(rawUrl).pipe(
+        this.dataCache.get<any>(rawUrl, 24 * 60 * MINUTE).pipe(
           catchError(() => of(null))
         ).subscribe(fallbackRes => {
           if (fallbackRes && fallbackRes.results && fallbackRes.results.length > 0) {
@@ -741,7 +744,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
 
     const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max&forecast_hours=12&temperature_unit=${tempUnit}&wind_speed_unit=${windUnit}&timeformat=iso8601&timezone=auto`;
 
-    this.http.get<any>(forecastUrl).pipe(
+    this.dataCache.get<any>(forecastUrl, 5 * MINUTE).pipe(
       catchError(() => of(null))
     ).subscribe(data => {
       this.loading = false;
@@ -809,7 +812,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
 
   private fetchAirQuality(lat: number, lon: number): void {
     const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`;
-    this.http.get<any>(aqiUrl).pipe(
+    this.dataCache.get<any>(aqiUrl, 15 * MINUTE).pipe(
       catchError(() => of(null))
     ).subscribe(aqiRes => {
       if (aqiRes?.current?.us_aqi !== undefined && aqiRes.current.us_aqi !== null) {

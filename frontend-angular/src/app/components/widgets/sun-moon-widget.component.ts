@@ -2,6 +2,9 @@ import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, DoCheck 
 import { HttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 export interface SunMoonConfig {
   latitude?: number;
@@ -240,7 +243,7 @@ export class SunMoonWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
   private debounceTimer: any;
   private geocoding: boolean = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(private dataCache: DataCacheService, private http: HttpClient) {}
 
   get safeConfig(): SunMoonConfig {
     return {
@@ -316,7 +319,7 @@ export class SunMoonWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
     this.geocoding = true;
     const geocodeUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=10&language=en&format=json`;
 
-    this.http.get<any>(geocodeUrl).pipe(
+    this.dataCache.get<any>(geocodeUrl, 24 * 60 * MINUTE).pipe(
       catchError(() => of(null))
     ).subscribe(geoRes => {
       if (geoRes && geoRes.results && geoRes.results.length > 0) {
@@ -325,7 +328,7 @@ export class SunMoonWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
       } else if (cityName !== queryCity) {
         // Fallback: try raw query
         const rawUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=5&language=en&format=json`;
-        this.http.get<any>(rawUrl).pipe(
+        this.dataCache.get<any>(rawUrl, 24 * 60 * MINUTE).pipe(
           catchError(() => of(null))
         ).subscribe(fallbackRes => {
           if (fallbackRes && fallbackRes.results && fallbackRes.results.length > 0) {

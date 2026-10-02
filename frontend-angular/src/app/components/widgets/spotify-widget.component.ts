@@ -1,6 +1,7 @@
 import { Component, Inject, Input, OnInit, OnDestroy, Optional } from '@angular/core';
-import { interval, Subscription } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { LIVE_DISPLAY } from './widget-context';
+import { ClockService } from '../../services/clock.service';
 
 @Component({
   selector: 'app-spotify-widget',
@@ -391,7 +392,7 @@ export class SpotifyWidgetComponent implements OnInit, OnDestroy {
 
   readonly isLive: boolean;
 
-  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null, private clock: ClockService) {
     this.isLive = !!live;
   }
 
@@ -414,7 +415,7 @@ export class SpotifyWidgetComponent implements OnInit, OnDestroy {
     this.currentProgressMs = Number(this.config.progressMs) || 78000;
     this.totalDurationMs = Number(this.config.durationMs) || 243000;
 
-    this.tickerSub = interval(1000).subscribe(() => {
+    this.tickerSub = this.clock.tick$.subscribe(() => {
       if (this.isPlaying) {
         this.currentProgressMs += 1000;
         if (this.currentProgressMs >= this.totalDurationMs) {

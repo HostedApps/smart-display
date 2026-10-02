@@ -159,3 +159,55 @@
   color: var(--sd-text);
   text-shadow: var(--sd-text-shadow);
 }
+
+/* ---- Widget host: fills the widget box; carries the page-enter animation ---- */
+.sd-widget-host {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Page transitions: newly shown widgets animate in; widgets shared across pages stay put ---- */
+.sd-transition-fade .sd-widget-host { animation: sd-enter-fade 0.6s ease-out both; }
+.sd-transition-slide .sd-widget-host { animation: sd-enter-slide 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sd-transition-zoom .sd-widget-host { animation: sd-enter-zoom 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes sd-enter-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sd-enter-slide { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes sd-enter-zoom { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* ---- Burn-in protection: shift the whole layout up to 4px, one step every 5 minutes ---- */
+.sd-orbit {
+  animation: sd-orbit 2400s steps(8, jump-none) infinite;
+}
+@keyframes sd-orbit {
+  0%    { translate: 0 0; }
+  12.5% { translate: 3px 1px; }
+  25%   { translate: 4px 3px; }
+  37.5% { translate: 2px 4px; }
+  50%   { translate: -1px 3px; }
+  62.5% { translate: -4px 1px; }
+  75%   { translate: -3px -2px; }
+  87.5% { translate: -1px -4px; }
+  100%  { translate: 0 0; }
+}
+
+/* ---- Performance mode (Raspberry Pi / low-power): no blur, shadows or animations inside widgets ---- */
+.sd-perf {
+  --sd-blur: none;
+  --sd-shadow: none;
+}
+.sd-perf .sd-widget-host *,
+.sd-perf .sd-widget-host *::before,
+.sd-perf .sd-widget-host *::after {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.sd-perf.sd-transition-fade .sd-widget-host,
+.sd-perf.sd-transition-slide .sd-widget-host,
+.sd-perf.sd-transition-zoom .sd-widget-host {
+  animation-duration: 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-widget-host, .sd-orbit { animation: none !important; }
+}

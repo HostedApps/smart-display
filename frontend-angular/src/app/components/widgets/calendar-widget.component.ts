@@ -7,6 +7,9 @@ import { ICalParserService, CalendarEvent } from '../../services/ical-parser.ser
 import { environment } from '../../../environments/environment';
 import { CalendarFeed } from '../../models/display.model';
 import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 interface MonthDay {
   date: Date;
@@ -544,7 +547,7 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     ];
   }
 
-  constructor(
+  constructor(private dataCache: DataCacheService, 
     private http: HttpClient, 
     private icalParser: ICalParserService,
     private route: ActivatedRoute,
@@ -659,7 +662,7 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
     const requests = feeds.map(feed => {
       const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_ical&url=${encodeURIComponent(feed.url)}`;
-      return this.http.get(proxyUrl, { responseType: 'text' }).pipe(
+      return this.dataCache.getText(proxyUrl, 2 * MINUTE).pipe(
         catchError(() => of(''))
       );
     });

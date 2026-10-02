@@ -4,6 +4,9 @@ import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const SECOND = 1000;
 
 export interface FinancialAsset {
   symbol: string;
@@ -255,7 +258,7 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
 
   readonly isLive: boolean;
 
-  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+  constructor(private dataCache: DataCacheService, private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
     this.isLive = !!live;
   }
 
@@ -323,7 +326,7 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
     }
 
     const url = `${environment.apiUrl}/proxy.php?action=fetch_stocks&symbols=${encodeURIComponent(syms.join(','))}`;
-    this.http.get<any>(url)
+    this.dataCache.get<any>(url, 30 * SECOND)
       .pipe(catchError(() => of(null)))
       .subscribe(res => {
         if (res && res.success && Array.isArray(res.stocks)) {
@@ -361,7 +364,7 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
     }
 
     const url = `${environment.apiUrl}/proxy.php?action=fetch_crypto&coins=${encodeURIComponent(coins.join(','))}&currencies=usd`;
-    this.http.get<any>(url)
+    this.dataCache.get<any>(url, 30 * SECOND)
       .pipe(catchError(() => of(null)))
       .subscribe(data => {
         const cryptoMeta: { [key: string]: { symbol: string; name: string } } = {

@@ -4,6 +4,9 @@ import { interval, Subscription } from 'rxjs';
 import { RssParserService, RssItem } from '../../services/rss-parser.service';
 import { environment } from '../../../environments/environment';
 import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 @Component({
   selector: 'app-rss-widget',
@@ -169,7 +172,7 @@ export class RssWidgetComponent implements OnInit, OnDestroy, OnChanges {
     return this.items.length > 0 ? this.items : this.defaultItems;
   }
 
-  constructor(
+  constructor(private dataCache: DataCacheService, 
     private http: HttpClient,
     private rssParser: RssParserService,
     @Optional() @Inject(LIVE_DISPLAY) live: boolean | null
@@ -200,7 +203,7 @@ export class RssWidgetComponent implements OnInit, OnDestroy, OnChanges {
     this.loading = true;
     const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_rss&url=${encodeURIComponent(url)}`;
 
-    this.http.get(proxyUrl, { responseType: 'text' }).subscribe({
+    this.dataCache.getText(proxyUrl, 2 * MINUTE).subscribe({
       next: (xmlData) => {
         this.loading = false;
         this.fetchFailed = false;
