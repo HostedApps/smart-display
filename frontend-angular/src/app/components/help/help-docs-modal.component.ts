@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { Router } from '@angular/router';
+import { WIDGET_REGISTRY } from '../widgets/widget-registry';
 
 @Component({
   selector: 'app-help-docs-modal',
@@ -752,43 +753,13 @@ export class HelpDocsModalComponent {
   activeTab: 'quickstart' | 'widgets' | 'hardware' | 'walldrop' | 'tips' = 'quickstart';
   widgetSearch: string = '';
 
-  widgetCatalog = [
-    { icon: '▶️', title: 'YouTube Video & Stream', tag: 'Media', description: 'Embeds ambient videos, live news, and music streams with autoplay and loop controls.', configTips: 'Accepts standard watch URLs, youtu.be, shorts, or raw Video IDs.' },
-    { icon: '🧠', title: 'AI Ambient Briefing', tag: 'AI Engine', description: 'Generates daily synthesized morning and evening executive updates using Google Gemini or built-in heuristics.', configTips: 'Customize tone (Warm, Executive, Motivational) or provide Gemini API Key.' },
-    { icon: '🏆', title: 'Chores & Habit Streaks', tag: 'Gamification', description: 'Interactive Hearth-style family chore charts with avatar emojis, flame streaks, and confetti rewards.', configTips: 'Add family members, allocate points per task, and tap to complete.' },
-    { icon: '📹', title: 'Live Camera PIP', tag: 'Security', description: 'Low-latency RTSP/MJPEG live doorbell and security camera PIP stream with snapshot refresh HUD.', configTips: 'Configure stream URL or image snapshot endpoint with refresh interval.' },
-    { icon: '🚗', title: 'Commute & Transit', tag: 'Transit', description: 'Real-time driving traffic ETA matrices and public transit live departure countdowns.', configTips: 'Add destinations (Office, Airport, School) with route badges.' },
-    { icon: '⏰', title: 'Digital Clock', tag: 'Core', description: 'Precision digital clock with 12h/24h formats, date display, and typography styling.', configTips: 'Supports multiple time formats (hh:mm:ss a, HH:mm).' },
-    { icon: '⛅', title: 'Weather Forecast', tag: 'Weather', description: 'Current temperature, weather condition icons, humidity, wind, and 5-day forecasts.', configTips: 'City Name, Imperial (°F) or Metric (°C), and OpenWeather API Key.' },
-    { icon: '📅', title: 'Family Calendar', tag: 'Scheduling', description: 'Monthly calendar grid and agenda list synchronized with Google Calendar, iCloud, and Outlook via iCal.', configTips: 'Paste public/secret iCal URLs from Google/Apple Calendar.' },
-    { icon: '🖼️', title: 'Photo Slideshow & Google Photos', tag: 'Media', description: 'Rotating family photo album slideshow and live streaming from Google Photos shared albums.', configTips: 'Paste any Google Photos shared link (e.g. photos.app.goo.gl) or custom image URLs.' },
-    { icon: '📰', title: 'RSS News Feed', tag: 'Information', description: 'Live headline ticker pulling from major news outlets, tech blogs, and custom RSS feeds.', configTips: 'Enter any valid RSS XML endpoint URL (e.g. BBC, NYT, Hacker News).' },
-    { icon: '📝', title: 'Tasks & To-Do', tag: 'Productivity', description: 'Shared family or office checklist with strike-through completion.', configTips: 'Add checklist items directly or sync with task managers.' },
-    { icon: '🏠', title: 'Smart Home & Home Assistant', tag: 'Smart Home', description: 'Displays live entity states, lights, sensors, thermostat gauges from Home Assistant, Google Home, Alexa, or custom virtual devices.', configTips: 'Home Assistant URL & token or custom smart entities.' },
-    { icon: '🎵', title: 'Spotify Now Playing', tag: 'Music', description: 'Shows active track artwork, artist name, progress bar, and playback status.', configTips: 'OAuth connection or simulated ambient music player mode.' },
-    { icon: '📈', title: 'Markets & Stocks Ticker', tag: 'Finance', description: 'Live ticker tracking for US & Global Stocks (AAPL, TSLA, NVDA, SPY, MSFT, GOOGL) and Cryptocurrencies (BTC, ETH, SOL) with sparklines and % change.', configTips: 'Enter comma-separated stock symbols (e.g. AAPL, NVDA, SPY) and crypto tokens.' },
-    { icon: '📌', title: 'Sticky Notes', tag: 'Family Board', description: 'Colored virtual post-it notes with handwriting typography.', configTips: 'Set author, message, and note paper color.' },
-    { icon: '⏳', title: 'Countdown Timer', tag: 'Events', description: 'Live countdown timer to vacations, weddings, birthdays, or product launches.', configTips: 'Pick target date & time and give the event a title.' },
-    { icon: '🍽️', title: 'Meal Planner', tag: 'Lifestyle', description: 'Weekly Monday-to-Sunday dinner and lunch meal schedule for the whole family.', configTips: 'Edit daily menu items directly in the inspector.' },
-    { icon: '🛰️', title: 'Weather Radar', tag: 'Weather', description: 'Live animated Doppler rain and cloud radar map. Powered by RainViewer — 100% Free & Zero API Key Required.', configTips: 'Pick a quick city preset or enter Lat/Lon coordinates. No API key needed!' },
-    { icon: '💬', title: 'Daily Quotes', tag: 'Inspiration', description: 'Daily motivational thoughts, stoic philosophy, or custom family mottos.', configTips: 'Select category or enter custom family quote.' },
-    { icon: '🔤', title: 'Text & Announcements', tag: 'Core', description: 'Rich static text blocks for welcome messages, notices, and headings.', configTips: 'Set text, size, alignment, and optional gradient header.' },
-    { icon: '🔳', title: 'QR Code', tag: 'Utility', description: 'Scannable QR codes for guest WiFi, URLs, menus, or contact cards.', configTips: 'Enter the URL or WiFi credentials to encode.' },
-    { icon: '🌍', title: 'World Clocks', tag: 'Core', description: 'Side-by-side clocks for multiple cities and time zones.', configTips: 'Add cities with their IANA time zone (e.g. Europe/London).' },
-    { icon: '🔷', title: 'Shapes & Dividers', tag: 'Decor', description: 'Rectangles, circles, and divider lines to structure your layout.', configTips: 'Pick shape, fill colour, border, and opacity.' },
-    { icon: '🗓️', title: 'Scheduled Text', tag: 'Core', description: 'Announcements that automatically show and hide on chosen days and times.', configTips: 'Add messages with start/end time and active weekdays.' },
-    { icon: '🔘', title: 'Button / Link', tag: 'Interactive', description: 'Touch buttons that jump to another page or open a URL.', configTips: 'Choose a label, icon, and target page or link.' },
-    { icon: '🌅', title: 'Sun & Moon', tag: 'Weather', description: 'Sunrise, sunset, golden hour, and current moon phase for your location.', configTips: 'Enter a city name — coordinates are looked up automatically.' },
-    { icon: '🕰️', title: 'Analog Clock', tag: 'Core', description: 'Classic dial clock with hour, minute, and optional second hands.', configTips: 'Choose dial style and whether to show the second hand.' },
-    { icon: '🔌', title: 'External Data (REST)', tag: 'Data', description: 'Poll any JSON API and display a value with a label and unit.', configTips: 'Set the URL, optional auth header, and a JSONPath to the value.' },
-    { icon: '🎯', title: 'Radial Gauge', tag: 'Data', description: 'Semicircular gauge with warning and critical thresholds; can receive pushed values.', configTips: 'Set min/max, thresholds, and unit, or push values via the webhook API.' },
-    { icon: '🗺️', title: 'Google Maps', tag: 'Maps', description: 'Interactive or satellite map of any location with live traffic.', configTips: 'Search a location and adjust zoom level and map type.' },
-    { icon: '✏️', title: 'Whiteboard', tag: 'Family Board', description: 'Touch and stylus drawing board with pen, highlighter, and eraser that syncs across devices.', configTips: 'Choose a background and default pen colour.' },
-    { icon: '💼', title: 'Slack Channel', tag: 'Productivity', description: 'Latest messages from a Slack channel with avatars and timestamps.', configTips: 'Provide a Slack bot token and channel ID.' },
-    { icon: '✉️', title: 'Gmail Unread', tag: 'Productivity', description: 'Unread email count with sender and subject previews.', configTips: 'Connect a Google account with Gmail read access.' },
-    { icon: '📊', title: 'TradingView Chart', tag: 'Finance', description: 'Live candlestick, line, or area charts for stocks, crypto, and forex.', configTips: 'Enter a symbol (e.g. NASDAQ:AAPL), interval, and theme.' },
-    { icon: '👽', title: 'Reddit Media', tag: 'Media', description: 'Photo slideshow from top posts of image subreddits like r/EarthPorn or r/space.', configTips: 'List subreddits and choose the time range (day, week, all).' }
-  ];
+  widgetCatalog = WIDGET_REGISTRY.map(d => ({
+    icon: d.icon,
+    title: d.name,
+    tag: d.tag,
+    description: d.description,
+    configTips: d.tips
+  }));
 
   get filteredWidgets() {
     if (!this.widgetSearch.trim()) return this.widgetCatalog;

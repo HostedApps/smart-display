@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, HostListener, Type } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -12,9 +12,9 @@ import {
   DisplayOrientation,
   SleepScheduleConfig,
   DisplayBackground,
-  User,
-  WIDGET_TYPES
+  User
 } from '../../models/display.model';
+import { WIDGET_REGISTRY, WIDGET_CATEGORIES, WidgetDefinition, getWidgetDefinition } from '../widgets/widget-registry';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
 import { AudioChimeService } from '../../services/audio-chime.service';
@@ -112,150 +112,24 @@ import { NotificationService } from '../../services/notification.service';
           <hr class="divider" />
 
           <div class="palette-header">
-            <h3>Add Widget</h3>
+            <button type="button" class="palette-toggle" (click)="paletteOpen = !paletteOpen" [attr.aria-expanded]="paletteOpen" aria-controls="widget-palette">
+              <span class="palette-chevron" [class.open]="paletteOpen" aria-hidden="true">▸</span>
+              <h3>Add Widget</h3>
+            </button>
             <span class="palette-badge">{{ widgetTypeCount }} Widgets</span>
           </div>
-          <div class="widget-palette">
-            <button (click)="addWidget('youtube')" class="palette-item" title="Embed ambient YouTube videos or live news/music streams with auto-play and loop">
-              <span class="palette-icon">▶️</span>
-              <span class="palette-title">YouTube</span>
-            </button>
-            <button (click)="addWidget('ai_briefing')" class="palette-item" title="AI-synthesized daily morning and evening executive updates using Google Gemini or ambient engine">
-              <span class="palette-icon">🧠</span>
-              <span class="palette-title">AI Briefing</span>
-            </button>
-            <button (click)="addWidget('chores')" class="palette-item" title="Interactive Hearth-style family chore charts with avatar emojis, flame streaks, and confetti">
-              <span class="palette-icon">🏆</span>
-              <span class="palette-title">Chores & Habits</span>
-            </button>
-            <button (click)="addWidget('camera_pip')" class="palette-item" title="Low-latency RTSP/MJPEG live doorbell and security camera PIP stream with snapshot refresh HUD">
-              <span class="palette-icon">📹</span>
-              <span class="palette-title">Live Camera</span>
-            </button>
-            <button (click)="addWidget('commute')" class="palette-item" title="Real-time driving route traffic ETA matrices and public transit live departure countdowns">
-              <span class="palette-icon">🚗</span>
-              <span class="palette-title">Commute</span>
-            </button>
-            <button (click)="addWidget('clock')" class="palette-item" title="Precision digital clock with 12h/24h formats, date display, and typography styling">
-              <span class="palette-icon">⏰</span>
-              <span class="palette-title">Clock</span>
-            </button>
-            <button (click)="addWidget('weather')" class="palette-item" title="Current temperature, weather condition icons, humidity, wind, and 5-day forecast">
-              <span class="palette-icon">⛅</span>
-              <span class="palette-title">Weather</span>
-            </button>
-            <button (click)="addWidget('calendar')" class="palette-item" title="Monthly calendar grid and agenda list synchronized with Google Calendar, iCloud, and Outlook iCal">
-              <span class="palette-icon">📅</span>
-              <span class="palette-title">Calendar</span>
-            </button>
-            <button (click)="addWidget('photo')" class="palette-item" title="Rotating family photo album slideshow with crossfade transitions">
-              <span class="palette-icon">🖼️</span>
-              <span class="palette-title">Photos</span>
-            </button>
-            <button (click)="addWidget('rss')" class="palette-item" title="Live headline ticker pulling from major news outlets, tech blogs, and custom RSS XML feeds">
-              <span class="palette-icon">📰</span>
-              <span class="palette-title">RSS News</span>
-            </button>
-            <button (click)="addWidget('todo')" class="palette-item" title="Shared family or office checklist with strike-through task completion">
-              <span class="palette-icon">📝</span>
-              <span class="palette-title">Tasks</span>
-            </button>
-            <button (click)="addWidget('homeassistant')" class="palette-item" title="Displays live entity states, lights, sensors, temperature gauges from Home Assistant">
-              <span class="palette-icon">🏠</span>
-              <span class="palette-title">Smart Home</span>
-            </button>
-            <button (click)="addWidget('spotify')" class="palette-item" title="Shows active track artwork, artist name, progress bar, and playback status">
-              <span class="palette-icon">🎵</span>
-              <span class="palette-title">Spotify</span>
-            </button>
-            <button (click)="addWidget('stock_crypto')" class="palette-item" title="Live price tracking for Bitcoin, Ethereum, and major stock market indices">
-              <span class="palette-icon">📈</span>
-              <span class="palette-title">Markets</span>
-            </button>
-            <button (click)="addWidget('sticky_note')" class="palette-item" title="Colored virtual post-it notes with handwriting typography">
-              <span class="palette-icon">📌</span>
-              <span class="palette-title">Sticky Notes</span>
-            </button>
-            <button (click)="addWidget('countdown')" class="palette-item" title="Live countdown timer to vacations, weddings, birthdays, or product launches">
-              <span class="palette-icon">⏳</span>
-              <span class="palette-title">Countdown</span>
-            </button>
-            <button (click)="addWidget('meal_planner')" class="palette-item" title="Weekly Monday-to-Sunday dinner and lunch meal schedule for the whole family">
-              <span class="palette-icon">🍽️</span>
-              <span class="palette-title">Meal Plan</span>
-            </button>
-            <button (click)="addWidget('radar')" class="palette-item" title="Live animated Doppler rain and cloud radar map for your geographical region">
-              <span class="palette-icon">🛰️</span>
-              <span class="palette-title">Radar</span>
-            </button>
-            <button (click)="addWidget('quote')" class="palette-item" title="Daily motivational thoughts, stoic philosophy, or custom family mottos">
-              <span class="palette-icon">💬</span>
-              <span class="palette-title">Daily Quote</span>
-            </button>
-            <button (click)="addWidget('text')" class="palette-item" title="Static text announcements, room labels, or custom messages">
-              <span class="palette-icon">📝</span>
-              <span class="palette-title">Text</span>
-            </button>
-            <button (click)="addWidget('qrcode')" class="palette-item" title="Generate QR codes for WiFi passwords, URLs, or contact info">
-              <span class="palette-icon">📱</span>
-              <span class="palette-title">QR Code</span>
-            </button>
-            <button (click)="addWidget('world_clocks')" class="palette-item" title="Multiple timezone clocks for distributed teams or family abroad">
-              <span class="palette-icon">🌐</span>
-              <span class="palette-title">World Clocks</span>
-            </button>
-            <button (click)="addWidget('shapes')" class="palette-item" title="Decorative shapes, dividers, color panels, and visual separators">
-              <span class="palette-icon">⬛</span>
-              <span class="palette-title">Shapes</span>
-            </button>
-            <button (click)="addWidget('scheduled_text')" class="palette-item" title="Text announcements that appear and disappear at scheduled times">
-              <span class="palette-icon">⏰</span>
-              <span class="palette-title">Scheduled Text</span>
-            </button>
-            <button (click)="addWidget('button')" class="palette-item" title="Interactive touch buttons for navigation between pages or external links">
-              <span class="palette-icon">🔘</span>
-              <span class="palette-title">Button</span>
-            </button>
-            <button (click)="addWidget('sun_moon')" class="palette-item" title="Sunrise, sunset times and current moon phase with illumination">
-              <span class="palette-icon">🌙</span>
-              <span class="palette-title">Sun & Moon</span>
-            </button>
-            <button (click)="addWidget('analog_clock')" class="palette-item" title="Classic analog clock dial with hour, minute, and second hands">
-              <span class="palette-icon">🕐</span>
-              <span class="palette-title">Analog Clock</span>
-            </button>
-            <button (click)="addWidget('rest_fetch')" class="palette-item" title="Fetch live JSON data from Home Assistant or external REST APIs">
-              <span class="palette-icon">📡</span>
-              <span class="palette-title">REST Data</span>
-            </button>
-            <button (click)="addWidget('gauge')" class="palette-item" title="Semicircular radial gauge meter for temperatures, CPU, or metrics">
-              <span class="palette-icon">⚡</span>
-              <span class="palette-title">Gauge</span>
-            </button>
-            <button (click)="addWidget('whiteboard')" class="palette-item" title="Touch-interactive family whiteboard and chalkboard for notes and doodles">
-              <span class="palette-icon">🎨</span>
-              <span class="palette-title">Whiteboard</span>
-            </button>
-            <button (click)="addWidget('google_maps')" class="palette-item" title="Interactive map embed with location search, zoom, and live traffic">
-              <span class="palette-icon">🗺️</span>
-              <span class="palette-title">Google Maps</span>
-            </button>
-            <button (click)="addWidget('slack')" class="palette-item" title="Live Slack channel message feed with avatars and timestamps">
-              <span class="palette-icon">💬</span>
-              <span class="palette-title">Slack Feed</span>
-            </button>
-            <button (click)="addWidget('gmail')" class="palette-item" title="Gmail inbox unread count badge and latest email previews">
-              <span class="palette-icon">✉️</span>
-              <span class="palette-title">Gmail Inbox</span>
-            </button>
-            <button (click)="addWidget('tradingview')" class="palette-item" title="Interactive TradingView financial candlestick and area charts">
-              <span class="palette-icon">📈</span>
-              <span class="palette-title">TradingView</span>
-            </button>
-            <button (click)="addWidget('reddit')" class="palette-item" title="Live Reddit photo slideshow from curated photography subreddits">
-              <span class="palette-icon">📸</span>
-              <span class="palette-title">Reddit Media</span>
-            </button>
+          <div id="widget-palette" *ngIf="paletteOpen">
+            <input type="search" class="input-control palette-search" [(ngModel)]="paletteQuery" placeholder="Search widgets…" aria-label="Search widgets" />
+            <ng-container *ngFor="let group of paletteGroups; trackBy: trackByCategory">
+              <div class="palette-category">{{ group.label }}</div>
+              <div class="widget-palette">
+                <button *ngFor="let def of group.widgets; trackBy: trackByType" type="button" (click)="addWidget(def.type)" class="palette-item" [title]="def.tooltip">
+                  <span class="palette-icon" aria-hidden="true">{{ def.icon }}</span>
+                  <span class="palette-title">{{ def.label }}</span>
+                </button>
+              </div>
+            </ng-container>
+            <p class="palette-empty" *ngIf="paletteGroups.length === 0">No widgets match "{{ paletteQuery }}".</p>
           </div>
 
           <hr class="divider" />
@@ -1922,41 +1796,7 @@ import { NotificationService } from '../../services/notification.service';
                 [class.sd-has-bg]="!!widget.style?.backgroundColor"
                 [class.sd-no-blur]="widget.style?.backdropBlur === false"
                 [style.--sd-widget-bg]="widget.style?.backgroundColor || null">
-                <app-clock-widget *ngIf="widget.type === 'clock'" [config]="widget.config"></app-clock-widget>
-                <app-weather-widget *ngIf="widget.type === 'weather'" [config]="widget.config"></app-weather-widget>
-                <app-calendar-widget *ngIf="widget.type === 'calendar'" [config]="widget.config"></app-calendar-widget>
-                <app-photo-widget *ngIf="widget.type === 'photo'" [config]="widget.config"></app-photo-widget>
-                <app-rss-widget *ngIf="widget.type === 'rss'" [config]="widget.config"></app-rss-widget>
-                <app-todo-widget *ngIf="widget.type === 'todo'" [config]="widget.config"></app-todo-widget>
-                <app-homeassistant-widget *ngIf="widget.type === 'homeassistant'" [config]="widget.config"></app-homeassistant-widget>
-                <app-spotify-widget *ngIf="widget.type === 'spotify'" [config]="widget.config"></app-spotify-widget>
-                <app-stock-crypto-widget *ngIf="widget.type === 'stock_crypto'" [config]="widget.config"></app-stock-crypto-widget>
-                <app-sticky-note-widget *ngIf="widget.type === 'sticky_note'" [config]="widget.config"></app-sticky-note-widget>
-                <app-countdown-widget *ngIf="widget.type === 'countdown'" [config]="widget.config"></app-countdown-widget>
-                <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
-                <app-radar-widget *ngIf="widget.type === 'radar'" [config]="widget.config"></app-radar-widget>
-                <app-quote-widget *ngIf="widget.type === 'quote'" [config]="widget.config"></app-quote-widget>
-                <app-ai-briefing-widget *ngIf="widget.type === 'ai_briefing'" [config]="widget.config"></app-ai-briefing-widget>
-                <app-chores-widget *ngIf="widget.type === 'chores'" [config]="widget.config"></app-chores-widget>
-                <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
-                <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
-                <app-youtube-widget *ngIf="widget.type === 'youtube'" [config]="widget.config"></app-youtube-widget>
-                <app-text-widget *ngIf="widget.type === 'text'" [config]="widget.config"></app-text-widget>
-                <app-qrcode-widget *ngIf="widget.type === 'qrcode'" [config]="widget.config"></app-qrcode-widget>
-                <app-world-clocks-widget *ngIf="widget.type === 'world_clocks'" [config]="widget.config"></app-world-clocks-widget>
-                <app-shapes-widget *ngIf="widget.type === 'shapes'" [config]="widget.config"></app-shapes-widget>
-                <app-scheduled-text-widget *ngIf="widget.type === 'scheduled_text'" [config]="widget.config"></app-scheduled-text-widget>
-                <app-button-widget *ngIf="widget.type === 'button'" [config]="widget.config"></app-button-widget>
-                <app-sun-moon-widget *ngIf="widget.type === 'sun_moon'" [config]="widget.config"></app-sun-moon-widget>
-                <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
-                <app-rest-fetch-widget *ngIf="widget.type === 'rest_fetch'" [config]="widget.config"></app-rest-fetch-widget>
-                <app-gauge-widget *ngIf="widget.type === 'gauge'" [config]="widget.config"></app-gauge-widget>
-                <app-google-maps-widget *ngIf="widget.type === 'google_maps'" [config]="widget.config"></app-google-maps-widget>
-                <app-whiteboard-widget *ngIf="widget.type === 'whiteboard'" [config]="widget.config"></app-whiteboard-widget>
-                <app-slack-widget *ngIf="widget.type === 'slack'" [config]="widget.config"></app-slack-widget>
-                <app-gmail-widget *ngIf="widget.type === 'gmail'" [config]="widget.config"></app-gmail-widget>
-                <app-tradingview-widget *ngIf="widget.type === 'tradingview'" [config]="widget.config"></app-tradingview-widget>
-                <app-reddit-widget *ngIf="widget.type === 'reddit'" [config]="widget.config"></app-reddit-widget>
+                <ng-container *ngComponentOutlet="widgetComponent(widget.type); inputs: { config: widget.config }"></ng-container>
               </div>
 
               <!-- 8-Point Visual Resize Handles -->
@@ -2451,6 +2291,43 @@ import { NotificationService } from '../../services/notification.service';
       justify-content: space-between;
       align-items: baseline;
       margin-bottom: 2px;
+    }
+    .palette-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+      cursor: pointer;
+    }
+    .palette-chevron {
+      display: inline-block;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      transition: transform 0.15s;
+    }
+    .palette-chevron.open {
+      transform: rotate(90deg);
+    }
+    .palette-search {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 8px 0 4px;
+    }
+    .palette-category {
+      margin: 10px 0 6px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .palette-empty {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin: 10px 0;
     }
     .palette-header h3 {
       font-size: 0.95rem;
@@ -3842,7 +3719,30 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   token: string = '';
   saving: boolean = false;
   activeTab: 'layout' | 'layers' | 'pages' | 'settings' = 'layout';
-  readonly widgetTypeCount = WIDGET_TYPES.length;
+  readonly widgetTypeCount = WIDGET_REGISTRY.length;
+  paletteOpen = true;
+  paletteQuery = '';
+
+  get paletteGroups(): { id: string; label: string; widgets: WidgetDefinition[] }[] {
+    const q = this.paletteQuery.trim().toLowerCase();
+    const matches = (d: WidgetDefinition) => !q ||
+      [d.label, d.name, d.tag, d.description].some(text => text.toLowerCase().includes(q));
+    return WIDGET_CATEGORIES
+      .map(c => ({ id: c.id, label: c.label, widgets: WIDGET_REGISTRY.filter(d => d.category === c.id && matches(d)) }))
+      .filter(g => g.widgets.length > 0);
+  }
+
+  trackByCategory(_: number, g: { id: string }): string {
+    return g.id;
+  }
+
+  trackByType(_: number, d: WidgetDefinition): string {
+    return d.type;
+  }
+
+  widgetComponent(type: string): Type<unknown> | null {
+    return getWidgetDefinition(type)?.component ?? null;
+  }
   weekDays: string[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   displayConfig: DisplayConfig = {
@@ -4337,331 +4237,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   selectWidget(widget: Widget, event: MouseEvent): void {
     event.stopPropagation();
     this.selectedWidget = widget;
+    this.paletteOpen = false;
   }
 
   addWidget(type: Widget['type']): void {
-    let initialConfig: any = {};
-    let initialSize = { width: 320, height: 200 };
-
-    switch (type) {
-      case 'clock':
-        initialConfig = { format: 'hh:mm:ss a', showDate: true };
-        initialSize = { width: 300, height: 140 };
-        break;
-      case 'weather':
-        initialConfig = { city: 'San Jose', apiKey: '', units: 'imperial', showForecast: true };
-        initialSize = { width: 360, height: 220 };
-        break;
-      case 'calendar':
-        initialConfig = {
-          title: 'Family Calendar',
-          viewMode: 'agenda',
-          maxEvents: 6,
-          feeds: [
-            { name: 'Kids', url: '', color: '#ec4899' },
-            { name: 'Work', url: '', color: '#3b82f6' }
-          ]
-        };
-        initialSize = { width: 380, height: 340 };
-        break;
-      case 'photo':
-        initialConfig = {
-          albumUrl: '',
-          images: [
-            'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1280&q=80',
-            'https://images.unsplash.com/photo-1511884642898-4c92249e20b6?w=1280&q=80'
-          ],
-          intervalSeconds: 10,
-          fitMode: 'cover',
-          blurBackground: true,
-          showCaptions: false
-        };
-        initialSize = { width: 440, height: 280 };
-        break;
-      case 'rss':
-        initialConfig = { feedUrl: 'https://feeds.bbci.co.uk/news/rss.xml', title: 'World News', maxItems: 4 };
-        initialSize = { width: 400, height: 300 };
-        break;
-      case 'todo':
-        initialConfig = { title: 'Daily Tasks', items: [], filterCompleted: false };
-        initialSize = { width: 340, height: 260 };
-        break;
-      case 'homeassistant':
-        initialConfig = {
-          title: 'Smart Home',
-          haUrl: '',
-          token: '',
-          entities: [
-            { entityId: 'light.living_room', label: 'Living Room Lights', state: 'on', icon: '💡' },
-            { entityId: 'climate.thermostat', label: 'Nest Thermostat', state: '72', unit: '°F', icon: '🌡️' },
-            { entityId: 'lock.front_door', label: 'Front Door Lock', state: 'locked', icon: '🔒' },
-            { entityId: 'binary_sensor.driveway', label: 'Driveway Camera', state: 'clear', icon: '📹' }
-          ],
-          refreshSeconds: 30
-        };
-        initialSize = { width: 360, height: 240 };
-        break;
-      case 'spotify':
-        initialConfig = { track: 'Midnight City', artist: 'M83', isPlaying: true };
-        initialSize = { width: 360, height: 160 };
-        break;
-      case 'stock_crypto':
-        initialConfig = {
-          title: 'Markets & Stocks',
-          symbols: ['AAPL', 'TSLA', 'NVDA', 'SPY'],
-          cryptoIds: ['bitcoin', 'ethereum', 'solana'],
-          mode: 'all',
-          currency: 'USD',
-          showSparklines: true,
-          refreshMinutes: 3
-        };
-        initialSize = { width: 360, height: 280 };
-        break;
-      case 'sticky_note':
-        initialConfig = {
-          title: 'Family Notes',
-          notes: [
-            { id: '1', text: 'Don\'t forget soccer practice at 5:00 PM! ⚽', author: 'Mom', color: '#fef08a', date: 'Today' },
-            { id: '2', text: 'Picked up groceries 🥖🍏', author: 'Dad', color: '#bbf7d0', date: 'Today' }
-          ]
-        };
-        initialSize = { width: 340, height: 260 };
-        break;
-      case 'countdown':
-        initialConfig = {
-          title: 'Hawaii Vacation',
-          targetDate: '2026-12-25',
-          emoji: '🌴'
-        };
-        initialSize = { width: 300, height: 220 };
-        break;
-      case 'meal_planner':
-        initialConfig = {
-          title: 'Weekly Menu',
-          days: [
-            { day: 'Monday', lunch: 'Salad Bowl', dinner: 'Pasta Primavera' },
-            { day: 'Tuesday', lunch: 'Turkey Wrap', dinner: 'Taco Tuesday 🌮' },
-            { day: 'Wednesday', lunch: 'Minestrone Soup', dinner: 'Baked Salmon' },
-            { day: 'Thursday', lunch: 'Buddha Bowl', dinner: 'Pizza Night 🍕' },
-            { day: 'Friday', lunch: 'BLT', dinner: 'Thai Green Curry' },
-            { day: 'Saturday', lunch: 'Cafe Lunch', dinner: 'BBQ Burgers 🍔' },
-            { day: 'Sunday', lunch: 'Roast', dinner: 'Charcuterie Board' }
-          ]
-        };
-        initialSize = { width: 360, height: 340 };
-        break;
-      case 'radar':
-        initialConfig = {
-          cityName: 'San Francisco Bay Area',
-          lat: 37.7749,
-          lon: -122.4194,
-          zoom: 7,
-          colorScheme: 2,
-          smooth: true,
-          refreshMinutes: 10
-        };
-        initialSize = { width: 380, height: 300 };
-        break;
-      case 'quote':
-        initialConfig = {
-          category: 'inspirational'
-        };
-        initialSize = { width: 340, height: 180 };
-        break;
-      case 'ai_briefing':
-        initialConfig = {
-          userName: 'Sandip',
-          tone: 'warm',
-          refreshHours: 1
-        };
-        initialSize = { width: 460, height: 200 };
-        break;
-      case 'chores':
-        // No members/chores seeded: the widget shows its built-in example (badged as sample on live displays)
-        initialConfig = {
-          title: 'Family Chores'
-        };
-        initialSize = { width: 380, height: 320 };
-        break;
-      case 'camera_pip':
-        initialConfig = {
-          title: 'Driveway Camera',
-          streamUrl: '',
-          snapshotUrl: 'https://images.unsplash.com/photo-1558036117-15d82a90b9b1?w=800&q=80',
-          aspectRatio: '16:9',
-          refreshSeconds: 4
-        };
-        initialSize = { width: 380, height: 240 };
-        break;
-      case 'commute':
-        // No destinations seeded: the widget shows its built-in example (badged as sample on live displays)
-        initialConfig = {
-          title: 'Morning Commute'
-        };
-        initialSize = { width: 360, height: 240 };
-        break;
-      case 'youtube':
-        initialConfig = {
-          title: 'Lofi Chill Beats ☕',
-          urlOrId: 'jfKfPfyJRdk',
-          autoplay: true,
-          muted: true,
-          loop: true,
-          showControls: false,
-          isLive: true
-        };
-        initialSize = { width: 440, height: 260 };
-        break;
-      case 'text':
-        initialConfig = {
-          title: 'Announcement',
-          body: 'Welcome to the Smart Display!\nAdd your message here.',
-          fontSize: 'medium',
-          textAlign: 'left'
-        };
-        initialSize = { width: 340, height: 200 };
-        break;
-      case 'qrcode':
-        initialConfig = {
-          data: 'https://smart-kiosk.online',
-          label: 'Scan Me',
-          size: 200
-        };
-        initialSize = { width: 240, height: 280 };
-        break;
-      case 'world_clocks':
-        initialConfig = {
-          clocks: [
-            { label: 'New York', timezone: 'America/New_York' },
-            { label: 'London', timezone: 'Europe/London' },
-            { label: 'Tokyo', timezone: 'Asia/Tokyo' }
-          ]
-        };
-        initialSize = { width: 320, height: 220 };
-        break;
-      case 'shapes':
-        initialConfig = {
-          shape: 'rectangle',
-          color: '#6366f1',
-          fillOpacity: 0.3
-        };
-        initialSize = { width: 300, height: 4 };
-        break;
-      case 'scheduled_text':
-        initialConfig = {
-          message: 'Good morning! Have a great day!',
-          startTime: '06:00',
-          endTime: '12:00',
-          showDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        };
-        initialSize = { width: 340, height: 180 };
-        break;
-      case 'button':
-        initialConfig = {
-          label: 'Open Link',
-          icon: '🔗',
-          url: '',
-          style: 'gradient'
-        };
-        initialSize = { width: 200, height: 160 };
-        break;
-      case 'sun_moon':
-        initialConfig = {
-          latitude: 37.3382,
-          longitude: -121.8863,
-          cityName: 'San Jose'
-        };
-        initialSize = { width: 320, height: 280 };
-        break;
-      case 'analog_clock':
-        initialConfig = {
-          showSeconds: true,
-          showNumbers: true,
-          accentColor: '#3b82f6'
-        };
-        initialSize = { width: 260, height: 260 };
-        break;
-      case 'rest_fetch':
-        initialConfig = {
-          url: 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',
-          jsonPath: 'bitcoin.usd',
-          title: 'Bitcoin Price',
-          prefix: '$',
-          unit: 'USD',
-          refreshSeconds: 60,
-          icon: '🪙'
-        };
-        initialSize = { width: 280, height: 180 };
-        break;
-      case 'gauge':
-        // No value seeded: set one in the inspector or push it via the webhook API
-        initialConfig = {
-          min: 0,
-          max: 100,
-          unit: '%',
-          title: 'System Load',
-          warnThreshold: 75,
-          critThreshold: 90,
-          colorScheme: 'green-yellow-red',
-          icon: '⚡'
-        };
-        initialSize = { width: 280, height: 210 };
-        break;
-      case 'whiteboard':
-        initialConfig = {
-          defaultColor: '#00ffcc',
-          defaultSize: 3,
-          backgroundColor: '#1a1d24',
-          canvasTitle: 'Family Notes & Doodles',
-          strokes: []
-        };
-        initialSize = { width: 440, height: 320 };
-        break;
-      case 'google_maps':
-        initialConfig = {
-          address: 'Austin, TX',
-          zoom: 13,
-          mapType: 'm',
-          showTraffic: true,
-          title: 'Austin Live Traffic & Map'
-        };
-        initialSize = { width: 420, height: 320 };
-        break;
-      case 'slack':
-        initialConfig = {
-          channelName: 'announcements',
-          maxItems: 5
-        };
-        initialSize = { width: 380, height: 300 };
-        break;
-      case 'gmail':
-        initialConfig = {
-          accountEmail: 'family@smart-display.online'
-        };
-        initialSize = { width: 360, height: 280 };
-        break;
-      case 'tradingview':
-        initialConfig = {
-          symbol: 'NASDAQ:AAPL',
-          interval: '1D',
-          theme: 'dark',
-          chartStyle: '1',
-          showVolume: true,
-          title: 'Apple Inc. (AAPL)'
-        };
-        initialSize = { width: 480, height: 320 };
-        break;
-      case 'reddit':
-        initialConfig = {
-          subreddit: 'EarthPorn',
-          sort: 'hot',
-          intervalSeconds: 30,
-          showScore: true,
-          showTitle: true
-        };
-        initialSize = { width: 440, height: 320 };
-        break;
-    }
+    const def = getWidgetDefinition(type);
+    const initialConfig = def ? def.defaultConfig() : {};
+    const initialSize = def ? def.defaultSize : { width: 320, height: 200 };
 
     const newWidget: Widget = {
       id: Date.now(),
@@ -4673,6 +4255,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     };
     this.widgets.push(newWidget);
     this.selectedWidget = newWidget;
+    this.paletteOpen = false;
     this.pushHistory();
   }
 
@@ -5020,38 +4603,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
   }
 
   getWidgetTypeLabel(type: string): string {
-    const labels: Record<string, string> = {
-      clock: 'Digital Clock',
-      weather: 'Weather Forecast',
-      calendar: 'Calendar Events',
-      photo: 'Photo Album',
-      rss: 'News RSS Feed',
-      todo: 'Tasks & Chores',
-      homeassistant: 'Home Assistant',
-      spotify: 'Spotify Player',
-      stock_crypto: 'Stocks & Crypto',
-      sticky_note: 'Sticky Note',
-      countdown: 'Event Countdown',
-      meal_planner: 'Meal Planner',
-      radar: 'Weather Radar',
-      quote: 'Daily Quote',
-      ai_briefing: 'AI Ambient Briefing',
-      chores: 'Gamified Chores',
-      camera_pip: 'Live Camera PIP',
-      commute: 'Commute Traffic',
-      youtube: 'YouTube Stream',
-      text: 'Announcement Banner',
-      qrcode: 'Scannable QR Code',
-      world_clocks: 'World Clocks',
-      shapes: 'Shape / Divider',
-      scheduled_text: 'Scheduled Text',
-      button: 'Action Button',
-      sun_moon: 'Sun & Moon Phases',
-      analog_clock: 'Analog Clock',
-      rest_fetch: 'REST Data Fetch',
-      gauge: 'Radial Gauge'
-    };
-    return labels[type] || (type ? type.toUpperCase() : 'Widget');
+    return getWidgetDefinition(type)?.name || (type ? type.toUpperCase() : 'Widget');
   }
 
   onMouseMove(event: MouseEvent): void {

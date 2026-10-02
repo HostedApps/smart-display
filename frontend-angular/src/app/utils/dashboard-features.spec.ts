@@ -1,5 +1,6 @@
 import { AVAILABLE_FONTS, getFontFamilyString, loadGoogleFont } from './font-loader.util';
 import { DASHBOARD_TEMPLATES } from './dashboard-templates.util';
+import { WIDGET_REGISTRY, registryMismatches } from '../components/widgets/widget-registry';
 
 describe('Phase 2C Features: Typography & Starter Templates', () => {
   describe('Font Loader & Typography', () => {
@@ -100,5 +101,21 @@ describe('Phase 2C Features: Typography & Starter Templates', () => {
       expect(clock.position!.width).toBeLessThan(cw);
       expect(clock.position!.height).toBeLessThan(ch);
     });
+  });
+});
+
+describe('Widget Registry', () => {
+  it('should register every widget type exactly once', () => {
+    expect(registryMismatches()).toEqual([]);
+    const types = WIDGET_REGISTRY.map(d => d.type);
+    expect(new Set(types).size).toBe(types.length);
+  });
+
+  it('should return a fresh default config object for each new widget', () => {
+    for (const def of WIDGET_REGISTRY) {
+      expect(def.defaultConfig()).not.toBe(def.defaultConfig());
+      expect(def.defaultSize.width).toBeGreaterThan(0);
+      expect(def.defaultSize.height).toBeGreaterThan(0);
+    }
   });
 });
