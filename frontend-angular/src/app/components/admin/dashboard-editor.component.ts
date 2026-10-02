@@ -4957,10 +4957,11 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       widgets: this.widgets
     };
 
-    this.http.post(`${environment.apiUrl}/save_display.php`, payload)
+    this.http.post<{ success: boolean; id_map?: Record<string, number> }>(`${environment.apiUrl}/save_display.php`, payload)
       .subscribe({
-        next: () => {
+        next: (res) => {
           this.saving = false;
+          this.applySavedWidgetIds(res?.id_map);
           this.notifications.success('Layout and settings published to the display.');
         },
         error: (err) => {
@@ -4968,6 +4969,18 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
           this.notifications.error('Failed to save layout: ' + (err.error?.error || err.message));
         }
       });
+  }
+
+  /** New widgets get database ids on save; adopt them so later saves update instead of re-inserting. */
+  private applySavedWidgetIds(idMap?: Record<string, number>): void {
+    if (!idMap || Object.keys(idMap).length === 0) return;
+    for (const w of this.widgets) {
+      const newId = idMap[String(w.id)];
+      if (newId) w.id = newId;
+      if (w.linkedWidgetId != null && idMap[String(w.linkedWidgetId)]) {
+        w.linkedWidgetId = idMap[String(w.linkedWidgetId)];
+      }
+    }
   }
 
   testGeminiKey(): void {

@@ -111,31 +111,103 @@ try {
         $updateStmt->execute([$name, $theme, $orientation, $refreshInterval, $background, $sleepSchedule, $pages, $logoUrl, $showLogoKiosk, $displayId]);
     }
 
-    // 2. Clear existing widgets and re-insert updated configuration
-    $deleteStmt = $pdo->prepare("DELETE FROM widgets WHERE display_id = ?");
-    $deleteStmt->execute([$displayId]);
+    // 2. Upsert widgets, keeping database ids stable across saves so push_widget
+    //    webhooks and linked-widget references keep working.
+    $existingStmt = $pdo->prepare("SELECT id FROM widgets WHERE display_id = ?");
+    $existingStmt->execute([$displayId]);
+    $existingIds = array_map('intval', $existingStmt->fetchAll(PDO::FETCH_COLUMN));
+    $existingSet = array_flip($existingIds);
 
     $insertStmt = $pdo->prepare("INSERT INTO widgets (display_id, page_id, type, position_json, style_json, config_json) VALUES (?, ?, ?, ?, ?, ?)");
+    $updateWidgetStmt = $pdo->prepare("UPDATE widgets SET page_id = ?, type = ?, position_json = ?, style_json = ?, config_json = ? WHERE id = ? AND display_id = ?");
+
+    $idMap = [];      // client id => database id (only for ids that changed)
+    $keptIds = [];
+    $savedStyles = []; // database id => style array (for linked-widget remapping)
     foreach ($widgets as $w) {
+        if (!is_array($w) || empty($w['type'])) {
+            continue;
+        }
+        $clientId = isset($w['id']) ? (int)$w['id'] : 0;
         $pageId = $w['page_id'] ?? 'default';
-        $styleJson = isset($w['style']) ? json_encode($w['style']) : json_encode(['opacity' => 1, 'borderRadius' => 12, 'backdropBlur' => true]);
-        
-        $insertStmt->execute([
-            $displayId,
-            $pageId,
-            $w['type'],
-            json_encode($w['position']),
-            $styleJson,
-            json_encode($w['config'])
-        ]);
+        $style = isset($w['style']) && is_array($w['style']) ? $w['style'] : ['opacity' => 1, 'borderRadius' => 12, 'backdropBlur' => true];
+        unset($style['_meta']);
+        $meta = extractWidgetMeta($w);
+        if (!empty($meta)) {
+            $style['_meta'] = $meta;
+        }
+        // Empty arrays must stay JSON objects ({}), not lists ([])
+        $config = !empty($w['config']) && is_array($w['config']) ? $w['config'] : new stdClass();
+        $params = [$pageId, $w['type'], json_encode($w['position']), json_encode(empty($style) ? new stdClass() : $style), json_encode($config)];
+
+        if ($clientId > 0 && isset($existingSet[$clientId])) {
+            $updateWidgetStmt->execute(array_merge($params, [$clientId, $displayId]));
+            $dbId = $clientId;
+        } else {
+            $insertStmt->execute(array_merge([$displayId], $params));
+            $dbId = (int)$pdo->lastInsertId();
+            if ($clientId !== 0) {
+                $idMap[(string)$clientId] = $dbId;
+            }
+        }
+        $keptIds[] = $dbId;
+        $savedStyles[$dbId] = $style;
+    }
+
+    // Linked widgets may point at client ids of widgets created in this save
+    if (!empty($idMap)) {
+        $restyleStmt = $pdo->prepare("UPDATE widgets SET style_json = ? WHERE id = ?");
+        foreach ($savedStyles as $dbId => $style) {
+            $linked = $style['_meta']['linkedWidgetId'] ?? null;
+            if ($linked !== null && isset($idMap[(string)$linked])) {
+                $style['_meta']['linkedWidgetId'] = $idMap[(string)$linked];
+                $restyleStmt->execute([json_encode($style), $dbId]);
+            }
+        }
+    }
+
+    // Remove widgets that were deleted in the editor
+    $removedIds = array_diff($existingIds, $keptIds);
+    if (!empty($removedIds)) {
+        $placeholders = implode(',', array_fill(0, count($removedIds), '?'));
+        $deleteStmt = $pdo->prepare("DELETE FROM widgets WHERE display_id = ? AND id IN ($placeholders)");
+        $deleteStmt->execute(array_merge([$displayId], array_values($removedIds)));
     }
 
     $pdo->commit();
-    echo json_encode(["success" => true, "message" => "Display settings & layout saved securely"]);
+    echo json_encode(["success" => true, "message" => "Display settings & layout saved securely", "id_map" => (object)$idMap]);
 } catch (\Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
     http_response_code(500);
     echo json_encode(["error" => "Failed to save: " . $e->getMessage()]);
+}
+
+/**
+ * Editor-only widget fields that have no column of their own. They are stored in
+ * style_json under "_meta" and unpacked again by get_display.php.
+ */
+function extractWidgetMeta(array $w): array {
+    $meta = [];
+    if (isset($w['schedule']) && is_array($w['schedule'])) {
+        $meta['schedule'] = $w['schedule'];
+    }
+    if (isset($w['rules']) && is_array($w['rules'])) {
+        $meta['rules'] = array_values($w['rules']);
+    }
+    if (isset($w['linkedWidgetId']) && $w['linkedWidgetId'] !== '' && $w['linkedWidgetId'] !== null) {
+        $meta['linkedWidgetId'] = (int)$w['linkedWidgetId'];
+    }
+    if (!empty($w['locked'])) {
+        $meta['locked'] = true;
+    }
+    if (!empty($w['hidden'])) {
+        $meta['hidden'] = true;
+    }
+    if (isset($w['customName']) && trim((string)$w['customName']) !== '') {
+        // Plain text (the frontend escapes on render); strip markup and cap the length
+        $meta['customName'] = mb_substr(strip_tags(trim((string)$w['customName'])), 0, 80);
+    }
+    return $meta;
 }
