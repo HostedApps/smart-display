@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, Type } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -12,6 +12,7 @@ import { AudioChimeService } from '../services/audio-chime.service';
 import { loadGoogleFont, getFontFamilyString } from '../utils/font-loader.util';
 import { SevereWeatherAlertData } from './widgets/severe-weather-alert-banner.component';
 import { LIVE_DISPLAY } from './widgets/widget-context';
+import { getWidgetDefinition } from './widgets/widget-registry';
 
 @Component({
   selector: 'app-display-viewer',
@@ -111,41 +112,7 @@ import { LIVE_DISPLAY } from './widgets/widget-context';
           [class.sd-no-blur]="widget.style?.backdropBlur === false"
           [style.--sd-widget-bg]="widget.style?.backgroundColor || null"
         >
-          <app-clock-widget *ngIf="widget.type === 'clock'" [config]="widget.config"></app-clock-widget>
-          <app-weather-widget *ngIf="widget.type === 'weather'" [config]="widget.config"></app-weather-widget>
-          <app-calendar-widget *ngIf="widget.type === 'calendar'" [config]="widget.config"></app-calendar-widget>
-          <app-photo-widget *ngIf="widget.type === 'photo'" [config]="widget.config"></app-photo-widget>
-          <app-rss-widget *ngIf="widget.type === 'rss'" [config]="widget.config"></app-rss-widget>
-          <app-todo-widget *ngIf="widget.type === 'todo'" [config]="widget.config"></app-todo-widget>
-          <app-homeassistant-widget *ngIf="widget.type === 'homeassistant'" [config]="widget.config"></app-homeassistant-widget>
-          <app-spotify-widget *ngIf="widget.type === 'spotify'" [config]="widget.config"></app-spotify-widget>
-          <app-stock-crypto-widget *ngIf="widget.type === 'stock_crypto'" [config]="widget.config"></app-stock-crypto-widget>
-          <app-sticky-note-widget *ngIf="widget.type === 'sticky_note'" [config]="widget.config"></app-sticky-note-widget>
-          <app-countdown-widget *ngIf="widget.type === 'countdown'" [config]="widget.config"></app-countdown-widget>
-          <app-meal-planner-widget *ngIf="widget.type === 'meal_planner'" [config]="widget.config"></app-meal-planner-widget>
-          <app-radar-widget *ngIf="widget.type === 'radar'" [config]="widget.config"></app-radar-widget>
-          <app-quote-widget *ngIf="widget.type === 'quote'" [config]="widget.config"></app-quote-widget>
-          <app-ai-briefing-widget *ngIf="widget.type === 'ai_briefing'" [config]="widget.config"></app-ai-briefing-widget>
-          <app-chores-widget *ngIf="widget.type === 'chores'" [config]="widget.config"></app-chores-widget>
-          <app-camera-pip-widget *ngIf="widget.type === 'camera_pip'" [config]="widget.config"></app-camera-pip-widget>
-          <app-commute-widget *ngIf="widget.type === 'commute'" [config]="widget.config"></app-commute-widget>
-          <app-youtube-widget *ngIf="widget.type === 'youtube'" [config]="widget.config"></app-youtube-widget>
-          <app-text-widget *ngIf="widget.type === 'text'" [config]="widget.config"></app-text-widget>
-          <app-qrcode-widget *ngIf="widget.type === 'qrcode'" [config]="widget.config"></app-qrcode-widget>
-          <app-world-clocks-widget *ngIf="widget.type === 'world_clocks'" [config]="widget.config"></app-world-clocks-widget>
-          <app-shapes-widget *ngIf="widget.type === 'shapes'" [config]="widget.config"></app-shapes-widget>
-          <app-scheduled-text-widget *ngIf="widget.type === 'scheduled_text'" [config]="widget.config"></app-scheduled-text-widget>
-          <app-button-widget *ngIf="widget.type === 'button'" [config]="widget.config"></app-button-widget>
-          <app-sun-moon-widget *ngIf="widget.type === 'sun_moon'" [config]="widget.config"></app-sun-moon-widget>
-          <app-analog-clock-widget *ngIf="widget.type === 'analog_clock'" [config]="widget.config"></app-analog-clock-widget>
-          <app-rest-fetch-widget *ngIf="widget.type === 'rest_fetch'" [config]="widget.config"></app-rest-fetch-widget>
-          <app-gauge-widget *ngIf="widget.type === 'gauge'" [config]="widget.config"></app-gauge-widget>
-          <app-google-maps-widget *ngIf="widget.type === 'google_maps'" [config]="widget.config"></app-google-maps-widget>
-          <app-whiteboard-widget *ngIf="widget.type === 'whiteboard'" [config]="widget.config"></app-whiteboard-widget>
-          <app-slack-widget *ngIf="widget.type === 'slack'" [config]="widget.config"></app-slack-widget>
-          <app-gmail-widget *ngIf="widget.type === 'gmail'" [config]="widget.config"></app-gmail-widget>
-          <app-tradingview-widget *ngIf="widget.type === 'tradingview'" [config]="widget.config"></app-tradingview-widget>
-          <app-reddit-widget *ngIf="widget.type === 'reddit'" [config]="widget.config"></app-reddit-widget>
+          <ng-container *ngComponentOutlet="widgetComponent(widget.type); inputs: { config: widget.config }"></ng-container>
         </div>
       </div>
 
@@ -637,6 +604,10 @@ import { LIVE_DISPLAY } from './widgets/widget-context';
 })
 export class DisplayViewerComponent implements OnInit, OnDestroy {
   displayConfig?: DisplayConfig;
+
+  widgetComponent(type: string): Type<unknown> | null {
+    return getWidgetDefinition(type)?.component ?? null;
+  }
   widgets: Widget[] = [];
   pages: DisplayPage[] = [];
   activePageIndex: number = 0;
