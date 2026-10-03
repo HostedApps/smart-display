@@ -456,6 +456,8 @@ export const WIDGET_TYPES = [
   'gmail',
   'tradingview',
   'reddit',
+  'greeting',
+  'custom',
 ] as const;
 
 export type WidgetType = typeof WIDGET_TYPES[number];

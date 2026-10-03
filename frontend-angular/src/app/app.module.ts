@@ -55,6 +55,8 @@ import { HelpDocsModalComponent } from './components/help/help-docs-modal.compon
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
 import { WidgetStateComponent, SampleBadgeComponent } from './components/shared/widget-state.component';
+import { GreetingWidgetComponent } from './components/widgets/greeting-widget.component';
+import { CustomWidgetComponent } from './components/widgets/custom-widget.component';
 import { IconComponent } from './components/shared/icon.component';
 import { NotificationHostComponent } from './components/shared/notification-host.component';
 
@@ -65,6 +67,8 @@ import { NotificationHostComponent } from './components/shared/notification-host
     WidgetStateComponent,
     SampleBadgeComponent,
     IconComponent,
+    CustomWidgetComponent,
+    GreetingWidgetComponent,
     DisplayViewerComponent,
     DashboardEditorComponent,
     DisplayListComponent,
