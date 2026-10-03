@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { DisplaySummary, Device, PairingCodeResponse, PairingStatusResponse } from '../models/display.model';
+import { DisplaySummary, Device, PairingCodeResponse, PairingStatusResponse, FleetCommand } from '../models/display.model';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -78,5 +78,41 @@ export class DisplayFleetService {
   // 8. Check pairing status (polled by unpaired TV/iPad)
   checkPairingStatus(deviceSecret: string): Observable<PairingStatusResponse> {
     return this.http.get<PairingStatusResponse>(`${environment.apiUrl}/pairing.php?action=check_status&device_secret=${deviceSecret}`);
+  }
+
+  // --- Fleet hub (Phase 4) ---
+
+  /** Queue a remote command (reload, identify, sleep, wake, goto_page, screenshot) for one or more displays */
+  sendCommand(tokens: string[], command: FleetCommand, payload?: Record<string, unknown>): Observable<{ success: boolean; queued: number }> {
+    return this.http.post<{ success: boolean; queued: number }>(
+      `${environment.apiUrl}/display_commands.php`,
+      { tokens, command, payload: payload ?? null },
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  /** Latest screenshot a kiosk uploaded (data URL) */
+  getThumbnail(displayId: number): Observable<{ success: boolean; data_url: string; thumbnail_at: string }> {
+    return this.http.get<{ success: boolean; data_url: string; thumbnail_at: string }>(
+      `${environment.apiUrl}/displays.php?action=thumbnail&id=${displayId}`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  /** Replace the layout of the target displays with a copy of the source display's layout */
+  copyLayout(sourceId: number, targetIds: number[]): Observable<{ success: boolean; copied: number }> {
+    return this.http.post<{ success: boolean; copied: number }>(
+      `${environment.apiUrl}/displays.php`,
+      { action: 'copy_layout', source_id: sourceId, target_ids: targetIds },
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  duplicateDisplay(id: number, name?: string): Observable<{ success: boolean; display: { id: number; token: string; name: string } }> {
+    return this.http.post<{ success: boolean; display: { id: number; token: string; name: string } }>(
+      `${environment.apiUrl}/displays.php`,
+      { action: 'duplicate', id, name },
+      { headers: this.getAuthHeaders() }
+    );
   }
 }
