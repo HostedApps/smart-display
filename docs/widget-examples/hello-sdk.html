@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Hello SDK</title>
+<style>
+  /* Fallbacks keep the widget readable before sd:init arrives (and when opened directly). */
+  html, body { margin: 0; height: 100%; background: transparent; }
+  body {
+    box-sizing: border-box; padding: 12px; overflow: hidden;
+    font-family: var(--sd-font, system-ui, sans-serif);
+    color: var(--sd-text, #f8fafc);
+    font-size: var(--sd-fs-body, 15px);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  h1 { margin: 0; font-size: var(--sd-fs-title, 18px); color: var(--sd-accent, #38bdf8); }
+  .row { display: flex; gap: 8px; }
+  .k { color: var(--sd-text-muted, #94a3b8); min-width: 6.5em; }
+  .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #log { margin-top: auto; font: 11px/1.4 ui-monospace, monospace; color: var(--sd-text-subtle, #64748b); }
+</style>
+</head>
+<body>
+  <h1>Hello, Widget SDK</h1>
+  <div class="row"><span class="k">Theme</span><span class="v" id="theme">waiting for sd:init...</span></div>
+  <div class="row"><span class="k">Live display</span><span class="v" id="live">-</span></div>
+  <div class="row"><span class="k">Locale / TZ</span><span class="v" id="locale">-</span></div>
+  <div class="row"><span class="k">Settings</span><span class="v" id="settings">-</span></div>
+  <div class="row"><span class="k">Last tick</span><span class="v" id="tick">-</span></div>
+  <div class="row"><span class="k">Weather</span><span class="v" id="weather">no weather widget yet</span></div>
+  <div class="row"><span class="k">Next event</span><span class="v" id="event">no calendar widget yet</span></div>
+  <div id="log"></div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var locale = 'en-US', timeZone = undefined;
+
+  function log(text) {
+    var line = document.createElement('div');
+    line.textContent = new Date().toLocaleTimeString() + '  ' + text;
+    $('log').prepend(line);
+    while ($('log').childNodes.length > 3) $('log').lastChild.remove();
+  }
+
+  // Copy the host's resolved theme tokens onto :root so CSS can use var(--sd-*)
+  function applyTheme(theme) {
+    var root = document.documentElement.style;
+    Object.keys(theme.tokens || {}).forEach(function (name) { root.setProperty(name, theme.tokens[name]); });
+    if (theme.fontFamily) root.setProperty('--sd-font', theme.fontFamily);
+  }
+
+  window.addEventListener('message', function (event) {
+    // Only trust the host page that embeds us
+    if (event.source !== window.parent) return;
+    var msg = event.data;
+    if (!msg || typeof msg.type !== 'string') return;
+    log(msg.type + (msg.topic ? ' (' + msg.topic + ')' : ''));
+
+    switch (msg.type) {
+      case 'sd:init':
+        applyTheme(msg.theme || {});
+        locale = msg.locale || locale;
+        timeZone = msg.timeZone;
+        $('theme').textContent = (msg.theme && msg.theme.name) + ' (protocol v' + msg.version + ')';
+        $('live').textContent = msg.isLive ? 'yes' : 'no (editor preview)';
+        $('locale').textContent = locale + ' / ' + timeZone;
+        $('settings').textContent = JSON.stringify(msg.settings);
+        break;
+      case 'sd:tick':
+        $('tick').textContent = new Date(msg.now).toLocaleTimeString(locale, { timeZone: timeZone, hour: '2-digit', minute: '2-digit' });
+        break;
+      case 'sd:data':
+        if (msg.topic === 'weather' && msg.value) {
+          var w = msg.value;
+          $('weather').textContent = Math.round(w.temp) + (w.units === 'metric' ? ' C' : ' F') + ', ' + w.condition + ' in ' + w.city;
+        } else if (msg.topic === 'nextEvent') {
+          $('event').textContent = msg.value
+            ? msg.value.title + ' - ' + new Date(msg.value.start).toLocaleString(locale, { timeZone: timeZone, weekday: 'short', hour: '2-digit', minute: '2-digit' })
+            : 'nothing scheduled';
+        }
+        break;
+    }
+  });
+
+  // Tell the host we're listening; it answers with sd:init (it also sends one on load).
+  window.parent.postMessage({ type: 'sd:ready' }, '*');
+})();
+</script>
+</body>
+</html>

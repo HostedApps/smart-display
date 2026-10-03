@@ -35,6 +35,8 @@ import { SlackWidgetComponent } from './slack-widget.component';
 import { GmailWidgetComponent } from './gmail-widget.component';
 import { TradingviewWidgetComponent } from './tradingview-widget.component';
 import { RedditWidgetComponent } from './reddit-widget.component';
+import { GreetingWidgetComponent } from './greeting-widget.component';
+import { CustomWidgetComponent } from './custom-widget.component';
 
 export type WidgetCategory = 'time' | 'weather' | 'family' | 'media' | 'info' | 'data' | 'layout';
 
@@ -778,6 +780,51 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
       intervalSeconds: 30,
       showScore: true,
       showTitle: true
+    })
+  },
+  {
+    type: 'greeting',
+    label: 'Greeting',
+    name: 'Greeting & Compliments',
+    icon: '👋',
+    svgIcon: 'sparkles',
+    category: 'info',
+    tag: 'Mirror',
+    description: 'MagicMirror-style time-of-day greeting with rotating compliments that react to the weather and your next calendar event.',
+    tooltip: 'Good-morning greeting with rotating compliments, weather and next-event hints',
+    tips: 'Add names (comma-separated) to rotate who is greeted. Add your own lines, one per line. Weather and event hints appear when a Weather or Calendar widget is on the screen.',
+    component: GreetingWidgetComponent,
+    defaultSize: { width: 520, height: 200 },
+    defaultConfig: () => ({
+      names: '',
+      customMessages: '',
+      mode: 'mixed',
+      rotateSeconds: 30,
+      align: 'center',
+      showSubline: true
+    })
+  },
+  {
+    type: 'custom',
+    label: 'Custom',
+    name: 'Custom Widget (SDK)',
+    icon: '🧩',
+    svgIcon: 'code',
+    category: 'data',
+    tag: 'SDK',
+    description: 'Run your own HTML/JS widget in a secure sandbox. It receives the time, theme colours, weather and the next calendar event.',
+    tooltip: 'Build your own widget with HTML & JavaScript (sandboxed) or embed an https page',
+    tips: 'Paste a self-contained HTML file or an https link. See docs/WIDGET_SDK.md for the message protocol and examples.',
+    component: CustomWidgetComponent,
+    defaultSize: { width: 320, height: 220 },
+    defaultConfig: () => ({
+      source: 'html',
+      html: '',
+      url: '',
+      title: '',
+      refreshMinutes: 0,
+      settings: '{}',
+      allowPopups: false
     })
   }
 ];
