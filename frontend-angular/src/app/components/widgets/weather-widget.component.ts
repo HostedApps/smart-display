@@ -4,6 +4,7 @@ import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { LIVE_DISPLAY } from './widget-context';
 import { DataCacheService } from '../../services/data-cache.service';
+import { WidgetBusService, WeatherSnapshot } from '../../services/widget-bus.service';
 
 const MINUTE = 60_000;
 
@@ -543,8 +544,40 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
 
   readonly isLive: boolean;
 
-  constructor(private dataCache: DataCacheService, private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+  constructor(private bus: WidgetBusService, private dataCache: DataCacheService, private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
     this.isLive = !!live;
+  }
+
+  /** Share real weather with other widgets (greeting, text placeholders, calendar day overlay) */
+  private publishToBus(): void {
+    const w = this.currentWeather;
+    if (!w || typeof w.temp !== 'number') return;
+    const desc = String(w.desc || '').toLowerCase();
+    const kind: WeatherSnapshot['kind'] =
+      /thunder|storm/.test(desc) ? 'storm' :
+      /snow|sleet|ice/.test(desc) ? 'snow' :
+      /rain|drizzle|shower/.test(desc) ? 'rain' :
+      /fog|mist|haze/.test(desc) ? 'fog' :
+      /cloud|overcast/.test(desc) ? 'cloudy' :
+      /clear|sun/.test(desc) ? 'clear' : 'unknown';
+    this.bus.publish('weather', {
+      city: this.displayCity,
+      temp: w.temp,
+      units: this.config?.units === 'metric' ? 'metric' : 'imperial',
+      condition: w.desc,
+      kind,
+      high: this.forecast[0]?.temp,
+      daily: this.forecast.map(f => ({ date: String(f.date).slice(0, 10), high: f.temp, low: f.temp, icon: this.iconEmoji(f.icon), condition: f.desc })),
+      updatedAt: Date.now()
+    });
+  }
+
+  /** OpenWeather-style icon code ("10d") → emoji, for widgets that show weather without image URLs */
+  private iconEmoji(code: string): string {
+    const base = String(code || '').slice(0, 2);
+    const night = String(code || '').endsWith('n');
+    const map: Record<string, string> = { '01': night ? '🌙' : '☀️', '02': '⛅', '03': '☁️', '04': '☁️', '09': '🌧️', '10': '🌦️', '11': '⛈️', '13': '❄️', '50': '🌫️' };
+    return map[base] || '';
   }
 
   ngOnInit(): void {
@@ -783,6 +816,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
         }
         this.forecast = dailyItems;
       }
+      this.publishToBus();
 
       // 12-Hour Hourly Forecast
       if (data.hourly && data.hourly.time) {
@@ -852,6 +886,7 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
       }
     }
     this.forecast = Array.from(dailyMap.values());
+    this.publishToBus();
 
     // Parse Hourly (next 5 points, 3h intervals)
     const hourlyItems: HourlyItem[] = [];
