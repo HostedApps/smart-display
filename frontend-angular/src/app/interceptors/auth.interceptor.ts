@@ -37,8 +37,11 @@ export class AuthInterceptor implements HttpInterceptor {
 
     return next.handle(authReq).pipe(
       catchError((error: HttpErrorResponse) => {
-        // If 401 Unauthorized occurs on an administrative action, log out
-        if (error.status === 401 && !req.url.includes('action=login')) {
+        // If 401 Unauthorized occurs on an administrative action for an authenticated admin user, log out.
+        // Never log out or redirect kiosks viewing a display or pairing screen.
+        const isDisplayOrPairRoute = window.location.hash.includes('/display/') || window.location.hash.includes('/pair');
+        const hasAdminToken = !!this.authService.getToken();
+        if (error.status === 401 && hasAdminToken && !isDisplayOrPairRoute && !req.url.includes('action=login')) {
           this.authService.logout();
         }
         return throwError(() => error);
