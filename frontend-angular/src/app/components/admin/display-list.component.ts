@@ -1,9 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { DisplayFleetService } from '../../services/display-fleet.service';
 import { EmergencyService } from '../../services/emergency.service';
 import { AuthService } from '../../services/auth.service';
-import { DisplaySummary, Device, User } from '../../models/display.model';
+import { DisplaySummary, Device, User, DisplayStatus, FleetCommand } from '../../models/display.model';
 import { NotificationService } from '../../services/notification.service';
 
 @Component({
@@ -89,47 +89,94 @@ import { NotificationService } from '../../services/notification.service';
             <button (click)="openCreateModal()" class="btn btn-primary">+ Create First Display</button>
           </div>
 
-          <div *ngIf="!loading && displays.length > 0" class="displays-grid">
-            <div *ngFor="let d of displays" class="display-card">
-              <div class="card-preview" (click)="openEditor(d.token)">
-                <div class="preview-backdrop">
+          <ng-container *ngIf="!loading && displays.length > 0">
+            <!-- Fleet health at a glance -->
+            <div class="fleet-summary" role="status">
+              <span class="summary-item"><span class="status-dot online"></span>{{ countByStatus('online') }} online</span>
+              <span class="summary-item"><span class="status-dot stale"></span>{{ countByStatus('stale') }} not seen recently</span>
+              <span class="summary-item"><span class="status-dot offline"></span>{{ countByStatus('offline') }} offline</span>
+              <span class="summary-item"><span class="status-dot never"></span>{{ countByStatus('never') }} never connected</span>
+              <label class="select-all">
+                <input type="checkbox" [checked]="allSelected" [indeterminate]="selectedIds.size > 0 && !allSelected" (change)="toggleSelectAll()" /> Select all
+              </label>
+            </div>
+
+            <!-- Bulk actions for the selected displays -->
+            <div class="bulk-bar" *ngIf="selectedIds.size > 0" role="toolbar" aria-label="Actions for selected displays">
+              <strong>{{ selectedIds.size }} selected</strong>
+              <button type="button" class="btn-action" (click)="bulkCommand('reload')"><app-icon name="rotate-cw" [size]="13"></app-icon> Reload</button>
+              <button type="button" class="btn-action" (click)="bulkCommand('identify')"><app-icon name="scan-eye" [size]="13"></app-icon> Identify</button>
+              <button type="button" class="btn-action" (click)="bulkCommand('sleep')"><app-icon name="moon" [size]="13"></app-icon> Sleep</button>
+              <button type="button" class="btn-action" (click)="bulkCommand('wake')"><app-icon name="sun" [size]="13"></app-icon> Wake</button>
+              <button type="button" class="btn-action" (click)="bulkCommand('screenshot')"><app-icon name="camera" [size]="13"></app-icon> Refresh thumbnails</button>
+              <button type="button" class="btn-action" (click)="openCopyLayout(null)"><app-icon name="copy" [size]="13"></app-icon> Apply a layout…</button>
+              <button type="button" class="btn-link-plain" (click)="selectedIds.clear()">Clear</button>
+            </div>
+
+            <div class="displays-grid">
+            <div *ngFor="let d of displays; trackBy: trackById" class="display-card" [class.selected]="selectedIds.has(d.id)">
+              <div class="card-preview" (click)="openEditor(d.token)" [title]="'Edit ' + d.name">
+                <img *ngIf="thumbnails[d.id]" class="thumb-img" [src]="thumbnails[d.id]" [alt]="'Screenshot of ' + d.name" />
+                <div class="preview-backdrop" *ngIf="!thumbnails[d.id]">
                   <div class="mini-grid"></div>
-                  <div class="preview-info">
-                    <span class="orientation-tag">{{ getOrientationLabel(d.orientation) }}</span>
-                    <span class="widgets-tag">{{ d.widget_count }} Widgets</span>
-                  </div>
+                  <span class="no-thumb">{{ d.status === 'never' ? 'Not connected yet' : 'No screenshot yet' }}</span>
                 </div>
+                <span class="status-pill" [ngClass]="d.status || 'never'">
+                  <span class="status-dot" [ngClass]="d.status || 'never'"></span>{{ statusLabel(d) }}
+                </span>
+                <label class="card-select" (click)="$event.stopPropagation()" [title]="'Select ' + d.name">
+                  <input type="checkbox" [checked]="selectedIds.has(d.id)" (change)="toggleSelected(d.id)" [attr.aria-label]="'Select ' + d.name" />
+                </label>
               </div>
 
               <div class="card-body">
                 <div class="card-header">
                   <h3 class="display-name" (click)="openEditor(d.token)">{{ d.name }}</h3>
-                  <span class="device-count-pill" [title]="d.device_count + ' hardware screens active'">
+                  <span class="device-count-pill" [title]="d.device_count + ' paired hardware screen(s)'">
                     <app-icon name="radio-tower" [size]="13"></app-icon> {{ d.device_count }}
                   </span>
                 </div>
-                <p class="display-token">Token: <code>{{ d.token }}</code></p>
+                <p class="card-meta">
+                  <span>{{ lastSeenText(d) }}</span>
+                  <span *ngIf="d.client?.viewport_w">· {{ d.client?.viewport_w }}×{{ d.client?.viewport_h }}</span>
+                  <span *ngIf="d.client?.app_version">· v{{ d.client?.app_version }}</span>
+                  <span *ngIf="d.client?.perf_mode" title="Performance mode is on (low-power device)">· Low-power</span>
+                  <span *ngIf="d.client?.sleeping">· Sleeping</span>
+                </p>
+                <p class="card-meta subtle">{{ getOrientationLabel(d.orientation) }} · {{ d.widget_count }} widgets</p>
 
                 <div class="card-actions">
                   <button (click)="openEditor(d.token)" class="btn-action btn-edit">
                     <app-icon name="pencil" [size]="13"></app-icon> Edit
                   </button>
-                  <button (click)="launchKiosk(d.token)" class="btn-action btn-kiosk" title="Open Kiosk in New Tab">
+                  <button (click)="launchKiosk(d.token)" class="btn-action btn-kiosk" title="Open the live display in a new tab">
                     <app-icon name="rocket" [size]="13"></app-icon> Launch
                   </button>
-                  <button (click)="copyWallDropLink(d.token)" class="btn-action btn-walldrop" title="Copy Mobile WallDrop Link">
-                    <app-icon name="smartphone" [size]="13"></app-icon> Drop
+                  <button (click)="sendCommand(d, 'reload')" class="btn-action" title="Reload the display remotely" [disabled]="d.status === 'never'">
+                    <app-icon name="rotate-cw" [size]="13"></app-icon> Reload
                   </button>
-                  <button (click)="copyKioskLink(d.token)" class="btn-action btn-copy" title="Copy Kiosk URL">
-                    <app-icon name="copy" [size]="13"></app-icon> Copy
-                  </button>
-                  <button (click)="deleteDisplay(d)" class="btn-action btn-delete" title="Delete Display" aria-label="Delete display">
-                    <app-icon name="trash-2" [size]="14"></app-icon>
-                  </button>
+                  <div class="menu-wrap">
+                    <button type="button" class="btn-action" (click)="toggleMenu(d.id, $event)" [attr.aria-expanded]="openMenuId === d.id" aria-haspopup="menu" [attr.aria-label]="'More actions for ' + d.name">
+                      <app-icon name="ellipsis" [size]="14"></app-icon>
+                    </button>
+                    <div class="card-menu" *ngIf="openMenuId === d.id" role="menu" (click)="$event.stopPropagation()">
+                      <button role="menuitem" (click)="sendCommand(d, 'identify')"><app-icon name="scan-eye" [size]="14"></app-icon> Identify on screen</button>
+                      <button role="menuitem" (click)="sendCommand(d, d.client?.sleeping ? 'wake' : 'sleep')"><app-icon [name]="d.client?.sleeping ? 'sun' : 'moon'" [size]="14"></app-icon> {{ d.client?.sleeping ? 'Wake screen' : 'Put to sleep' }}</button>
+                      <button role="menuitem" (click)="sendCommand(d, 'screenshot')"><app-icon name="camera" [size]="14"></app-icon> Refresh screenshot</button>
+                      <hr />
+                      <button role="menuitem" (click)="duplicate(d)"><app-icon name="copy-plus" [size]="14"></app-icon> Duplicate display</button>
+                      <button role="menuitem" (click)="openCopyLayout(d)"><app-icon name="copy" [size]="14"></app-icon> Copy layout to other displays…</button>
+                      <button role="menuitem" (click)="copyKioskLink(d.token)"><app-icon name="external-link" [size]="14"></app-icon> Copy kiosk link</button>
+                      <button role="menuitem" (click)="copyWallDropLink(d.token)"><app-icon name="smartphone" [size]="14"></app-icon> Copy WallDrop link</button>
+                      <hr />
+                      <button role="menuitem" class="danger" (click)="deleteDisplay(d)"><app-icon name="trash-2" [size]="14"></app-icon> Delete display</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+            </div>
+          </ng-container>
         </div>
 
         <!-- TAB 2: PAIRED HARDWARE DEVICES -->
@@ -153,7 +200,7 @@ import { NotificationService } from '../../services/notification.service';
                   <th>Device Name</th>
                   <th>Assigned Display</th>
                   <th>IP Address</th>
-                  <th>Last Active</th>
+                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -165,7 +212,9 @@ import { NotificationService } from '../../services/notification.service';
                   </td>
                   <td><span class="display-chip">{{ dev.display_name }}</span></td>
                   <td><code>{{ dev.ip_address || 'Unknown' }}</code></td>
-                  <td>{{ dev.last_ping || 'Just now' }}</td>
+                  <td>
+                    <span class="status-inline"><span class="status-dot" [ngClass]="dev.status || 'never'"></span>{{ deviceStatusText(dev) }}</span>
+                  </td>
                   <td>
                     <button (click)="revokeDevice(dev)" class="btn-revoke">Revoke Access</button>
                   </td>
@@ -175,6 +224,37 @@ import { NotificationService } from '../../services/notification.service';
           </div>
         </div>
       </main>
+
+      <!-- Copy a layout to other displays -->
+      <div *ngIf="copyLayout.open" class="modal-backdrop" (click)="copyLayout.open = false">
+        <div class="modal-card copy-modal" role="dialog" aria-modal="true" aria-labelledby="copy-title" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2 id="copy-title">Copy a layout</h2>
+            <button type="button" class="modal-close" (click)="copyLayout.open = false" aria-label="Close"><app-icon name="x" [size]="16"></app-icon></button>
+          </div>
+          <div class="modal-body">
+          <p class="modal-desc">The chosen displays get an exact copy of the source layout, theme, pages and settings. Their names, links and paired screens stay the same.</p>
+          <div class="form-group">
+          <label for="copy-source">Copy from</label>
+          <select id="copy-source" class="input-control" [(ngModel)]="copyLayout.sourceId">
+            <option *ngFor="let d of displays" [ngValue]="d.id">{{ d.name }} ({{ d.widget_count }} widgets)</option>
+          </select>
+          </div>
+          <label class="copy-label">Apply to</label>
+          <div class="copy-targets">
+            <label *ngFor="let d of displays" [class.disabled]="d.id === copyLayout.sourceId">
+              <input type="checkbox" [disabled]="d.id === copyLayout.sourceId" [checked]="copyLayout.targets.has(d.id) && d.id !== copyLayout.sourceId" (change)="toggleCopyTarget(d.id)" /> {{ d.name }}
+            </label>
+          </div>
+          <div class="copy-actions">
+            <button type="button" class="btn btn-secondary" (click)="copyLayout.open = false">Cancel</button>
+            <button type="button" class="btn btn-primary" [disabled]="copyTargetIds.length === 0 || copyLayout.busy" (click)="confirmCopyLayout()">
+              {{ copyLayout.busy ? 'Copying…' : 'Replace ' + copyTargetIds.length + ' layout' + (copyTargetIds.length === 1 ? '' : 's') }}
+            </button>
+          </div>
+          </div>
+        </div>
+      </div>
 
       <!-- MODAL 1: CREATE NEW DISPLAY -->
       <div *ngIf="showCreateModal" class="modal-backdrop" (click)="closeCreateModal()">
@@ -617,12 +697,155 @@ import { NotificationService } from '../../services/notification.service';
       box-shadow: 0 25px 50px -15px rgba(14, 165, 233, 0.15);
     }
     .card-preview {
-      height: 140px;
+      aspect-ratio: 16 / 9;
       background: #000;
       position: relative;
       cursor: pointer;
+      overflow: hidden;
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
+    .thumb-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .no-thumb {
+      position: relative;
+      z-index: 2;
+      margin: auto;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .status-pill {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 3;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(2, 6, 23, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+      flex-shrink: 0;
+    }
+    .status-dot.online { background: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
+    .status-dot.stale { background: #f59e0b; }
+    .status-dot.offline { background: #ef4444; }
+    .status-dot.never { background: #64748b; }
+    .status-inline { display: inline-flex; align-items: center; gap: 8px; }
+    .card-select {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 3;
+      display: flex;
+      padding: 6px;
+      border-radius: 8px;
+      background: rgba(2, 6, 23, 0.7);
+      cursor: pointer;
+    }
+    .card-select input { width: 16px; height: 16px; cursor: pointer; }
+    .display-card.selected { border-color: #38bdf8; box-shadow: 0 0 0 1px #38bdf8, 0 20px 40px -15px rgba(0, 0, 0, 0.6); }
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin: 2px 0 0;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+    }
+    .card-meta.subtle { color: #64748b; font-size: 0.74rem; margin-bottom: 12px; }
+    .fleet-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+      color: #cbd5e1;
+    }
+    .summary-item { display: inline-flex; align-items: center; gap: 8px; }
+    .select-all { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: #94a3b8; }
+    .bulk-bar {
+      position: sticky;
+      top: 8px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      border-radius: 12px;
+      background: #0f2740;
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      font-size: 0.85rem;
+    }
+    .bulk-bar strong { margin-right: 6px; }
+    .btn-link-plain { background: none; border: none; color: #94a3b8; text-decoration: underline; cursor: pointer; margin-left: auto; }
+    .menu-wrap { position: relative; display: flex; }
+    .card-menu {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 6px);
+      z-index: 20;
+      min-width: 240px;
+      padding: 6px;
+      border-radius: 10px;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    }
+    .card-menu button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 6px;
+      background: none;
+      color: #e2e8f0;
+      font-size: 0.82rem;
+      text-align: left;
+      cursor: pointer;
+    }
+    .card-menu button:hover, .card-menu button:focus-visible { background: rgba(56, 189, 248, 0.12); outline: none; }
+    .card-menu button.danger { color: #f87171; }
+    .card-menu hr { border: none; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 4px 0; }
+    .btn-action:disabled { opacity: 0.45; cursor: not-allowed; }
+    .copy-modal { max-width: 520px; }
+    .copy-label { display: block; margin: 12px 0 6px; font-size: 0.8rem; font-weight: 600; color: #cbd5e1; }
+    .copy-targets {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.85rem;
+    }
+    .copy-targets label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .copy-targets label.disabled { opacity: 0.4; cursor: default; }
+    .copy-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
     .preview-backdrop {
       position: absolute;
       inset: 0;
@@ -721,6 +944,22 @@ import { NotificationService } from '../../services/notification.service';
       cursor: pointer;
       transition: all 0.2s;
       text-align: center;
+      background: rgba(255, 255, 255, 0.04);
+      color: #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-action:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+    .bulk-bar .btn-action {
+      flex: none;
+    }
+    .menu-wrap {
+      flex: none;
     }
     .btn-edit {
       background: rgba(14, 165, 233, 0.15);
@@ -1008,7 +1247,7 @@ import { NotificationService } from '../../services/notification.service';
     @keyframes spin { to { transform: rotate(360deg); } }
   `]
 })
-export class DisplayListComponent implements OnInit {
+export class DisplayListComponent implements OnInit, OnDestroy {
   currentUser: User | null = null;
   displays: DisplaySummary[] = [];
   devices: Device[] = [];
@@ -1050,18 +1289,194 @@ export class DisplayListComponent implements OnInit {
     private notifications: NotificationService
   ) {}
 
+  // ---- Fleet hub state ----
+  selectedIds = new Set<number>();
+  openMenuId: number | null = null;
+  /** Screenshot data URLs by display id */
+  thumbnails: Record<number, string> = {};
+  private thumbnailVersions: Record<number, string> = {};
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
+  copyLayout = { open: false, sourceId: 0, targets: new Set<number>(), busy: false };
+
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(u => this.currentUser = u);
     this.loadDisplays();
+    // Keep online status and screenshots fresh while the page is open
+    this.refreshTimer = setInterval(() => this.loadDisplays(true), 30_000);
   }
 
-  loadDisplays(): void {
-    this.loading = true;
+  ngOnDestroy(): void {
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
+  }
+
+  @HostListener('document:click')
+  closeMenus(): void {
+    this.openMenuId = null;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.openMenuId = null;
+    this.copyLayout.open = false;
+  }
+
+  toggleMenu(id: number, event: Event): void {
+    event.stopPropagation();
+    this.openMenuId = this.openMenuId === id ? null : id;
+  }
+
+  trackById(_: number, d: DisplaySummary): number {
+    return d.id;
+  }
+
+  countByStatus(status: DisplayStatus): number {
+    return this.displays.filter(d => (d.status || 'never') === status).length;
+  }
+
+  statusLabel(d: DisplaySummary): string {
+    switch (d.status) {
+      case 'online': return d.client?.sleeping ? 'Online · asleep' : 'Online';
+      case 'stale': return 'Not seen recently';
+      case 'offline': return 'Offline';
+      default: return 'Never connected';
+    }
+  }
+
+  lastSeenText(d: { last_seen_at?: string | null; status?: DisplayStatus }): string {
+    if (!d.last_seen_at) return 'Never connected';
+    return (d.status === 'online' ? 'Seen ' : 'Last seen ') + this.relativeTime(d.last_seen_at);
+  }
+
+  deviceStatusText(dev: Device): string {
+    const label = dev.status === 'online' ? 'Online' : dev.status === 'stale' ? 'Not seen recently' : dev.status === 'offline' ? 'Offline' : 'Never connected';
+    return dev.last_seen_at ? `${label} · ${this.relativeTime(dev.last_seen_at)}` : label;
+  }
+
+  private relativeTime(iso: string): string {
+    const t = new Date(iso.replace(' ', 'T')).getTime();
+    if (!Number.isFinite(t)) return '';
+    const sec = Math.max(0, Math.round((Date.now() - t) / 1000));
+    if (sec < 60) return 'just now';
+    const min = Math.round(sec / 60);
+    if (min < 60) return `${min} min ago`;
+    const hr = Math.round(min / 60);
+    if (hr < 48) return `${hr} h ago`;
+    return `${Math.round(hr / 24)} days ago`;
+  }
+
+  get allSelected(): boolean {
+    return this.displays.length > 0 && this.selectedIds.size === this.displays.length;
+  }
+
+  toggleSelected(id: number): void {
+    this.selectedIds.has(id) ? this.selectedIds.delete(id) : this.selectedIds.add(id);
+  }
+
+  toggleSelectAll(): void {
+    if (this.allSelected) this.selectedIds.clear();
+    else this.displays.forEach(d => this.selectedIds.add(d.id));
+  }
+
+  sendCommand(d: DisplaySummary, command: FleetCommand): void {
+    this.openMenuId = null;
+    this.queueCommand([d], command);
+  }
+
+  bulkCommand(command: FleetCommand): void {
+    this.queueCommand(this.displays.filter(d => this.selectedIds.has(d.id)), command);
+  }
+
+  private queueCommand(targets: DisplaySummary[], command: FleetCommand): void {
+    if (targets.length === 0) return;
+    const verbs: Record<string, string> = { reload: 'Reload', identify: 'Identify', sleep: 'Sleep', wake: 'Wake', screenshot: 'Screenshot', goto_page: 'Page change' };
+    this.fleetService.sendCommand(targets.map(t => t.token), command).subscribe({
+      next: () => {
+        if (command === 'sleep' || command === 'wake') {
+          // Reflect the change straight away; the next heartbeat confirms it
+          targets.forEach(t => t.client = { ...(t.client || {}), sleeping: command === 'sleep' });
+        }
+        const offline = targets.filter(t => t.status !== 'online').length;
+        const who = targets.length === 1 ? `"${targets[0].name}"` : `${targets.length} displays`;
+        this.notifications.success(`${verbs[command]} sent to ${who}.` + (offline ? ` ${offline} not online — it will apply if they reconnect within 2 minutes.` : ''));
+        if (command === 'screenshot') setTimeout(() => this.loadDisplays(true), 8000);
+      },
+      error: (err) => this.notifications.error(err.error?.error || 'Could not send the command.')
+    });
+  }
+
+  duplicate(d: DisplaySummary): void {
+    this.openMenuId = null;
+    this.fleetService.duplicateDisplay(d.id).subscribe({
+      next: (res) => {
+        this.notifications.success(`Created "${res.display?.name || d.name + ' (copy)'}".`);
+        this.loadDisplays(true);
+      },
+      error: (err) => this.notifications.error(err.error?.error || 'Could not duplicate the display.')
+    });
+  }
+
+  openCopyLayout(source: DisplaySummary | null): void {
+    this.openMenuId = null;
+    const sourceId = source?.id ?? this.displays[0]?.id ?? 0;
+    const targets = new Set<number>(source ? [] : this.selectedIds);
+    targets.delete(sourceId);
+    this.copyLayout = { open: true, sourceId, targets, busy: false };
+  }
+
+  toggleCopyTarget(id: number): void {
+    const t = this.copyLayout.targets;
+    t.has(id) ? t.delete(id) : t.add(id);
+  }
+
+  get copyTargetIds(): number[] {
+    return [...this.copyLayout.targets].filter(id => id !== this.copyLayout.sourceId);
+  }
+
+  async confirmCopyLayout(): Promise<void> {
+    const source = this.displays.find(d => d.id === this.copyLayout.sourceId);
+    const targets = this.copyTargetIds;
+    if (!source || targets.length === 0) return;
+    const ok = await this.notifications.confirm(
+      `The current layout of ${targets.length} display${targets.length === 1 ? '' : 's'} will be replaced with "${source.name}". Each display's version history keeps its previous layout only if it was published from the editor.`,
+      { title: 'Replace layouts?', confirmLabel: 'Replace', danger: true }
+    );
+    if (!ok) return;
+    this.copyLayout.busy = true;
+    this.fleetService.copyLayout(source.id, targets).subscribe({
+      next: (res) => {
+        this.copyLayout = { open: false, sourceId: 0, targets: new Set(), busy: false };
+        this.notifications.success(`Layout copied to ${res.copied} display${res.copied === 1 ? '' : 's'}. Screens update within a few seconds.`);
+        this.loadDisplays(true);
+      },
+      error: (err) => {
+        this.copyLayout.busy = false;
+        this.notifications.error(err.error?.error || 'Could not copy the layout.');
+      }
+    });
+  }
+
+  /** Fetch screenshots that are new or changed since the last refresh */
+  private refreshThumbnails(): void {
+    for (const d of this.displays) {
+      if (!d.has_thumbnail || !d.thumbnail_at || this.thumbnailVersions[d.id] === d.thumbnail_at) continue;
+      this.thumbnailVersions[d.id] = d.thumbnail_at;
+      this.fleetService.getThumbnail(d.id).subscribe({
+        next: res => { if (res?.data_url) this.thumbnails[d.id] = res.data_url; },
+        error: () => { delete this.thumbnailVersions[d.id]; }
+      });
+    }
+  }
+
+  loadDisplays(silent = false): void {
+    this.loading = !silent && this.displays.length === 0;
     this.fleetService.getDisplays().subscribe({
       next: (res) => {
         this.loading = false;
         if (res.success) {
           this.displays = res.displays;
+          const ids = new Set(this.displays.map(d => d.id));
+          [...this.selectedIds].forEach(id => { if (!ids.has(id)) this.selectedIds.delete(id); });
+          this.refreshThumbnails();
           if (this.displays.length > 0 && !this.pairingDisplayId) {
             this.pairingDisplayId = this.displays[0].id;
           }
@@ -1069,7 +1484,7 @@ export class DisplayListComponent implements OnInit {
       },
       error: (err) => {
         this.loading = false;
-        this.showAlert(err.error?.error || 'Failed to load displays', 'error');
+        if (!silent) this.showAlert(err.error?.error || 'Failed to load displays', 'error');
       }
     });
   }

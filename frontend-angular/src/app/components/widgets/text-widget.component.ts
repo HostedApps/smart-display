@@ -1,4 +1,8 @@
-import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnChanges, OnDestroy, DoCheck, SimpleChanges } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { ClockService } from '../../services/clock.service';
+import { WidgetBusService } from '../../services/widget-bus.service';
+import { hasPlaceholders, renderTemplate } from '../../utils/text-template.util';
 
 @Component({
   selector: 'app-text-widget',
@@ -7,7 +11,7 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
       <div class="header-strip"></div>
 
       <div class="text-inner" [style.textAlign]="textAlign">
-        <h2 class="text-title" *ngIf="config?.title">{{ config.title }}</h2>
+        <h2 class="text-title" *ngIf="renderedTitle">{{ renderedTitle }}</h2>
         <div 
           class="text-body" 
           [class.size-small]="fontSize === 'small'"
@@ -88,7 +92,7 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
     }
   `]
 })
-export class TextWidgetComponent implements OnInit, OnChanges {
+export class TextWidgetComponent implements OnInit, OnChanges, DoCheck, OnDestroy {
   @Input() config: any = {
     title: 'Announcement',
     body: 'Welcome to the Smart Display.\nStay tuned for updates and highlights.',
@@ -97,6 +101,13 @@ export class TextWidgetComponent implements OnInit, OnChanges {
   };
 
   sanitizedBody: string = '';
+  /** Title after {{placeholders}} are filled in */
+  renderedTitle: string = '';
+  private lastSource = '';
+  private lastMinute = -1;
+  private subs: Subscription[] = [];
+
+  constructor(private clock: ClockService, private bus: WidgetBusService) {}
 
   get fontSize(): 'small' | 'medium' | 'large' {
     return this.config?.fontSize || 'medium';
@@ -108,14 +119,41 @@ export class TextWidgetComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     this.updateContent();
+    // Live placeholders: refresh on each new minute and whenever shared weather/event data changes
+    this.subs.push(
+      this.clock.tick$.subscribe(now => {
+        if (now.getMinutes() !== this.lastMinute && this.usesPlaceholders) this.updateContent();
+      }),
+      this.bus.select('weather').subscribe(() => this.usesPlaceholders && this.updateContent()),
+      this.bus.select('nextEvent').subscribe(() => this.usesPlaceholders && this.updateContent())
+    );
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.updateContent();
   }
 
+  /** The editor edits config in place, so compare the text cheaply to keep the preview live */
+  ngDoCheck(): void {
+    const source = `${this.config?.title ?? ''}\u0000${this.config?.body ?? ''}`;
+    if (source !== this.lastSource) this.updateContent();
+  }
+
+  ngOnDestroy(): void {
+    this.subs.forEach(s => s.unsubscribe());
+  }
+
+  private get usesPlaceholders(): boolean {
+    return hasPlaceholders(this.config?.body) || hasPlaceholders(this.config?.title);
+  }
+
   private updateContent(): void {
-    const raw = this.config?.body ?? '';
+    this.lastSource = `${this.config?.title ?? ''}\u0000${this.config?.body ?? ''}`;
+    const now = new Date();
+    this.lastMinute = now.getMinutes();
+    const ctx = { now, weather: this.bus.snapshot('weather'), nextEvent: this.bus.snapshot('nextEvent') };
+    this.renderedTitle = this.config?.title ? renderTemplate(String(this.config.title), ctx) : '';
+    const raw = renderTemplate(String(this.config?.body ?? ''), ctx);
     // Sanitize special HTML characters to prevent XSS before transforming newlines to <br>
     const escaped = String(raw)
       .replace(/&/g, '&amp;')

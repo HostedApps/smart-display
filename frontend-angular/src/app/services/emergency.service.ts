@@ -20,9 +20,9 @@ export class EmergencyService {
 
   // 1. Kiosk checks for active broadcast (Public via token)
   /** Also returns config_version, a layout fingerprint the kiosk uses to reload instantly after a publish */
-  checkActiveBroadcast(displayToken: string): Observable<{ active: boolean; broadcast?: EmergencyBroadcast; config_version?: string | null }> {
-    return this.http.get<{ active: boolean; broadcast?: EmergencyBroadcast; config_version?: string | null }>(
-      `${environment.apiUrl}/emergency.php?token=${displayToken}`
+  checkActiveBroadcast(displayToken: string, sinceCommandId = 0): Observable<KioskPollResponse> {
+    return this.http.get<KioskPollResponse>(
+      `${environment.apiUrl}/emergency.php?token=${encodeURIComponent(displayToken)}&since=${sinceCommandId}`
     );
   }
 
@@ -43,4 +43,19 @@ export class EmergencyService {
       { headers: this.getAuthHeaders() }
     );
   }
+}
+
+/** Remote command sent from the fleet hub, delivered on the kiosk's 5 s poll */
+export interface KioskCommand {
+  id: number;
+  command: 'reload' | 'identify' | 'sleep' | 'wake' | 'goto_page' | 'screenshot';
+  payload?: { page_index?: number } | null;
+}
+
+export interface KioskPollResponse {
+  active: boolean;
+  broadcast?: EmergencyBroadcast;
+  config_version?: string | null;
+  commands?: KioskCommand[];
+  latest_command_id?: number;
 }

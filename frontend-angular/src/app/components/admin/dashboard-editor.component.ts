@@ -16,6 +16,8 @@ import {
 } from '../../models/display.model';
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, WidgetDefinition, getWidgetDefinition } from '../widgets/widget-registry';
 import { computeStageTransform, getCanvasSize } from '../../utils/canvas-size.util';
+import { TEXT_PLACEHOLDERS } from '../../utils/text-template.util';
+import { CUSTOM_WIDGET_EXAMPLES, findCustomWidgetExample } from '../../utils/custom-widget-examples';
 import { LIVE_DISPLAY } from '../widgets/widget-context';
 import { THEME_PRESETS, ThemePreset, ThemePresetInfo, resolveTheme, themeClasses } from '../../utils/theme.util';
 import { environment } from '../../../environments/environment';
@@ -868,9 +870,36 @@ import { NotificationService } from '../../services/notification.service';
                   <div class="form-group">
                     <label>View Mode</label>
                     <select [(ngModel)]="selectedWidget.config.viewMode" class="input-control">
-                      <option value="agenda">Agenda List View</option>
-                      <option value="month_grid">Monthly Wall Calendar Grid</option>
+                      <option value="agenda">Agenda list</option>
+                      <option value="upcoming">Today + upcoming days</option>
+                      <option value="three_day">3-day columns</option>
+                      <option value="week">Week columns</option>
+                      <option value="month_grid">Month grid</option>
                     </select>
+                  </div>
+                  <div class="form-group" *ngIf="selectedWidget.config.viewMode === 'week'">
+                    <label>Week Starts</label>
+                    <select [(ngModel)]="selectedWidget.config.weekStartsOn" class="input-control">
+                      <option [ngValue]="undefined">Today (rolling 7 days)</option>
+                      <option value="monday">Monday</option>
+                      <option value="sunday">Sunday</option>
+                    </select>
+                  </div>
+                  <div class="form-group" *ngIf="selectedWidget.config.viewMode === 'upcoming'">
+                    <label>Days Ahead</label>
+                    <input type="number" min="1" max="31" [(ngModel)]="selectedWidget.config.upcomingDays" placeholder="7" class="input-control" />
+                  </div>
+                  <div class="form-group" *ngIf="selectedWidget.config.viewMode === 'week' || selectedWidget.config.viewMode === 'three_day'">
+                    <label>Events per Day Column</label>
+                    <input type="number" min="1" max="20" [(ngModel)]="selectedWidget.config.maxPerDay" [placeholder]="selectedWidget.config.viewMode === 'week' ? '5' : '8'" class="input-control" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group checkbox-group">
+                      <label><input type="checkbox" [ngModel]="selectedWidget.config.showLegend !== false" (ngModelChange)="selectedWidget.config.showLegend = $event" /> Colour legend</label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                      <label><input type="checkbox" [ngModel]="selectedWidget.config.showWeather !== false" (ngModelChange)="selectedWidget.config.showWeather = $event" /> Weather on days</label>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label>Title</label>
@@ -1353,6 +1382,10 @@ import { NotificationService } from '../../services/notification.service';
                   <div class="form-group">
                     <label>Body Text (Supports Line Breaks)</label>
                     <textarea [(ngModel)]="selectedWidget.config.body" rows="4" class="input-control"></textarea>
+                    <p class="field-hint">Live placeholders — click to insert:</p>
+                    <div class="placeholder-chips">
+                      <button type="button" *ngFor="let p of textPlaceholders" class="placeholder-chip" (click)="insertPlaceholder(p.token)" [title]="'Shows e.g. ' + p.example">{{ p.token }}</button>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label>Font Size</label>
@@ -1752,6 +1785,96 @@ import { NotificationService } from '../../services/notification.service';
                   </div>
                 </ng-container>
 
+                    <!-- Greeting & Compliments -->
+                    <ng-container *ngIf="selectedWidget.type === 'greeting'">
+                      <div class="form-group">
+                        <label>Names (comma-separated, optional)</label>
+                        <input type="text" [(ngModel)]="selectedWidget.config.names" placeholder="e.g. Emma, Lucas" class="input-control" />
+                      </div>
+                      <div class="form-group">
+                        <label>Messages</label>
+                        <select [(ngModel)]="selectedWidget.config.mode" class="input-control">
+                          <option value="mixed">Built-in + weather/event hints + my lines</option>
+                          <option value="custom_only">Only my lines</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Your Own Lines (one per line)</label>
+                        <textarea [(ngModel)]="selectedWidget.config.customMessages" placeholder="You're going to crush it today!&#10;Don't forget to water the plants." rows="4" class="input-control"></textarea>
+                      </div>
+                      <div class="form-group">
+                        <label>Rotate Every (seconds, min 10)</label>
+                        <input type="number" [(ngModel)]="selectedWidget.config.rotateSeconds" min="10" class="input-control" />
+                      </div>
+                      <div class="form-group">
+                        <label>Alignment</label>
+                        <select [(ngModel)]="selectedWidget.config.align" class="input-control">
+                          <option value="left">Left</option>
+                          <option value="center">Center</option>
+                          <option value="right">Right</option>
+                        </select>
+                      </div>
+                      <div class="form-group checkbox-group">
+                        <label>
+                          <input type="checkbox" [ngModel]="selectedWidget.config.showSubline !== false" (ngModelChange)="selectedWidget.config.showSubline = $event" /> Show compliment line
+                        </label>
+                      </div>
+                    </ng-container>
+                    <ng-container *ngIf="selectedWidget.type === 'custom'">
+                      <div class="form-group">
+                        <label>Load example</label>
+                        <select (change)="loadCustomWidgetExample(selectedWidget, $any($event.target).value); $any($event.target).value = ''" class="input-control">
+                          <option value="">Start from a template...</option>
+                          <option *ngFor="let ex of customWidgetExamples" [value]="ex.id">{{ ex.label }}</option>
+                        </select>
+                      </div>
+
+                      <div class="form-group">
+                        <label>Source</label>
+                        <select [(ngModel)]="selectedWidget.config.source" class="input-control">
+                          <option value="html">Paste HTML code</option>
+                          <option value="url">Link to an https page</option>
+                        </select>
+                      </div>
+
+                      <div class="form-group" *ngIf="selectedWidget.config.source !== 'url'">
+                        <label>HTML Code</label>
+                        <textarea [(ngModel)]="selectedWidget.config.html" rows="12" spellcheck="false" placeholder="<!doctype html>&#10;<html>...</html>" class="input-control" style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem; white-space: pre; tab-size: 2;"></textarea>
+                        <span class="field-hint">Runs in a sandbox: no access to this app, cookies or storage.</span>
+                      </div>
+
+                      <div class="form-group" *ngIf="selectedWidget.config.source === 'url'">
+                        <label>Widget URL</label>
+                        <input type="text" [(ngModel)]="selectedWidget.config.url" placeholder="https://example.com/my-widget.html" class="input-control" />
+                        <span class="field-hint">Must start with <code>https://</code></span>
+                      </div>
+
+                      <div class="form-row">
+                        <div class="form-group">
+                          <label>Title Header</label>
+                          <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="(none)" class="input-control" />
+                        </div>
+                        <div class="form-group">
+                          <label>Reload every (min)</label>
+                          <input type="number" min="0" max="1440" [(ngModel)]="selectedWidget.config.refreshMinutes" class="input-control" />
+                        </div>
+                      </div>
+
+                      <div class="form-group">
+                        <label>Settings (JSON)</label>
+                        <textarea [(ngModel)]="selectedWidget.config.settings" rows="4" spellcheck="false" placeholder='{"date": "2026-12-25", "label": "Christmas"}' class="input-control" style="font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem;"></textarea>
+                        <span class="field-hint" *ngIf="customSettingsError(selectedWidget.config.settings) as err" style="color: var(--sd-warning, #f59e0b);">Invalid JSON, so it will be ignored: {{ err }}</span>
+                      </div>
+
+                      <div class="form-group checkbox-group">
+                        <label><input type="checkbox" [(ngModel)]="selectedWidget.config.allowPopups" /> Allow popups (links that open a new window)</label>
+                      </div>
+
+                      <span class="field-hint">
+                        Message protocol, theme tokens and examples:
+                        <a href="https://github.com/HostedApps/smart-display/blob/main/docs/WIDGET_SDK.md" target="_blank" rel="noopener noreferrer">docs/WIDGET_SDK.md</a>
+                      </span>
+                    </ng-container>
               <p class="field-hint" *ngIf="!hasContentSettings(selectedWidget.type)">This widget has no content settings. Use the Style tab to change how it looks.</p>
             </ng-container>
 
@@ -1777,6 +1900,15 @@ import { NotificationService } from '../../services/notification.service';
                     <label>Height (px)</label>
                     <input type="number" [(ngModel)]="selectedWidget.position.height" class="input-control" />
                   </div>
+                </div>
+
+                <!-- MagicMirror-style quick placement -->
+                <div class="form-group">
+                  <label id="region-label">Snap to Region</label>
+                  <div class="region-grid" role="group" aria-labelledby="region-label">
+                    <button type="button" *ngFor="let r of regions" class="region-cell" [class.bar]="r.bar" [title]="r.label" [attr.aria-label]="'Move to ' + r.label" (click)="snapToRegion(r.id)"></button>
+                  </div>
+                  <p class="field-hint">Top and bottom bars stretch the widget to full width.</p>
                 </div>
 
                 <!-- Custom Styling Section -->
@@ -2481,6 +2613,41 @@ import { NotificationService } from '../../services/notification.service';
       font-weight: 600;
       text-align: center;
     }
+    .placeholder-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .placeholder-chip {
+      padding: 3px 7px;
+      border-radius: 6px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.08);
+      color: #7dd3fc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      cursor: pointer;
+    }
+    .placeholder-chip:hover { background: rgba(56, 189, 248, 0.18); }
+    .region-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      padding: 6px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      aspect-ratio: 16 / 9;
+    }
+    .region-cell {
+      border: 1px dashed rgba(255, 255, 255, 0.18);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+      min-height: 14px;
+    }
+    .region-cell.bar { grid-column: 1 / -1; min-height: 10px; }
+    .region-cell:hover, .region-cell:focus-visible { background: rgba(56, 189, 248, 0.3); border-color: #38bdf8; outline: none; }
     .field-hint {
       margin-top: 4px;
       font-size: 0.72rem;
@@ -4391,10 +4558,67 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
   readonly widgetTypeCount = WIDGET_REGISTRY.length;
   paletteOpen = true;
   inspectorTab: 'content' | 'style' | 'behaviour' = 'content';
-  private static readonly TYPES_WITH_CONTENT_FORMS = new Set<string>(['ai_briefing', 'analog_clock', 'button', 'calendar', 'camera_pip', 'chores', 'clock', 'commute', 'countdown', 'gauge', 'gmail', 'google_maps', 'homeassistant', 'meal_planner', 'photo', 'qrcode', 'quote', 'radar', 'reddit', 'rest_fetch', 'rss', 'scheduled_text', 'shapes', 'slack', 'spotify', 'sticky_note', 'stock_crypto', 'sun_moon', 'text', 'todo', 'tradingview', 'weather', 'whiteboard', 'youtube']);
+  private static readonly TYPES_WITH_CONTENT_FORMS = new Set<string>(['custom', 'greeting', 'ai_briefing', 'analog_clock', 'button', 'calendar', 'camera_pip', 'chores', 'clock', 'commute', 'countdown', 'gauge', 'gmail', 'google_maps', 'homeassistant', 'meal_planner', 'photo', 'qrcode', 'quote', 'radar', 'reddit', 'rest_fetch', 'rss', 'scheduled_text', 'shapes', 'slack', 'spotify', 'sticky_note', 'stock_crypto', 'sun_moon', 'text', 'todo', 'tradingview', 'weather', 'whiteboard', 'youtube']);
 
   hasContentSettings(type: string): boolean {
     return DashboardEditorComponent.TYPES_WITH_CONTENT_FORMS.has(type);
+  }
+
+  readonly textPlaceholders = TEXT_PLACEHOLDERS;
+  readonly customWidgetExamples = CUSTOM_WIDGET_EXAMPLES;
+
+  async loadCustomWidgetExample(widget: Widget, id: string): Promise<void> {
+    const ex = findCustomWidgetExample(id);
+    if (!ex) return;
+    if (String(widget.config['html'] || '').trim()) {
+      const ok = await this.notifications.confirm('The current HTML will be replaced with this example.', { title: 'Load example?', confirmLabel: 'Replace' });
+      if (!ok) return;
+    }
+    widget.config['source'] = 'html';
+    widget.config['html'] = ex.html;
+    widget.config['settings'] = ex.settings;
+  }
+
+  /** Parse error for the custom widget's settings JSON, or '' when valid/empty */
+  customSettingsError(raw: unknown): string {
+    if (typeof raw !== 'string' || !raw.trim()) return '';
+    try { JSON.parse(raw); return ''; } catch (e) { return e instanceof Error ? e.message : 'parse error'; }
+  }
+
+  insertPlaceholder(token: string): void {
+    if (!this.selectedWidget) return;
+    const body = String(this.selectedWidget.config['body'] || '');
+    this.selectedWidget.config['body'] = body + (body && !/\s$/.test(body) ? ' ' : '') + token;
+  }
+
+  /** MagicMirror² region names: rows top/middle/bottom × left/center/right, plus full-width bars */
+  readonly regions = [
+    { id: 'top_bar', label: 'Top bar', bar: true },
+    { id: 'top_left', label: 'Top left' }, { id: 'top_center', label: 'Top center' }, { id: 'top_right', label: 'Top right' },
+    { id: 'middle_left', label: 'Middle left' }, { id: 'middle_center', label: 'Middle center' }, { id: 'middle_right', label: 'Middle right' },
+    { id: 'bottom_left', label: 'Bottom left' }, { id: 'bottom_center', label: 'Bottom center' }, { id: 'bottom_right', label: 'Bottom right' },
+    { id: 'bottom_bar', label: 'Bottom bar', bar: true }
+  ] as { id: string; label: string; bar?: boolean }[];
+
+  snapToRegion(region: string): void {
+    const w = this.selectedWidget;
+    if (!w || w.locked) return;
+    const cw = this.canvasWidth, ch = this.canvasHeight;
+    const m = Math.round(Math.min(cw, ch) * 0.025);
+    const p = w.position;
+    if (region === 'top_bar' || region === 'bottom_bar') {
+      p.width = cw - 2 * m;
+      p.height = Math.min(p.height, Math.round(ch * 0.2));
+      p.x = m;
+      p.y = region === 'top_bar' ? m : ch - m - p.height;
+    } else {
+      p.width = Math.min(p.width, cw - 2 * m);
+      p.height = Math.min(p.height, ch - 2 * m);
+      const [row, col] = region.split('_');
+      p.x = col === 'left' ? m : col === 'right' ? cw - m - p.width : Math.round((cw - p.width) / 2);
+      p.y = row === 'top' ? m : row === 'bottom' ? ch - m - p.height : Math.round((ch - p.height) / 2);
+    }
+    this.pushHistory();
   }
 
   widgetSvgIcon(type: string): string {
@@ -4590,6 +4814,12 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
       if (w.type === 'photo' && c['albumUrl'] && !isUrl(c['albumUrl'])) issues.push(`${name}: the album link is not a valid URL.`);
       if (w.type === 'rest_fetch' && !isUrl(c['url'])) issues.push(`${name} has no valid data URL.`);
       if (w.type === 'homeassistant' && (!c['haUrl'] || !c['token'])) issues.push(`${name} is not connected to Home Assistant yet.`);
+      if (w.type === 'custom') {
+        const src = c['source'] === 'url' ? String(c['url'] || '').trim() : String(c['html'] || '').trim();
+        if (!src) issues.push(`${name} has no custom code yet.`);
+        else if (c['source'] === 'url' && !/^https:\/\//i.test(src)) issues.push(`${name} must use an https:// link.`);
+        if (this.customSettingsError(c['settings'])) issues.push(`${name}: settings are not valid JSON and will be ignored.`);
+      }
     }
     return issues;
   }

@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Days Until</title>
+<!-- Settings: {"date": "2026-12-25", "label": "Christmas"} -->
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; }
+  body {
+    box-sizing: border-box; padding: 12px; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    font-family: var(--sd-font, system-ui, sans-serif);
+    color: var(--sd-text, #f8fafc);
+  }
+  #num {
+    font-size: var(--sd-fs-hero, 64px); line-height: 1;
+    font-weight: var(--sd-weight-display, 600);
+    color: var(--sd-accent, #38bdf8);
+    font-variant-numeric: tabular-nums;
+  }
+  #unit { font-size: var(--sd-fs-body, 15px); color: var(--sd-text-muted, #94a3b8); margin-top: 4px; }
+  #label { font-size: var(--sd-fs-title, 18px); font-weight: 600; margin-top: 6px; }
+  #date { font-size: var(--sd-fs-sm, 13px); color: var(--sd-text-subtle, #64748b); margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div id="num">-</div>
+  <div id="unit"></div>
+  <div id="label">Set a date in settings</div>
+  <div id="date"></div>
+
+<script>
+(function () {
+  var settings = {}, locale = undefined, timeZone = undefined;
+  var $ = function (id) { return document.getElementById(id); };
+
+  // "Today" in the display's time zone, as a yyyy-mm-dd string
+  function todayIso(now) {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    } catch (e) { return now.toISOString().slice(0, 10); }
+  }
+  function dayNumber(iso) {
+    var p = iso.split('-').map(Number);
+    return Date.UTC(p[0], p[1] - 1, p[2]) / 86400000;
+  }
+
+  function render(now) {
+    var target = String(settings.date || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) {
+      $('num').textContent = '?';
+      $('unit').textContent = '';
+      $('label').textContent = 'Set "date" (yyyy-mm-dd) in settings';
+      $('date').textContent = '';
+      return;
+    }
+    var days = Math.round(dayNumber(target) - dayNumber(todayIso(now || new Date())));
+    var label = settings.label || 'the big day';
+    if (days > 0) {
+      $('num').textContent = days;
+      $('unit').textContent = days === 1 ? 'day until' : 'days until';
+    } else if (days === 0) {
+      $('num').textContent = 'Today';
+      $('unit').textContent = 'it’s';
+    } else {
+      $('num').textContent = -days;
+      $('unit').textContent = -days === 1 ? 'day since' : 'days since';
+    }
+    $('label').textContent = label;
+    var p = target.split('-').map(Number);
+    $('date').textContent = new Date(Date.UTC(p[0], p[1] - 1, p[2], 12)).toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  }
+
+  window.addEventListener('message', function (event) {
+    if (event.source !== window.parent) return;
+    var msg = event.data;
+    if (!msg || typeof msg.type !== 'string') return;
+    if (msg.type === 'sd:init') {
+      var tokens = (msg.theme && msg.theme.tokens) || {};
+      Object.keys(tokens).forEach(function (k) { document.documentElement.style.setProperty(k, tokens[k]); });
+      if (msg.theme && msg.theme.fontFamily) document.documentElement.style.setProperty('--sd-font', msg.theme.fontFamily);
+      settings = (msg.settings && typeof msg.settings === 'object') ? msg.settings : {};
+      locale = msg.locale; timeZone = msg.timeZone;
+      render();
+    } else if (msg.type === 'sd:tick') {
+      render(new Date(msg.now));
+    }
+  });
+
+  render();
+  window.parent.postMessage({ type: 'sd:ready' }, '*');
+})();
+</script>
+</body>
+</html>
