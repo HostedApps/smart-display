@@ -54,9 +54,21 @@ import { SuperAdminComponent } from './components/admin/super-admin.component';
 import { HelpDocsModalComponent } from './components/help/help-docs-modal.component';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 
+import { WidgetStateComponent, SampleBadgeComponent } from './components/shared/widget-state.component';
+import { GreetingWidgetComponent } from './components/widgets/greeting-widget.component';
+import { CustomWidgetComponent } from './components/widgets/custom-widget.component';
+import { IconComponent } from './components/shared/icon.component';
+import { NotificationHostComponent } from './components/shared/notification-host.component';
+
 @NgModule({
   declarations: [
     AppComponent,
+    NotificationHostComponent,
+    WidgetStateComponent,
+    SampleBadgeComponent,
+    IconComponent,
+    CustomWidgetComponent,
+    GreetingWidgetComponent,
     DisplayViewerComponent,
     DashboardEditorComponent,
     DisplayListComponent,

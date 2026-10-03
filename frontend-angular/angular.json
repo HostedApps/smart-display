@@ -14,6 +14,7 @@
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "outputPath": "dist/smart-display-frontend",
+            "allowedCommonJsDependencies": ["html2canvas-pro"],
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": [
@@ -25,6 +26,7 @@
               "src/manifest.webmanifest"
             ],
             "styles": [
+              "src/theme-tokens.css",
               "src/styles.css"
             ],
             "scripts": []

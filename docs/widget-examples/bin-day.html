@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Bin Day</title>
+<!--
+  Settings:
+  {
+    "day": "Tuesday",                     collection weekday
+    "alternate": ["Recycling", "Garden"], bins that rotate week by week (ISO week parity)
+    "always": ["General waste"],          optional: bins collected every week
+    "weekOffset": 0                       optional: set to 1 if the rotation is the wrong way round
+  }
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; }
+  body {
+    box-sizing: border-box; padding: 12px 14px; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: center; gap: 8px;
+    font-family: var(--sd-font, system-ui, sans-serif);
+    color: var(--sd-text, #f8fafc);
+  }
+  #when { font-size: var(--sd-fs-sm, 13px); color: var(--sd-text-muted, #94a3b8); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+  #when.soon { color: var(--sd-warning, #f59e0b); }
+  #bins { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bin {
+    font-size: var(--sd-fs-title, 18px); font-weight: 600;
+    padding: 4px 12px; border-radius: var(--sd-radius-sm, 10px);
+    background: var(--sd-surface-3, rgba(255,255,255,0.1));
+    border: var(--sd-border-width, 1px) solid var(--sd-border-color, rgba(255,255,255,0.1));
+  }
+  .bin.rotating { background: var(--sd-accent-soft, rgba(56,189,248,0.16)); border-color: var(--sd-accent-border, rgba(56,189,248,0.4)); color: var(--sd-text, #f8fafc); }
+  #next { font-size: var(--sd-fs-xs, 11px); color: var(--sd-text-subtle, #64748b); }
+</style>
+</head>
+<body>
+  <div id="when">Bin day</div>
+  <div id="bins"></div>
+  <div id="next"></div>
+
+<script>
+(function () {
+  var DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  var settings = {}, locale = undefined, timeZone = undefined;
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Today's calendar date in the display's time zone, as a UTC-midnight Date (safe for day maths)
+  function today(now) {
+    var iso;
+    try {
+      iso = new Intl.DateTimeFormat('en-CA', { timeZone: timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    } catch (e) { iso = now.toISOString().slice(0, 10); }
+    var p = iso.split('-').map(Number);
+    return new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  }
+  function addDays(d, n) { return new Date(d.getTime() + n * 86400000); }
+  function isoWeek(d) {
+    var t = new Date(d.getTime());
+    var day = t.getUTCDay() || 7;
+    t.setUTCDate(t.getUTCDate() + 4 - day);           // Thursday of this ISO week
+    var yearStart = Date.UTC(t.getUTCFullYear(), 0, 1);
+    return Math.ceil(((t - yearStart) / 86400000 + 1) / 7);
+  }
+  function binsFor(date) {
+    var alt = Array.isArray(settings.alternate) ? settings.alternate : [];
+    var always = Array.isArray(settings.always) ? settings.always : [];
+    var out = always.map(function (b) { return { name: String(b), rotating: false }; });
+    if (alt.length) {
+      var idx = ((isoWeek(date) + (Number(settings.weekOffset) || 0)) % alt.length + alt.length) % alt.length;
+      out.push({ name: String(alt[idx]), rotating: true });
+    }
+    return out;
+  }
+  function fmt(date) {
+    return date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
+  }
+
+  function render(now) {
+    var dayIdx = DAYS.indexOf(String(settings.day || '').toLowerCase());
+    if (dayIdx < 0) {
+      $('when').textContent = 'Bin day';
+      $('bins').textContent = 'Set "day" (e.g. "Tuesday") in settings';
+      $('next').textContent = '';
+      return;
+    }
+    var t = today(now || new Date());
+    var diff = (dayIdx - t.getUTCDay() + 7) % 7;
+    var date = addDays(t, diff);
+    var when = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow - put the bins out tonight' : fmt(date);
+    $('when').textContent = when;
+    $('when').className = diff <= 1 ? 'soon' : '';
+
+    var bins = $('bins');
+    bins.textContent = '';
+    binsFor(date).forEach(function (b) {
+      var el = document.createElement('span');
+      el.className = 'bin' + (b.rotating ? ' rotating' : '');
+      el.textContent = b.name;   // textContent, never innerHTML, for settings values
+      bins.appendChild(el);
+    });
+
+    var following = addDays(date, 7);
+    var nextAlt = binsFor(following).filter(function (b) { return b.rotating; })[0];
+    $('next').textContent = nextAlt ? 'Then ' + fmt(following) + ': ' + nextAlt.name : '';
+  }
+
+  window.addEventListener('message', function (event) {
+    if (event.source !== window.parent) return;
+    var msg = event.data;
+    if (!msg || typeof msg.type !== 'string') return;
+    if (msg.type === 'sd:init') {
+      var tokens = (msg.theme && msg.theme.tokens) || {};
+      Object.keys(tokens).forEach(function (k) { document.documentElement.style.setProperty(k, tokens[k]); });
+      if (msg.theme && msg.theme.fontFamily) document.documentElement.style.setProperty('--sd-font', msg.theme.fontFamily);
+      settings = (msg.settings && typeof msg.settings === 'object') ? msg.settings : {};
+      locale = msg.locale; timeZone = msg.timeZone;
+      render();
+    } else if (msg.type === 'sd:tick') {
+      render(new Date(msg.now));
+    }
+  });
+
+  render();
+  window.parent.postMessage({ type: 'sd:ready' }, '*');
+})();
+</script>
+</body>
+</html>

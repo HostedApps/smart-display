@@ -304,3 +304,22 @@ function resolveGeminiModel($apiKey) {
 }
 
 
+
+/**
+ * Fleet presence helpers (shared by displays.php / pairing.php).
+ * Ages are computed in SQL with TIMESTAMPDIFF(SECOND, last_seen_at, NOW()) so the
+ * DB clock is the single source of truth (no PHP/DB timezone drift).
+ */
+function fleetStatusFromAge($ageSeconds) {
+    if ($ageSeconds === null || $ageSeconds === '') return 'never';
+    $age = (int)$ageSeconds;
+    if ($age <= 180) return 'online';
+    if ($age <= 1800) return 'stale';
+    return 'offline';
+}
+
+/** UNIX timestamp (from SQL UNIX_TIMESTAMP()) -> ISO 8601 UTC string, or null. */
+function fleetIsoFromUnix($unix) {
+    if ($unix === null || $unix === '' || !is_numeric($unix)) return null;
+    return gmdate('Y-m-d\TH:i:s\Z', (int)$unix);
+}

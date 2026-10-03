@@ -62,6 +62,14 @@ try {
         'logo_url' => $display['logo_url'] ?? null,
         'show_logo_kiosk' => (bool)($display['show_logo_kiosk'] ?? false),
         'font_family' => $bgData['font_family'] ?? null,
+        'accent_color' => $bgData['accent_color'] ?? null,
+        'canvas_width' => isset($bgData['canvas_width']) ? (int)$bgData['canvas_width'] : null,
+        'canvas_height' => isset($bgData['canvas_height']) ? (int)$bgData['canvas_height'] : null,
+        'scale_mode' => $bgData['scale_mode'] ?? 'fit',
+        'safe_area' => isset($bgData['safe_area']) ? (float)$bgData['safe_area'] : 0,
+        'page_transition' => $bgData['page_transition'] ?? 'fade',
+        'performance_mode' => $bgData['performance_mode'] ?? 'auto',
+        'burn_in_shift' => (bool)($bgData['burn_in_shift'] ?? true),
         'weather_alerts_enabled' => $bgData['weather_alerts_enabled'] ?? true,
         'weather_alert' => $bgData['weather_alert'] ?? null,
         'custom_css' => $bgData['custom_css'] ?? null,
@@ -77,14 +85,18 @@ try {
     $rawWidgets = $stmt->fetchAll();
 
     $widgets = array_map(function($w) {
-        return [
+        $style = !empty($w['style_json']) ? json_decode($w['style_json'], true) : ['opacity' => 1, 'borderRadius' => 12, 'backdropBlur' => true];
+        // Editor fields (schedule, rules, links, lock/hide, nickname) are stored under style._meta
+        $meta = (is_array($style) && isset($style['_meta']) && is_array($style['_meta'])) ? $style['_meta'] : [];
+        unset($style['_meta']);
+        return array_merge([
             'id' => (int)$w['id'],
             'page_id' => $w['page_id'] ?? 'default',
             'type' => $w['type'],
             'position' => !empty($w['position_json']) ? json_decode($w['position_json'], true) : ['x' => 0, 'y' => 0, 'width' => 320, 'height' => 200],
-            'style' => !empty($w['style_json']) ? json_decode($w['style_json'], true) : ['opacity' => 1, 'borderRadius' => 12, 'backdropBlur' => true],
-            'config' => !empty($w['config_json']) ? json_decode($w['config_json'], true) : []
-        ];
+            'style' => !empty($style) ? $style : new stdClass(),
+            'config' => (!empty($w['config_json']) && ($cfg = json_decode($w['config_json'], true))) ? $cfg : new stdClass()
+        ], array_intersect_key($meta, array_flip(['schedule', 'rules', 'linkedWidgetId', 'locked', 'hidden', 'customName'])));
     }, $rawWidgets);
 
     echo json_encode([

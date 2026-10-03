@@ -1,9 +1,11 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { ClockService } from '../../services/clock.service';
 
 @Component({
   selector: 'app-clock-widget',
   template: `
-    <div class="clock-card">
+    <div class="clock-card sd-card">
       <div class="clock-content">
         <div class="time-row">
           <span class="hours-mins">{{ currentTime | date:(is24Hour ? 'HH:mm' : 'hh:mm') }}</span>
@@ -32,12 +34,7 @@ import { Component, Input, OnInit, OnDestroy } from '@angular/core';
     .clock-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 16px 20px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -58,12 +55,11 @@ import { Component, Input, OnInit, OnDestroy } from '@angular/core';
     }
     .hours-mins {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: clamp(2.4rem, 6vw, 4.2rem);
-      font-weight: 300;
+      font-size: var(--sd-fs-hero);
+      font-weight: var(--sd-weight-display);
       letter-spacing: -1.5px;
-      color: #ffffff;
+      color: var(--sd-text);
       font-variant-numeric: tabular-nums;
-      text-shadow: 0 0 24px rgba(255, 255, 255, 0.2);
     }
     .seconds-col {
       display: flex;
@@ -73,19 +69,19 @@ import { Component, Input, OnInit, OnDestroy } from '@angular/core';
     }
     .seconds {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 1.1rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
-      color: var(--accent-cyan, #06b6d4);
+      color: var(--sd-accent);
       font-variant-numeric: tabular-nums;
       line-height: 1;
     }
     .period, .period-solo {
       font-family: var(--font-main, sans-serif);
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       letter-spacing: 1px;
       text-transform: uppercase;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
     .period-solo {
       margin-left: 4px;
@@ -99,28 +95,30 @@ import { Component, Input, OnInit, OnDestroy } from '@angular/core';
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
       padding: 4px 10px;
       border-radius: 20px;
     }
     .cal-icon {
       width: 13px;
       height: 13px;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
     }
     .date-text {
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 500;
-      color: #e2e8f0;
+      color: var(--sd-text);
       letter-spacing: 0.2px;
     }
   `]
 })
 export class ClockWidgetComponent implements OnInit, OnDestroy {
+  constructor(private clock: ClockService) {}
+
   @Input() config: any = { showDate: true, format: 'hh:mm:ss a' };
   currentTime: Date = new Date();
-  private timerId: any;
+  private timerId?: Subscription;
 
   get is24Hour(): boolean {
     return this.config.format ? this.config.format.includes('HH') : false;
@@ -131,12 +129,12 @@ export class ClockWidgetComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.timerId = setInterval(() => {
+    this.timerId = this.clock.tick$.subscribe(() => {
       this.currentTime = new Date();
-    }, 1000);
+    });
   }
 
   ngOnDestroy(): void {
-    if (this.timerId) clearInterval(this.timerId);
+    this.timerId?.unsubscribe();
   }
 }
