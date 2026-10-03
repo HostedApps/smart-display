@@ -4,6 +4,7 @@ import { DisplayFleetService } from '../../services/display-fleet.service';
 import { EmergencyService } from '../../services/emergency.service';
 import { AuthService } from '../../services/auth.service';
 import { DisplaySummary, Device, User } from '../../models/display.model';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-display-list',
@@ -27,13 +28,13 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
 
         <div class="user-actions">
           <button *ngIf="currentUser?.role === 'superadmin'" (click)="openSuperAdmin()" class="btn-superadmin-header" title="Open Super Admin Fleet Hub & Security Monitor">
-            👑 Super Admin Hub
+            <app-icon name="crown" [size]="14"></app-icon> Super Admin Hub
           </button>
-          <button (click)="showHelpModal = true" class="btn-help-header" title="Open Interactive Documentation & 19-Widget Catalog">
-            📖 Help & Docs
+          <button (click)="showHelpModal = true" class="btn-help-header" title="Open Interactive Documentation & Widget Catalog">
+            <app-icon name="book-open" [size]="14"></app-icon> Help & Docs
           </button>
           <button (click)="openInstallationGuide()" class="btn-guide-header" title="Open Client Hardware Installation Guide (Printable PDF)">
-            📄 Installation PDF
+            <app-icon name="file-text" [size]="14"></app-icon> Installation PDF
           </button>
           <div class="user-chip">
             <div class="user-avatar">{{ (currentUser?.name || 'A')[0] }}</div>
@@ -49,19 +50,19 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
         <div class="fleet-toolbar">
           <div class="tab-segments">
             <button [class.active]="activeTab === 'displays'" (click)="activeTab = 'displays'">
-              🖥️ Displays & Screens ({{ displays.length }})
+              <app-icon name="monitor" [size]="14"></app-icon> Displays & Screens ({{ displays.length }})
             </button>
             <button [class.active]="activeTab === 'devices'" (click)="loadDevices(); activeTab = 'devices'">
-              📡 Paired Hardware ({{ devices.length }})
+              <app-icon name="radio-tower" [size]="14"></app-icon> Paired Hardware ({{ devices.length }})
             </button>
           </div>
 
           <div class="action-buttons">
             <button (click)="openEmergencyModal()" class="btn btn-emergency">
-              <span class="btn-icon">🚨</span> Emergency Takeover
+              <span class="btn-icon"><app-icon name="siren" [size]="15"></app-icon></span> Emergency Takeover
             </button>
             <button (click)="openPairModal()" class="btn btn-secondary">
-              <span class="btn-icon">⚡</span> Pair Screen with PIN
+              <span class="btn-icon"><app-icon name="zap" [size]="15"></app-icon></span> Pair Screen with PIN
             </button>
             <button (click)="openCreateModal()" class="btn btn-primary">
               <span class="btn-icon">+</span> New Display
@@ -104,26 +105,26 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
                 <div class="card-header">
                   <h3 class="display-name" (click)="openEditor(d.token)">{{ d.name }}</h3>
                   <span class="device-count-pill" [title]="d.device_count + ' hardware screens active'">
-                    📡 {{ d.device_count }}
+                    <app-icon name="radio-tower" [size]="13"></app-icon> {{ d.device_count }}
                   </span>
                 </div>
                 <p class="display-token">Token: <code>{{ d.token }}</code></p>
 
                 <div class="card-actions">
                   <button (click)="openEditor(d.token)" class="btn-action btn-edit">
-                    ✏️ Edit
+                    <app-icon name="pencil" [size]="13"></app-icon> Edit
                   </button>
                   <button (click)="launchKiosk(d.token)" class="btn-action btn-kiosk" title="Open Kiosk in New Tab">
-                    🚀 Launch
+                    <app-icon name="rocket" [size]="13"></app-icon> Launch
                   </button>
                   <button (click)="copyWallDropLink(d.token)" class="btn-action btn-walldrop" title="Copy Mobile WallDrop Link">
-                    📲 Drop
+                    <app-icon name="smartphone" [size]="13"></app-icon> Drop
                   </button>
                   <button (click)="copyKioskLink(d.token)" class="btn-action btn-copy" title="Copy Kiosk URL">
-                    🔗 Copy
+                    <app-icon name="copy" [size]="13"></app-icon> Copy
                   </button>
-                  <button (click)="deleteDisplay(d)" class="btn-action btn-delete" title="Delete Display">
-                    🗑️
+                  <button (click)="deleteDisplay(d)" class="btn-action btn-delete" title="Delete Display" aria-label="Delete display">
+                    <app-icon name="trash-2" [size]="14"></app-icon>
                   </button>
                 </div>
               </div>
@@ -142,7 +143,7 @@ import { DisplaySummary, Device, User } from '../../models/display.model';
             <div class="empty-icon">📡</div>
             <h3>No Hardware Devices Paired</h3>
             <p>Pair your Amazon Fire TV, Apple iPad, or Raspberry Pi using a simple 6-digit PIN.</p>
-            <button (click)="openPairModal()" class="btn btn-primary">⚡ Pair a Screen</button>
+            <button (click)="openPairModal()" class="btn btn-primary"><app-icon name="zap" [size]="15"></app-icon> Pair a Screen</button>
           </div>
 
           <div *ngIf="!loadingDevices && devices.length > 0" class="devices-table-wrap">
@@ -1045,7 +1046,8 @@ export class DisplayListComponent implements OnInit {
     private fleetService: DisplayFleetService,
     private emergencyService: EmergencyService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private notifications: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -1121,8 +1123,12 @@ export class DisplayListComponent implements OnInit {
     });
   }
 
-  deleteDisplay(d: DisplaySummary): void {
-    if (!confirm(`Are you sure you want to delete "${d.name}"? This action cannot be undone.`)) {
+  async deleteDisplay(d: DisplaySummary): Promise<void> {
+    const confirmed = await this.notifications.confirm(
+      `"${d.name}" and its layout will be permanently deleted. This action cannot be undone.`,
+      { title: 'Delete display?', confirmLabel: 'Delete', danger: true }
+    );
+    if (!confirmed) {
       return;
     }
 
@@ -1212,8 +1218,12 @@ export class DisplayListComponent implements OnInit {
     });
   }
 
-  revokeDevice(dev: Device): void {
-    if (!confirm(`Revoke access for "${dev.device_name}"? It will disconnect from the screen.`)) {
+  async revokeDevice(dev: Device): Promise<void> {
+    const confirmed = await this.notifications.confirm(
+      `"${dev.device_name}" will be disconnected from its screen and must be paired again.`,
+      { title: 'Revoke device access?', confirmLabel: 'Revoke', danger: true }
+    );
+    if (!confirmed) {
       return;
     }
 

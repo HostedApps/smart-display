@@ -12,6 +12,7 @@ require_once __DIR__ . '/test_ai_flyer_scanner.php';
 require_once __DIR__ . '/test_tasks_sync.php';
 require_once __DIR__ . '/test_phase3_sync.php';
 require_once __DIR__ . '/test_phase4.php';
+require_once __DIR__ . '/test_display_versions.php';
 require_once __DIR__ . '/test_superadmin_and_security.php';
 
 require_once __DIR__ . '/../db.php';

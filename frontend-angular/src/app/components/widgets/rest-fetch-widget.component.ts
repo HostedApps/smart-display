@@ -17,7 +17,7 @@ export interface RestFetchConfig {
 @Component({
   selector: 'app-rest-fetch-widget',
   template: `
-    <div class="rest-fetch-card">
+    <div class="rest-fetch-card sd-card">
       <div class="card-header">
         <div class="title-wrap">
           <span class="widget-icon">{{ safeConfig.icon || '🌐' }}</span>
@@ -54,16 +54,11 @@ export interface RestFetchConfig {
     .rest-fetch-card {
       width: 100%;
       height: 100%;
-      background: rgba(15, 23, 42, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: inherit;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+      border-radius: var(--sd-radius);
       padding: 14px 16px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      color: #f8fafc;
       overflow: hidden;
       box-sizing: border-box;
       font-family: inherit;
@@ -90,9 +85,9 @@ export interface RestFetchConfig {
     }
 
     .widget-title {
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 700;
-      color: #cbd5e1;
+      color: var(--sd-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.5px;
       white-space: nowrap;
@@ -104,18 +99,18 @@ export interface RestFetchConfig {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #64748b;
+      background: var(--sd-text-subtle);
       position: relative;
     }
 
     .status-indicator.online {
-      background: #10b981;
-      box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+      background: var(--sd-success);
+      box-shadow: 0 0 8px var(--sd-success);
     }
 
     .status-indicator.error {
-      background: #ef4444;
-      box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+      background: var(--sd-danger);
+      box-shadow: 0 0 8px var(--sd-danger);
     }
 
     .pulse-dot {
@@ -127,7 +122,7 @@ export interface RestFetchConfig {
 
     .status-indicator.online .pulse-dot {
       animation: pulse 2s infinite;
-      background: rgba(16, 185, 129, 0.5);
+      background: var(--sd-success);
     }
 
     @keyframes pulse {
@@ -150,25 +145,22 @@ export interface RestFetchConfig {
       display: flex;
       align-items: baseline;
       gap: 3px;
-      font-weight: 800;
+      font-weight: var(--sd-weight-display);
       letter-spacing: -1px;
       line-height: 1.1;
       text-align: center;
     }
 
     .prefix {
-      font-size: 1.4rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-lg);
+      color: var(--sd-text-muted);
       font-weight: 600;
     }
 
     .main-val {
-      font-size: 2.2rem;
-      color: #ffffff;
-      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      font-size: var(--sd-fs-xl);
+      font-weight: var(--sd-weight-display);
+      color: var(--sd-text);
       max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -176,8 +168,8 @@ export interface RestFetchConfig {
     }
 
     .unit {
-      font-size: 1rem;
-      color: #38bdf8;
+      font-size: var(--sd-fs-title);
+      color: var(--sd-accent);
       font-weight: 600;
       letter-spacing: 0;
     }
@@ -187,39 +179,39 @@ export interface RestFetchConfig {
     }
 
     .path-badge code {
-      font-size: 0.65rem;
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: var(--sd-fs-xs);
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
       padding: 1px 6px;
       border-radius: 4px;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
 
     .error-container {
       padding: 6px 10px;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: var(--sd-danger-soft);
+      border: 1px solid var(--sd-danger);
       border-radius: 6px;
       text-align: center;
     }
 
     .error-msg {
-      font-size: 0.75rem;
-      color: #fca5a5;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-danger);
     }
 
     .card-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.68rem;
-      color: #64748b;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-subtle);
       padding-top: 4px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: var(--sd-border);
     }
 
     .last-sync {
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
 
     .poll-interval {

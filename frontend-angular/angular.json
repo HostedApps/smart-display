@@ -25,6 +25,7 @@
               "src/manifest.webmanifest"
             ],
             "styles": [
+              "src/theme-tokens.css",
               "src/styles.css"
             ],
             "scripts": []

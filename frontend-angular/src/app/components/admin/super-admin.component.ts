@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { SuperAdminService } from '../../services/super-admin.service';
 import { AuthService } from '../../services/auth.service';
 import { SuperAdminStats, User, UserActivityLog } from '../../models/display.model';
+import { NotificationService } from '../../services/notification.service';
 
 @Component({
   selector: 'app-super-admin',
@@ -846,7 +847,8 @@ export class SuperAdminComponent implements OnInit {
   constructor(
     private superAdminService: SuperAdminService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private notifications: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -938,8 +940,12 @@ export class SuperAdminComponent implements OnInit {
     });
   }
 
-  deleteUser(user: User): void {
-    if (!confirm(`Are you sure you want to completely delete user ${user.name} (${user.email}) and all their displays? This cannot be undone.`)) {
+  async deleteUser(user: User): Promise<void> {
+    const confirmed = await this.notifications.confirm(
+      `${user.name} (${user.email}) and all of their displays will be permanently deleted. This cannot be undone.`,
+      { title: 'Delete user?', confirmLabel: 'Delete user', danger: true }
+    );
+    if (!confirmed) {
       return;
     }
 

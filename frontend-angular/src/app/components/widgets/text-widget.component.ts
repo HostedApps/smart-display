@@ -3,7 +3,7 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
 @Component({
   selector: 'app-text-widget',
   template: `
-    <div class="text-card">
+    <div class="text-card sd-card">
       <div class="header-strip"></div>
 
       <div class="text-inner" [style.textAlign]="textAlign">
@@ -22,17 +22,10 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
     .text-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       position: relative;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      color: #ffffff;
     }
 
     .header-strip {
@@ -55,33 +48,33 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
     .text-title {
       margin: 0 0 12px 0;
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-weight: 700;
-      font-size: 1.35rem;
+      font-weight: var(--sd-weight-display);
+      font-size: var(--sd-fs-lg);
       letter-spacing: -0.3px;
-      color: #ffffff;
+      color: var(--sd-text);
       line-height: 1.25;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      text-shadow: var(--sd-text-shadow);
     }
 
     .text-body {
       font-family: var(--font-main, sans-serif);
-      color: rgba(255, 255, 255, 0.9);
+      color: var(--sd-text);
       word-break: break-word;
       flex: 1;
     }
 
     .text-body.size-small {
-      font-size: 0.9rem;
+      font-size: var(--sd-fs-body);
       line-height: 1.45;
     }
 
     .text-body.size-medium {
-      font-size: 1.1rem;
+      font-size: var(--sd-fs-title);
       line-height: 1.55;
     }
 
     .text-body.size-large {
-      font-size: 1.35rem;
+      font-size: var(--sd-fs-lg);
       line-height: 1.6;
     }
 
@@ -90,7 +83,7 @@ import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/cor
       width: 4px;
     }
     .text-inner::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
+      background: var(--sd-surface-3);
       border-radius: 4px;
     }
   `]

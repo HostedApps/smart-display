@@ -19,8 +19,9 @@ export class EmergencyService {
   }
 
   // 1. Kiosk checks for active broadcast (Public via token)
-  checkActiveBroadcast(displayToken: string): Observable<{ active: boolean; broadcast?: EmergencyBroadcast }> {
-    return this.http.get<{ active: boolean; broadcast?: EmergencyBroadcast }>(
+  /** Also returns config_version, a layout fingerprint the kiosk uses to reload instantly after a publish */
+  checkActiveBroadcast(displayToken: string): Observable<{ active: boolean; broadcast?: EmergencyBroadcast; config_version?: string | null }> {
+    return this.http.get<{ active: boolean; broadcast?: EmergencyBroadcast; config_version?: string | null }>(
       `${environment.apiUrl}/emergency.php?token=${displayToken}`
     );
   }

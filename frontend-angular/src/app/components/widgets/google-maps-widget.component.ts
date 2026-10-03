@@ -5,7 +5,7 @@ import { GoogleMapsConfig } from '../../models/display.model';
 @Component({
   selector: 'app-google-maps-widget',
   template: `
-    <div class="maps-card">
+    <div class="maps-card sd-card">
       <div class="maps-header">
         <div class="header-left">
           <svg class="maps-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -43,12 +43,7 @@ import { GoogleMapsConfig } from '../../models/display.model';
     .maps-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 10px 12px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -59,7 +54,7 @@ import { GoogleMapsConfig } from '../../models/display.model';
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .header-left {
       display: flex;
@@ -69,12 +64,12 @@ import { GoogleMapsConfig } from '../../models/display.model';
     .maps-icon {
       width: 16px;
       height: 16px;
-      color: #38bdf8;
+      color: var(--sd-accent);
     }
     .maps-title {
-      font-size: 0.9rem;
+      font-size: var(--sd-fs-body);
       font-weight: 600;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .header-right {
       display: flex;
@@ -82,32 +77,32 @@ import { GoogleMapsConfig } from '../../models/display.model';
       gap: 6px;
     }
     .location-badge {
-      font-size: 0.65rem;
-      color: #cbd5e1;
-      background: rgba(255, 255, 255, 0.08);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-3);
       padding: 2px 8px;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
       max-width: 140px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .traffic-badge {
-      font-size: 0.6rem;
-      color: #34d399;
-      background: rgba(52, 211, 153, 0.15);
-      border: 1px solid rgba(52, 211, 153, 0.3);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-success);
+      background: var(--sd-success-soft);
+      border: 1px solid color-mix(in srgb, var(--sd-success) 40%, transparent);
       padding: 2px 6px;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
       font-weight: 600;
     }
     .map-frame-wrapper {
       flex: 1;
       width: 100%;
       height: 100%;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
       overflow: hidden;
-      background: rgba(15, 23, 42, 0.6);
+      background: var(--sd-surface-2);
       position: relative;
     }
     .map-iframe {

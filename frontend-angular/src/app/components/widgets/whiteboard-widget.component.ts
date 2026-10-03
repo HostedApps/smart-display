@@ -7,7 +7,7 @@ import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-whiteboard-widget',
   template: `
-    <div class="whiteboard-card" [class]="currentBg">
+    <div class="whiteboard-card sd-card" [class]="currentBg">
       <!-- Toolbar -->
       <div class="wb-toolbar" (click)="$event.stopPropagation()">
         <div class="tool-group">
@@ -93,14 +93,10 @@ import { environment } from '../../../environments/environment';
     .whiteboard-card {
       height: 100%;
       box-sizing: border-box;
-      border-radius: 16px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       position: relative;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
     }
     .chalkboard {
       background: #111827;
@@ -127,7 +123,7 @@ import { environment } from '../../../environments/environment';
       z-index: 2;
     }
     .wb-title {
-      font-size: 0.8rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       letter-spacing: 0.3px;
       margin-right: 4px;
@@ -147,8 +143,8 @@ import { environment } from '../../../environments/environment';
       transition: all 0.15s;
     }
     .wb-tool-btn.active {
-      background: rgba(56, 189, 248, 0.3);
-      border-color: #38bdf8;
+      background: var(--sd-accent-soft);
+      border-color: var(--sd-accent);
     }
     .color-dot {
       width: 14px;
@@ -160,7 +156,7 @@ import { environment } from '../../../environments/environment';
     }
     .color-dot.active {
       transform: scale(1.25);
-      border-color: #ffffff;
+      border-color: currentColor;
       box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
     }
     .stroke-sizes {
@@ -178,22 +174,22 @@ import { environment } from '../../../environments/environment';
       line-height: 1;
     }
     .size-btn.active {
-      color: #38bdf8;
+      color: var(--sd-accent);
       font-weight: 700;
     }
     .btn-clear {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #f87171;
+      background: var(--sd-danger-soft);
+      border: 1px solid var(--sd-danger);
+      color: var(--sd-danger);
       border-radius: 6px;
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 600;
       padding: 2px 6px;
       cursor: pointer;
       transition: all 0.15s;
     }
     .btn-clear:hover {
-      background: rgba(239, 68, 68, 0.3);
+      background: color-mix(in srgb, var(--sd-danger) 30%, transparent);
     }
     .canvas-wrapper {
       flex: 1;

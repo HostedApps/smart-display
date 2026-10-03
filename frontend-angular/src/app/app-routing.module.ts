@@ -47,7 +47,9 @@ const routes: Routes = [
   { 
     path: 'admin/editor/:token', 
     component: DashboardEditorComponent,
-    canActivate: [AuthGuard]
+    canActivate: [AuthGuard],
+    // Ask before leaving with unpublished changes
+    canDeactivate: [(editor: DashboardEditorComponent) => editor.canLeave()]
   },
   
   { path: '', redirectTo: 'admin/displays', pathMatch: 'full' }

@@ -2,6 +2,9 @@ import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, DoCheck 
 import { HttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 export interface SunMoonConfig {
   latitude?: number;
@@ -26,7 +29,7 @@ const US_STATES: Record<string, string> = {
 @Component({
   selector: 'app-sun-moon-widget',
   template: `
-    <div class="sun-moon-card">
+    <div class="sun-moon-card sd-card">
       <!-- City & Date Header -->
       <div class="widget-header">
         <div class="city-badge">
@@ -76,18 +79,12 @@ const US_STATES: Record<string, string> = {
     .sun-moon-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 16px 18px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       overflow: hidden;
       position: relative;
-      color: #ffffff;
     }
 
     /* Header */
@@ -107,24 +104,24 @@ const US_STATES: Record<string, string> = {
     .loc-pin {
       width: 14px;
       height: 14px;
-      color: #38bdf8;
+      color: var(--sd-accent);
     }
 
     .city-name {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 700;
-      color: #f8fafc;
+      color: var(--sd-text);
       letter-spacing: -0.2px;
     }
 
     .header-date {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 500;
-      color: rgba(255, 255, 255, 0.55);
-      background: rgba(255, 255, 255, 0.06);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-2);
       padding: 2px 8px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
     }
 
     /* Sun Grid */
@@ -132,9 +129,9 @@ const US_STATES: Record<string, string> = {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
+      border-radius: var(--sd-radius-sm);
       padding: 10px 14px;
       margin: 4px 0 10px 0;
     }
@@ -149,7 +146,7 @@ const US_STATES: Record<string, string> = {
     .sun-divider {
       width: 1px;
       height: 32px;
-      background: rgba(255, 255, 255, 0.12);
+      background: var(--sd-border-color);
       margin: 0 12px;
     }
 
@@ -165,17 +162,17 @@ const US_STATES: Record<string, string> = {
     }
 
     .sun-label {
-      font-size: 0.7rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: rgba(255, 255, 255, 0.55);
+      color: var(--sd-text-muted);
     }
 
     .sun-time {
-      font-size: 1.05rem;
+      font-size: var(--sd-fs-title);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-text);
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.3px;
     }
@@ -187,9 +184,9 @@ const US_STATES: Record<string, string> = {
       justify-content: center;
       gap: 16px;
       padding: 8px 12px;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6));
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
+      border-radius: var(--sd-radius-sm);
     }
 
     .moon-emoji-wrap {
@@ -212,16 +209,16 @@ const US_STATES: Record<string, string> = {
     }
 
     .moon-phase-name {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-text);
       letter-spacing: -0.1px;
     }
 
     .moon-meta {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 500;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
   `]
 })
@@ -246,7 +243,7 @@ export class SunMoonWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
   private debounceTimer: any;
   private geocoding: boolean = false;
 
-  constructor(private http: HttpClient) {}
+  constructor(private dataCache: DataCacheService, private http: HttpClient) {}
 
   get safeConfig(): SunMoonConfig {
     return {
@@ -322,7 +319,7 @@ export class SunMoonWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
     this.geocoding = true;
     const geocodeUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=10&language=en&format=json`;
 
-    this.http.get<any>(geocodeUrl).pipe(
+    this.dataCache.get<any>(geocodeUrl, 24 * 60 * MINUTE).pipe(
       catchError(() => of(null))
     ).subscribe(geoRes => {
       if (geoRes && geoRes.results && geoRes.results.length > 0) {
@@ -331,7 +328,7 @@ export class SunMoonWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
       } else if (cityName !== queryCity) {
         // Fallback: try raw query
         const rawUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=5&language=en&format=json`;
-        this.http.get<any>(rawUrl).pipe(
+        this.dataCache.get<any>(rawUrl, 24 * 60 * MINUTE).pipe(
           catchError(() => of(null))
         ).subscribe(fallbackRes => {
           if (fallbackRes && fallbackRes.results && fallbackRes.results.length > 0) {
