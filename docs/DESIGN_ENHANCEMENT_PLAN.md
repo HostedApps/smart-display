@@ -60,7 +60,8 @@ Smart Display already ships more widgets (35) than DAKboard's block catalog and 
 | Phase 1 — Design system | ✅ Done — `src/theme-tokens.css` (tokens, container-relative type scale, `.sd-card` frame), six theme presets + accent colour, all 35 widgets on tokens (803 → 203 hardcoded colour lines; the rest are brand marks, data scales and media overlays), Lucide SVG icons in editor/fleet chrome. |
 | Save fix | ✅ Done — widget schedules, rules, links, lock/hide and names now persist; widget ids stay stable across saves. |
 | Phase 2 — Display runtime | ✅ Done — Fit/Fill/Stretch/Actual-size scaling with TV safe area (`utils/canvas-size.util.ts`), instant publish via a version stamp on the 5 s poll (needs `database/migrations/migration_display_updated_at.sql`), performance mode (auto on Raspberry Pi), shared second-aligned `ClockService`, cached active-widget list, shared `DataCacheService` (dedupe + stale-if-error), page transitions, burn-in orbit. Not done: OnPush on every widget (too risky without tests), SSE push (polling stamp chosen for shared-hosting compatibility). |
-| Phase 3 onward | Not started |
+| Phase 3 — Editor UX (first pass) | ✅ Done — right-hand inspector with Content / Style / Behaviour tabs; pointer events (touch & pen) with smart alignment guides; change tracking with autosaved local drafts, restore banner, leave guard; version history (last 20 publishes, `migration_display_versions.sql`); publish checks; device preview (TV, 4K, portrait, iPad, Pi 7", laptop) using the kiosk's scaling; empty-page start screen; 14 starter templates with recommended themes; keyboard-focusable canvas widgets. Not done yet: schema-driven inspector forms, splitting the editor component, multi-select/grouping, regions/grid layout mode, onboarding wizard, light admin theme. |
+| Phase 4 onward | Not started |
 
 ## 2. Design principles
 

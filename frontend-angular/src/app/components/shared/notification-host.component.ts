@@ -90,7 +90,7 @@ import { NotificationService } from '../../services/notification.service';
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
     }
     .confirm-dialog h3 { margin: 0 0 8px; font-size: 1.1rem; }
-    .confirm-dialog p { margin: 0 0 20px; color: #cbd5e1; line-height: 1.5; font-size: 0.92rem; }
+    .confirm-dialog p { margin: 0 0 20px; color: #cbd5e1; line-height: 1.5; font-size: 0.92rem; white-space: pre-line; max-height: 50vh; overflow-y: auto; }
     .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
     .confirm-actions button {
       border-radius: 8px;
