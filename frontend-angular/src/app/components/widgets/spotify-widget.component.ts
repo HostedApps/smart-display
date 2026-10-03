@@ -1,10 +1,13 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { interval, Subscription } from 'rxjs';
+import { Component, Inject, Input, OnInit, OnDestroy, Optional } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { LIVE_DISPLAY } from './widget-context';
+import { ClockService } from '../../services/clock.service';
 
 @Component({
   selector: 'app-spotify-widget',
   template: `
-    <div class="spotify-card">
+    <div class="spotify-card sd-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="spotify-top">
         <div class="brand">
           <svg class="spotify-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -13,7 +16,7 @@ import { interval, Subscription } from 'rxjs';
           <span class="now-playing-label">{{ isPlaying ? 'Now Playing' : 'Paused' }}</span>
         </div>
 
-        <div class="top-meta">
+        <div class="top-meta" *ngIf="!(isLive && showingSample)">
           <span class="device-pill" *ngIf="deviceName">
             <span class="device-icon">🔊</span> {{ deviceName }}
           </span>
@@ -98,12 +101,7 @@ import { interval, Subscription } from 'rxjs';
     .spotify-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 12px 14px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -128,11 +126,11 @@ import { interval, Subscription } from 'rxjs';
       filter: drop-shadow(0 0 8px rgba(30, 215, 96, 0.5));
     }
     .now-playing-label {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
       letter-spacing: 0.8px;
       text-transform: uppercase;
-      color: #1ed760;
+      color: var(--sd-text-muted);
     }
     .top-meta {
       display: flex;
@@ -140,11 +138,11 @@ import { interval, Subscription } from 'rxjs';
       gap: 8px;
     }
     .device-pill {
-      font-size: 0.65rem;
-      color: #94a3b8;
-      background: rgba(255, 255, 255, 0.06);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-2);
       padding: 2px 6px;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
       display: flex;
       align-items: center;
       gap: 3px;
@@ -187,7 +185,7 @@ import { interval, Subscription } from 'rxjs';
     .album-art {
       width: 100%;
       height: 100%;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
       object-fit: cover;
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
       position: relative;
@@ -208,17 +206,17 @@ import { interval, Subscription } from 'rxjs';
       justify-content: center;
     }
     .track-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-text);
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
       letter-spacing: -0.2px;
     }
     .track-artist {
-      font-size: 0.8rem;
-      color: #1ed760;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       font-weight: 600;
       margin-top: 1px;
       white-space: nowrap;
@@ -226,8 +224,8 @@ import { interval, Subscription } from 'rxjs';
       overflow: hidden;
     }
     .track-album {
-      font-size: 0.65rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       white-space: nowrap;
       text-overflow: ellipsis;
       overflow: hidden;
@@ -240,7 +238,7 @@ import { interval, Subscription } from 'rxjs';
     .progress-track {
       width: 100%;
       height: 5px;
-      background: rgba(255, 255, 255, 0.15);
+      background: var(--sd-surface-3);
       border-radius: 3px;
       overflow: hidden;
     }
@@ -254,8 +252,8 @@ import { interval, Subscription } from 'rxjs';
     .time-meta {
       display: flex;
       justify-content: space-between;
-      font-size: 0.65rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       margin-top: 2px;
       font-variant-numeric: tabular-nums;
     }
@@ -267,12 +265,12 @@ import { interval, Subscription } from 'rxjs';
       gap: 12px;
       margin-top: 4px;
       padding-top: 4px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-top: var(--sd-border);
     }
     .ctrl-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: #ffffff;
+      background: var(--sd-surface-3);
+      border: var(--sd-border);
+      color: var(--sd-text);
       border-radius: 50%;
       width: 32px;
       height: 32px;
@@ -314,7 +312,7 @@ import { interval, Subscription } from 'rxjs';
       height: 26px;
       background: none;
       border: none;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
     .vol-btn svg {
       width: 14px;
@@ -392,6 +390,22 @@ export class SpotifyWidgetComponent implements OnInit, OnDestroy {
   get isPlaying(): boolean { return this.config.isPlaying !== false; }
   get deviceName(): string { return this.config.deviceName || 'Smart Kiosk Audio'; }
 
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null, private clock: ClockService) {
+    this.isLive = !!live;
+  }
+
+  /**
+   * True when the track shown comes from the built-in demo playlist: track/artist not configured,
+   * or matching a playlist entry (the editor seeds new widgets with one, and skipping writes them).
+   */
+  get showingSample(): boolean {
+    const { track, artist } = this.config || {};
+    if (!track || !artist) return true;
+    return this.playlist.some(p => p.track === track && p.artist === artist);
+  }
+
   get progressPercent(): number {
     if (this.totalDurationMs <= 0) return 0;
     return Math.min(100, (this.currentProgressMs / this.totalDurationMs) * 100);
@@ -401,7 +415,7 @@ export class SpotifyWidgetComponent implements OnInit, OnDestroy {
     this.currentProgressMs = Number(this.config.progressMs) || 78000;
     this.totalDurationMs = Number(this.config.durationMs) || 243000;
 
-    this.tickerSub = interval(1000).subscribe(() => {
+    this.tickerSub = this.clock.tick$.subscribe(() => {
       if (this.isPlaying) {
         this.currentProgressMs += 1000;
         if (this.currentProgressMs >= this.totalDurationMs) {

@@ -420,10 +420,52 @@ export interface TouchHubConfig {
   items?: TouchHubItem[];
 }
 
+export const WIDGET_TYPES = [
+  'clock',
+  'weather',
+  'calendar',
+  'photo',
+  'rss',
+  'todo',
+  'homeassistant',
+  'spotify',
+  'stock_crypto',
+  'sticky_note',
+  'countdown',
+  'meal_planner',
+  'radar',
+  'quote',
+  'ai_briefing',
+  'chores',
+  'camera_pip',
+  'commute',
+  'youtube',
+  'text',
+  'qrcode',
+  'world_clocks',
+  'shapes',
+  'scheduled_text',
+  'button',
+  'sun_moon',
+  'analog_clock',
+  'rest_fetch',
+  'gauge',
+  'google_maps',
+  'whiteboard',
+  'slack',
+  'gmail',
+  'tradingview',
+  'reddit',
+  'greeting',
+  'custom',
+] as const;
+
+export type WidgetType = typeof WIDGET_TYPES[number];
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge' | 'google_maps' | 'whiteboard' | 'slack' | 'gmail' | 'tradingview' | 'reddit';
+  type: WidgetType;
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
@@ -487,6 +529,20 @@ export interface DisplayConfig {
   logo_url?: string;
   show_logo_kiosk?: boolean;
   font_family?: string;
+  /** Theme accent colour override (hex); empty uses the preset's accent */
+  accent_color?: string;
+  /** Custom design-canvas size, used when orientation is 'freeform' */
+  canvas_width?: number;
+  canvas_height?: number;
+  /** How the design canvas is scaled onto the physical screen */
+  scale_mode?: 'fit' | 'fill' | 'stretch' | 'none';
+  /** Overscan inset as a fraction of each screen edge (0 – 0.1) */
+  safe_area?: number;
+  page_transition?: 'none' | 'fade' | 'slide' | 'zoom';
+  /** 'auto' turns on for low-power devices such as Raspberry Pi */
+  performance_mode?: 'auto' | 'on' | 'off';
+  /** Slowly shifts the whole layout a few pixels to prevent OLED/plasma burn-in */
+  burn_in_shift?: boolean;
   weather_alerts_enabled?: boolean;
   weather_alert?: { title?: string; message: string; severity?: string } | string;
   custom_css?: string;
@@ -508,7 +564,35 @@ export interface DisplaySummary {
   widget_count: number;
   device_count: number;
   created_at: string;
+  /** Fleet telemetry (Phase 4); absent until the fleet migration is applied */
+  last_seen_at?: string | null;
+  status?: DisplayStatus;
+  client?: KioskClientInfo | null;
+  thumbnail_at?: string | null;
+  has_thumbnail?: boolean;
 }
+
+export type DisplayStatus = 'online' | 'stale' | 'offline' | 'never';
+
+/** What a kiosk reports in its heartbeat */
+export interface KioskClientInfo {
+  app_version?: string;
+  screen_w?: number | null;
+  screen_h?: number | null;
+  viewport_w?: number;
+  viewport_h?: number;
+  dpr?: number;
+  user_agent?: string;
+  platform?: string;
+  uptime_s?: number;
+  perf_mode?: boolean;
+  heap_mb?: number | null;
+  online?: boolean;
+  page_index?: number;
+  sleeping?: boolean;
+}
+
+export type FleetCommand = 'reload' | 'identify' | 'sleep' | 'wake' | 'goto_page' | 'screenshot';
 
 export interface Device {
   id: number;
@@ -517,6 +601,9 @@ export interface Device {
   last_ping?: string;
   created_at?: string;
   display_name?: string;
+  last_seen_at?: string | null;
+  status?: DisplayStatus;
+  client?: KioskClientInfo | null;
 }
 
 export interface PairingCodeResponse {

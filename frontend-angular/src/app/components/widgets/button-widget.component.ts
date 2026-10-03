@@ -10,7 +10,7 @@ export interface ButtonConfig {
 @Component({
   selector: 'app-button-widget',
   template: `
-    <div class="button-card">
+    <div class="button-card sd-card">
       <button 
         type="button"
         class="touch-action-btn"
@@ -39,12 +39,7 @@ export interface ButtonConfig {
     .button-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 12px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       align-items: stretch;
       justify-content: stretch;
@@ -55,7 +50,7 @@ export interface ButtonConfig {
     .touch-action-btn {
       width: 100%;
       height: 100%;
-      border-radius: 12px;
+      border-radius: var(--sd-radius-sm);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -91,28 +86,28 @@ export interface ButtonConfig {
     }
 
     .style-solid {
-      background-color: #4f46e5;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
-      color: #ffffff;
+      background-color: var(--sd-accent);
+      border: 1px solid var(--sd-accent-border);
+      box-shadow: 0 10px 25px -5px var(--sd-accent-border);
+      color: var(--sd-on-accent);
     }
 
     .style-solid:hover {
-      background-color: #4338ca;
-      box-shadow: 0 14px 28px -4px rgba(79, 70, 229, 0.65);
+      filter: brightness(0.92);
+      box-shadow: 0 14px 28px -4px var(--sd-accent-border);
     }
 
     .style-outline {
-      background: rgba(255, 255, 255, 0.04);
-      border: 2px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3), inset 0 0 12px rgba(255, 255, 255, 0.05);
-      color: #ffffff;
+      background: var(--sd-surface-2);
+      border: 2px solid var(--sd-text);
+      box-shadow: var(--sd-shadow);
+      color: var(--sd-text);
     }
 
     .style-outline:hover {
-      background: rgba(255, 255, 255, 0.12);
-      border-color: #ffffff;
-      box-shadow: 0 12px 24px -4px rgba(255, 255, 255, 0.25);
+      background: var(--sd-surface-3);
+      border-color: var(--sd-accent);
+      box-shadow: 0 12px 24px -4px var(--sd-accent-soft);
     }
 
     .btn-content {
@@ -138,7 +133,7 @@ export interface ButtonConfig {
     }
 
     .btn-label {
-      font-size: clamp(1rem, 2.2vw, 1.35rem);
+      font-size: var(--sd-fs-lg);
       font-weight: 700;
       letter-spacing: -0.2px;
       line-height: 1.25;
@@ -160,6 +155,11 @@ export interface ButtonConfig {
 
     .touch-action-btn:hover .btn-ext-indicator {
       opacity: 1;
+    }
+
+    .style-solid .btn-label,
+    .style-outline .btn-label {
+      text-shadow: var(--sd-text-shadow);
     }
 
     .ext-icon {

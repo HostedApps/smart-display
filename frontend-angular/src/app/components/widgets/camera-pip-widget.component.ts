@@ -6,7 +6,7 @@ import { CameraPipConfig } from '../../models/display.model';
 @Component({
   selector: 'app-camera-pip-widget',
   template: `
-    <div class="camera-card">
+    <div class="camera-card sd-card">
       <div class="camera-feed-wrap">
         <!-- Live Video Stream (if streamUrl provided) -->
         <iframe 
@@ -46,11 +46,8 @@ import { CameraPipConfig } from '../../models/display.model';
       width: 100%;
       height: 100%;
       box-sizing: border-box;
-      border-radius: 16px;
       overflow: hidden;
-      background: #000000;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.8);
+      background: #000;
       position: relative;
     }
     .camera-feed-wrap {
@@ -83,13 +80,12 @@ import { CameraPipConfig } from '../../models/display.model';
     }
     .live-tag {
       background: rgba(220, 38, 38, 0.85);
-      backdrop-filter: blur(8px);
       padding: 3px 8px;
       border-radius: 6px;
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 800;
       letter-spacing: 0.5px;
       color: #ffffff;
@@ -108,11 +104,10 @@ import { CameraPipConfig } from '../../models/display.model';
       100% { opacity: 1; transform: scale(1); }
     }
     .camera-title {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       color: #ffffff;
       background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(8px);
       padding: 3px 8px;
       border-radius: 6px;
     }
@@ -126,7 +121,7 @@ import { CameraPipConfig } from '../../models/display.model';
       align-items: center;
       justify-content: space-between;
       z-index: 10;
-      font-size: 0.68rem;
+      font-size: var(--sd-fs-xs);
       color: rgba(255, 255, 255, 0.75);
       font-family: monospace;
     }

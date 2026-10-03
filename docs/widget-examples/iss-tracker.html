@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ISS Tracker</title>
+<!--
+  Network example. Fetches https://api.wheretheiss.at/v1/satellites/25544 every 30 s.
+  The widget runs in an opaque origin, so requests carry "Origin: null" and no cookies;
+  the API must allow CORS from any origin (this one does).
+  Optional settings: {"units": "kilometers" | "miles"}
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; }
+  body {
+    box-sizing: border-box; padding: 12px 14px; overflow: hidden;
+    display: flex; flex-direction: column; gap: 8px;
+    font-family: var(--sd-font, system-ui, sans-serif);
+    color: var(--sd-text, #f8fafc);
+  }
+  header { display: flex; align-items: center; gap: 8px; font-size: var(--sd-fs-sm, 13px); font-weight: 700; color: var(--sd-text-muted, #94a3b8); text-transform: uppercase; letter-spacing: 0.08em; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sd-success, #10b981); }
+  .dot.stale { background: var(--sd-warning, #f59e0b); }
+  .dot.err { background: var(--sd-danger, #ef4444); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 1; align-content: center; }
+  .cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .label { font-size: var(--sd-fs-xs, 11px); color: var(--sd-text-subtle, #64748b); }
+  .value { font-size: var(--sd-fs-lg, 22px); font-weight: var(--sd-weight-display, 600); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .unit { font-size: var(--sd-fs-xs, 11px); color: var(--sd-text-muted, #94a3b8); }
+  #status { font-size: var(--sd-fs-xs, 11px); color: var(--sd-text-subtle, #64748b); }
+  #status.err { color: var(--sd-danger, #ef4444); }
+</style>
+</head>
+<body>
+  <header><span class="dot" id="dot"></span> ISS position</header>
+  <div class="grid">
+    <div class="cell"><span class="label">Latitude</span><span class="value" id="lat">-</span></div>
+    <div class="cell"><span class="label">Longitude</span><span class="value" id="lon">-</span></div>
+    <div class="cell"><span class="label">Velocity</span><span class="value" id="vel">-</span><span class="unit" id="velUnit"></span></div>
+  </div>
+  <div id="status">Loading...</div>
+
+<script>
+(function () {
+  var URL_BASE = 'https://api.wheretheiss.at/v1/satellites/25544';
+  var INTERVAL_MS = 30000;
+  var settings = {}, locale = undefined, timeZone = undefined;
+  var lastOk = 0, timer = null, inFlight = false;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function units() { return settings.units === 'miles' ? 'miles' : 'kilometers'; }
+  function fmtCoord(v, pos, neg) { return Math.abs(v).toFixed(2) + '° ' + (v >= 0 ? pos : neg); }
+
+  function setStatus(text, isError) {
+    $('status').textContent = text;
+    $('status').className = isError ? 'err' : '';
+    var stale = lastOk && Date.now() - lastOk > INTERVAL_MS * 3;
+    $('dot').className = 'dot' + (isError ? (lastOk ? ' stale' : ' err') : stale ? ' stale' : '');
+  }
+
+  function load() {
+    if (inFlight) return;
+    inFlight = true;
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timeout = setTimeout(function () { if (ctrl) ctrl.abort(); }, 10000);
+    fetch(URL_BASE + '?units=' + units(), { signal: ctrl ? ctrl.signal : undefined, cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (typeof d.latitude !== 'number' || typeof d.longitude !== 'number') throw new Error('Unexpected response');
+        $('lat').textContent = fmtCoord(d.latitude, 'N', 'S');
+        $('lon').textContent = fmtCoord(d.longitude, 'E', 'W');
+        $('vel').textContent = Math.round(d.velocity).toLocaleString(locale);
+        $('velUnit').textContent = d.units === 'miles' ? 'mph' : 'km/h';
+        lastOk = Date.now();
+        setStatus('Updated ' + new Date(lastOk).toLocaleTimeString(locale, { timeZone: timeZone }) + (d.visibility ? ' - ' + d.visibility : ''), false);
+      })
+      .catch(function (e) {
+        var why = e && e.name === 'AbortError' ? 'timed out' : (e && e.message) || 'network error';
+        setStatus((lastOk ? 'Showing last position - update failed: ' : 'Could not load ISS position: ') + why + '. Retrying in 30 s.', true);
+      })
+      .then(function () { clearTimeout(timeout); inFlight = false; });
+  }
+
+  function start() {
+    if (timer) clearInterval(timer);
+    load();
+    timer = setInterval(load, INTERVAL_MS);
+  }
+
+  window.addEventListener('message', function (event) {
+    if (event.source !== window.parent) return;
+    var msg = event.data;
+    if (!msg || typeof msg.type !== 'string') return;
+    if (msg.type === 'sd:init') {
+      var tokens = (msg.theme && msg.theme.tokens) || {};
+      Object.keys(tokens).forEach(function (k) { document.documentElement.style.setProperty(k, tokens[k]); });
+      if (msg.theme && msg.theme.fontFamily) document.documentElement.style.setProperty('--sd-font', msg.theme.fontFamily);
+      var prevUnits = units();
+      settings = (msg.settings && typeof msg.settings === 'object') ? msg.settings : {};
+      locale = msg.locale; timeZone = msg.timeZone;
+      if (!timer || units() !== prevUnits) start();
+    }
+  });
+
+  // Pause polling while the display hides us (e.g. another page is showing)
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { if (timer) clearInterval(timer); timer = null; }
+    else start();
+  });
+
+  start();
+  window.parent.postMessage({ type: 'sd:ready' }, '*');
+})();
+</script>
+</body>
+</html>

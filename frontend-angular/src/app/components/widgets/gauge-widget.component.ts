@@ -1,4 +1,5 @@
-import { Component, Input, OnInit, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Inject, Input, OnInit, OnChanges, Optional, SimpleChanges } from '@angular/core';
+import { LIVE_DISPLAY } from './widget-context';
 
 export interface GaugeConfig {
   value?: number;
@@ -15,13 +16,14 @@ export interface GaugeConfig {
 @Component({
   selector: 'app-gauge-widget',
   template: `
-    <div class="gauge-card">
+    <div class="gauge-card sd-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="card-header">
         <div class="title-wrap">
           <span class="widget-icon">{{ safeConfig.icon || '⚡' }}</span>
           <span class="widget-title">{{ safeConfig.title || 'Metric Gauge' }}</span>
         </div>
-        <span class="threshold-badge" [ngClass]="severityClass">{{ severityLabel }}</span>
+        <span class="threshold-badge" [ngClass]="severityClass" *ngIf="!(isLive && showingSample)">{{ severityLabel }}</span>
       </div>
 
       <div class="gauge-svg-container">
@@ -47,7 +49,7 @@ export interface GaugeConfig {
           <path
             d="M 25 110 A 75 75 0 0 1 175 110"
             fill="none"
-            stroke="rgba(255, 255, 255, 0.08)"
+            class="track-arc"
             stroke-width="16"
             stroke-linecap="round"
           />
@@ -66,7 +68,7 @@ export interface GaugeConfig {
           />
 
           <!-- Center Pivot Accent Circle -->
-          <circle cx="100" cy="110" r="6" fill="#f8fafc" opacity="0.3" />
+          <circle cx="100" cy="110" r="6" class="pivot-dot" opacity="0.3" />
         </svg>
 
         <!-- Center Value Overlay -->
@@ -87,18 +89,14 @@ export interface GaugeConfig {
   `,
   styles: [`
     .gauge-card {
+      position: relative;
       width: 100%;
       height: 100%;
-      background: rgba(15, 23, 42, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: inherit;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+      border-radius: var(--sd-radius);
       padding: 12px 16px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      color: #f8fafc;
       overflow: hidden;
       box-sizing: border-box;
       font-family: inherit;
@@ -123,9 +121,9 @@ export interface GaugeConfig {
     }
 
     .widget-title {
-      font-size: 0.82rem;
+      font-size: var(--sd-fs-body);
       font-weight: 700;
-      color: #cbd5e1;
+      color: var(--sd-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.4px;
       white-space: nowrap;
@@ -134,30 +132,30 @@ export interface GaugeConfig {
     }
 
     .threshold-badge {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       padding: 2px 7px;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
 
     .threshold-badge.normal {
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: var(--sd-success-soft);
+      color: var(--sd-success);
+      border: 1px solid var(--sd-success);
     }
 
     .threshold-badge.warn {
-      background: rgba(245, 158, 11, 0.18);
-      color: #fbbf24;
-      border: 1px solid rgba(245, 158, 11, 0.35);
+      background: var(--sd-warning-soft);
+      color: var(--sd-warning);
+      border: 1px solid var(--sd-warning);
     }
 
     .threshold-badge.crit {
-      background: rgba(239, 68, 68, 0.2);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: var(--sd-danger-soft);
+      color: var(--sd-danger);
+      border: 1px solid var(--sd-danger);
       animation: alertPulse 1.5s infinite;
     }
 
@@ -184,6 +182,14 @@ export interface GaugeConfig {
       overflow: visible;
     }
 
+    .track-arc {
+      stroke: var(--sd-surface-3);
+    }
+
+    .pivot-dot {
+      fill: var(--sd-text);
+    }
+
     .active-arc {
       transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.3s ease;
     }
@@ -206,21 +212,21 @@ export interface GaugeConfig {
     }
 
     .val-display .num {
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: #ffffff;
+      font-size: var(--sd-fs-lg);
+      font-weight: var(--sd-weight-display);
+      color: var(--sd-text);
       letter-spacing: -0.5px;
     }
 
     .val-display .unit {
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 600;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
     }
 
     .percent-label {
-      font-size: 0.7rem;
-      color: #64748b;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-subtle);
       font-weight: 600;
       margin-top: 2px;
     }
@@ -229,9 +235,9 @@ export interface GaugeConfig {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.68rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 600;
-      color: #64748b;
+      color: var(--sd-text-subtle);
       padding: 0 8px;
     }
   `]
@@ -251,6 +257,17 @@ export class GaugeWidgetComponent implements OnInit, OnChanges {
 
   get max(): number {
     return this.safeConfig.max !== undefined ? Number(this.safeConfig.max) : 100;
+  }
+
+  readonly isLive: boolean;
+
+  constructor(@Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when no value is configured and the built-in example reading (68) is shown. */
+  get showingSample(): boolean {
+    return this.safeConfig.value === undefined;
   }
 
   get value(): number {

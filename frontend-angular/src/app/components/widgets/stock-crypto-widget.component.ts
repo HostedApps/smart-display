@@ -1,8 +1,12 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const SECOND = 1000;
 
 export interface FinancialAsset {
   symbol: string;
@@ -11,12 +15,14 @@ export interface FinancialAsset {
   change24h: number;
   type: 'crypto' | 'stock';
   sparkline: number[];
+  /** Set on live displays when no real quote could be fetched for this symbol. */
+  unavailable?: boolean;
 }
 
 @Component({
   selector: 'app-stock-crypto-widget',
   template: `
-    <div class="market-card">
+    <div class="market-card sd-card">
       <div class="market-header">
         <div class="title-group">
           <svg class="market-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -31,6 +37,9 @@ export interface FinancialAsset {
         </div>
       </div>
 
+      <app-widget-state *ngIf="allUnavailable; else assetList" kind="error" message="Market data unavailable" hint="Couldn't reach the market data service. Retrying automatically."></app-widget-state>
+
+      <ng-template #assetList>
       <div class="asset-grid" *ngIf="displayedAssets.length > 0; else noAssets">
         <div *ngFor="let asset of displayedAssets" class="asset-item">
           <div class="asset-left">
@@ -41,11 +50,11 @@ export interface FinancialAsset {
             <span class="name">{{ asset.name }}</span>
           </div>
 
-          <div class="sparkline-wrap" *ngIf="config.showSparklines !== false">
+          <div class="sparkline-wrap" *ngIf="config.showSparklines !== false && !asset.unavailable && (!isLive || (asset.sparkline && asset.sparkline.length > 1))">
             <svg class="sparkline-svg" viewBox="0 0 60 20">
               <path 
                 [attr.d]="generateSparklinePath(asset.sparkline)" 
-                [attr.stroke]="asset.change24h >= 0 ? '#10b981' : '#ef4444'" 
+                [style.stroke]="asset.change24h >= 0 ? 'var(--sd-success)' : 'var(--sd-danger)'" 
                 fill="none" 
                 stroke-width="2"
                 stroke-linecap="round"
@@ -55,8 +64,9 @@ export interface FinancialAsset {
           </div>
 
           <div class="asset-right">
-            <span class="price">{{ getCurrencySymbol() }}{{ asset.price | number:'1.2-2' }}</span>
-            <span class="change-badge" [class.positive]="asset.change24h >= 0" [class.negative]="asset.change24h < 0">
+            <span class="price" *ngIf="asset.unavailable" title="Price unavailable">—</span>
+            <span class="price" *ngIf="!asset.unavailable">{{ getCurrencySymbol() }}{{ asset.price | number:'1.2-2' }}</span>
+            <span class="change-badge" *ngIf="!asset.unavailable" [class.positive]="asset.change24h >= 0" [class.negative]="asset.change24h < 0">
               {{ asset.change24h >= 0 ? '+' : '' }}{{ asset.change24h | number:'1.2-2' }}%
             </span>
           </div>
@@ -68,18 +78,14 @@ export interface FinancialAsset {
           <p>No symbols configured</p>
         </div>
       </ng-template>
+      </ng-template>
     </div>
   `,
   styles: [`
     .market-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -90,7 +96,7 @@ export interface FinancialAsset {
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .title-group {
       display: flex;
@@ -100,13 +106,13 @@ export interface FinancialAsset {
     .market-icon {
       width: 16px;
       height: 16px;
-      color: #10b981;
+      color: var(--sd-success);
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .header-tags {
       display: flex;
@@ -114,17 +120,17 @@ export interface FinancialAsset {
       gap: 6px;
     }
     .view-tag {
-      font-size: 0.6rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
+      color: var(--sd-accent);
+      background: var(--sd-accent-soft);
       padding: 1px 5px;
       border-radius: 4px;
     }
     .currency-tag {
-      font-size: 0.65rem;
-      color: #94a3b8;
-      background: rgba(255, 255, 255, 0.05);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-2);
       padding: 2px 6px;
       border-radius: 4px;
       font-weight: 600;
@@ -142,14 +148,13 @@ export interface FinancialAsset {
       align-items: center;
       justify-content: space-between;
       padding: 6px 8px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--sd-surface-2);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
       transition: all 0.2s;
     }
     .asset-item:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255, 255, 255, 0.1);
+      background: var(--sd-surface-3);
     }
     .asset-left {
       display: flex;
@@ -163,25 +168,25 @@ export interface FinancialAsset {
     }
     .symbol {
       font-weight: 700;
-      font-size: 0.85rem;
-      color: #ffffff;
+      font-size: var(--sd-fs-body);
+      color: var(--sd-text);
       letter-spacing: 0.5px;
     }
     .type-badge {
-      font-size: 0.55rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 800;
-      color: #94a3b8;
-      background: rgba(255, 255, 255, 0.08);
+      color: var(--sd-text-muted);
+      background: var(--sd-surface-3);
       padding: 1px 4px;
       border-radius: 3px;
     }
     .type-badge.type-crypto {
-      color: #fbbf24;
-      background: rgba(245, 158, 11, 0.15);
+      color: var(--sd-warning);
+      background: var(--sd-warning-soft);
     }
     .name {
-      font-size: 0.68rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -204,13 +209,13 @@ export interface FinancialAsset {
     }
     .price {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 0.92rem;
+      font-size: var(--sd-fs-body);
       font-weight: 600;
-      color: #ffffff;
+      color: var(--sd-text);
       font-variant-numeric: tabular-nums;
     }
     .change-badge {
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       padding: 1px 5px;
       border-radius: 4px;
@@ -218,20 +223,20 @@ export interface FinancialAsset {
       margin-top: 1px;
     }
     .change-badge.positive {
-      color: #34d399;
-      background: rgba(16, 185, 129, 0.15);
+      color: var(--sd-success);
+      background: var(--sd-success-soft);
     }
     .change-badge.negative {
-      color: #f87171;
-      background: rgba(239, 68, 68, 0.15);
+      color: var(--sd-danger);
+      background: var(--sd-danger-soft);
     }
     .empty-state {
       display: flex;
       align-items: center;
       justify-content: center;
       flex: 1;
-      color: #64748b;
-      font-size: 0.8rem;
+      color: var(--sd-text-subtle);
+      font-size: var(--sd-fs-sm);
     }
   `]
 })
@@ -251,7 +256,17 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
   stockAssets: FinancialAsset[] = [];
   cryptoAssets: FinancialAsset[] = [];
 
-  constructor(private http: HttpClient) {}
+  readonly isLive: boolean;
+
+  constructor(private dataCache: DataCacheService, private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
+
+  /** True when every displayed symbol failed to load (live displays only). */
+  get allUnavailable(): boolean {
+    const assets = this.displayedAssets;
+    return assets.length > 0 && assets.every(a => a.unavailable);
+  }
 
   get displayedAssets(): FinancialAsset[] {
     const mode = this.config.mode || 'all';
@@ -311,11 +326,14 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
     }
 
     const url = `${environment.apiUrl}/proxy.php?action=fetch_stocks&symbols=${encodeURIComponent(syms.join(','))}`;
-    this.http.get<any>(url)
+    this.dataCache.get<any>(url, 30 * SECOND)
       .pipe(catchError(() => of(null)))
       .subscribe(res => {
         if (res && res.success && Array.isArray(res.stocks)) {
           this.stockAssets = res.stocks;
+        } else if (this.isLive) {
+          // Never fabricate prices on a live display: mark each symbol unavailable
+          this.stockAssets = syms.map(sym => this.unavailableAsset(sym, sym, 'stock'));
         } else {
           // Fallback mock representation if network drops
           this.stockAssets = syms.map(sym => ({
@@ -346,11 +364,9 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
     }
 
     const url = `${environment.apiUrl}/proxy.php?action=fetch_crypto&coins=${encodeURIComponent(coins.join(','))}&currencies=usd`;
-    this.http.get<any>(url)
+    this.dataCache.get<any>(url, 30 * SECOND)
       .pipe(catchError(() => of(null)))
       .subscribe(data => {
-        if (!data) return;
-        
         const cryptoMeta: { [key: string]: { symbol: string; name: string } } = {
           bitcoin: { symbol: 'BTC', name: 'Bitcoin' },
           ethereum: { symbol: 'ETH', name: 'Ethereum' },
@@ -360,9 +376,22 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
           ripple: { symbol: 'XRP', name: 'XRP' }
         };
 
+        if (!data) {
+          if (this.isLive) {
+            this.cryptoAssets = coins.map(coin => {
+              const meta = cryptoMeta[coin] || { symbol: coin.toUpperCase().substring(0, 4), name: coin };
+              return this.unavailableAsset(meta.symbol, meta.name, 'crypto');
+            });
+          }
+          return;
+        }
+
         this.cryptoAssets = coins.map(coin => {
           const coinData = data[coin];
           const meta = cryptoMeta[coin] || { symbol: coin.toUpperCase().substring(0, 4), name: coin };
+          if (this.isLive && (coinData?.usd === undefined || coinData?.usd === null)) {
+            return this.unavailableAsset(meta.symbol, meta.name, 'crypto');
+          }
           const price = coinData?.usd || 0;
           const change = coinData?.usd_24h_change || 0;
           return {
@@ -371,10 +400,15 @@ export class StockCryptoWidgetComponent implements OnInit, OnDestroy, OnChanges 
             price: price,
             change24h: change,
             type: 'crypto',
-            sparkline: [price * 0.98, price * 0.99, price * 1.01, price * 1.0, price]
-          };
+            // No price history is fetched, so this sparkline is illustrative only: omit it on live
+            sparkline: this.isLive ? [] : [price * 0.98, price * 0.99, price * 1.01, price * 1.0, price]
+          } as FinancialAsset;
         });
       });
+  }
+
+  private unavailableAsset(symbol: string, name: string, type: 'crypto' | 'stock'): FinancialAsset {
+    return { symbol, name, price: 0, change24h: 0, type, sparkline: [], unavailable: true };
   }
 
   generateSparklinePath(data: number[]): string {

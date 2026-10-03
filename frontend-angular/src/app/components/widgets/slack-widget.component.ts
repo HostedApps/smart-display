@@ -1,12 +1,14 @@
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Inject, Input, OnInit, OnDestroy, Optional } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription } from 'rxjs';
 import { SlackConfig, SlackMessage } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
 
 @Component({
   selector: 'app-slack-widget',
   template: `
-    <div class="slack-card">
+    <div class="slack-card sd-card">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div class="slack-header">
         <div class="header-left">
           <svg class="slack-logo" viewBox="0 0 24 24" fill="currentColor">
@@ -14,7 +16,7 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
           </svg>
           <span class="channel-tag">#{{ config.channelName || 'general' }}</span>
         </div>
-        <span class="live-pill">
+        <span class="live-pill" *ngIf="!(isLive && showingSample)">
           <span class="pulse-dot"></span> Live
         </span>
       </div>
@@ -35,14 +37,10 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
   `,
   styles: [`
     .slack-card {
+      position: relative;
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.95));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 12px 14px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -53,7 +51,7 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .header-left {
       display: flex;
@@ -66,16 +64,16 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
       color: #e01e5a;
     }
     .channel-tag {
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-text);
       letter-spacing: -0.2px;
     }
     .live-pill {
-      font-size: 0.65rem;
-      color: #34d399;
-      background: rgba(52, 211, 153, 0.15);
-      border: 1px solid rgba(52, 211, 153, 0.3);
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-success);
+      background: var(--sd-success-soft);
+      border: 1px solid var(--sd-success);
       padding: 1px 6px;
       border-radius: 8px;
       display: flex;
@@ -87,8 +85,8 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background-color: #34d399;
-      box-shadow: 0 0 6px #34d399;
+      background-color: var(--sd-success);
+      box-shadow: 0 0 6px var(--sd-success);
     }
     .messages-list {
       flex: 1;
@@ -102,9 +100,9 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
       align-items: flex-start;
       gap: 8px;
       padding: 6px 8px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--sd-surface-2);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
     }
     .user-avatar {
       font-size: 1.1rem;
@@ -127,17 +125,17 @@ import { SlackConfig, SlackMessage } from '../../models/display.model';
       margin-bottom: 2px;
     }
     .user-name {
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 700;
-      color: #f1f5f9;
+      color: var(--sd-text);
     }
     .msg-time {
-      font-size: 0.6rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
     }
     .msg-body {
-      font-size: 0.75rem;
-      color: #cbd5e1;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       line-height: 1.35;
       word-break: break-word;
     }
@@ -177,6 +175,11 @@ export class SlackWidgetComponent implements OnInit, OnDestroy {
     }
   ];
 
+  /** True when showing the built-in example messages instead of configured ones. */
+  get showingSample(): boolean {
+    return !(Array.isArray(this.config.messages) && this.config.messages.length > 0);
+  }
+
   get displayMessages(): SlackMessage[] {
     if (this.config.messages && Array.isArray(this.config.messages) && this.config.messages.length > 0) {
       return this.config.messages.slice(0, this.config.maxItems || 5);
@@ -184,7 +187,11 @@ export class SlackWidgetComponent implements OnInit, OnDestroy {
     return this.defaultMessages.slice(0, this.config.maxItems || 5);
   }
 
-  constructor(private http: HttpClient) {}
+  readonly isLive: boolean;
+
+  constructor(private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     // If webhook configured, poll periodically
