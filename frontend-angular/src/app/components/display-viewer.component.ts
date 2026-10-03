@@ -16,6 +16,8 @@ import { getWidgetDefinition } from './widgets/widget-registry';
 import { themeClasses } from '../utils/theme.util';
 import { CanvasSize, computeStageTransform, getCanvasSize } from '../utils/canvas-size.util';
 import { ClockService } from '../services/clock.service';
+import { KioskTelemetryService } from '../services/kiosk-telemetry.service';
+import { KioskCommand } from '../services/emergency.service';
 
 @Component({
   selector: 'app-display-viewer',
@@ -127,6 +129,15 @@ import { ClockService } from '../services/clock.service';
           </div>
         </div>
       </div>
+      </div>
+
+      <!-- "Identify" from the fleet hub: show which display this is -->
+      <div class="identify-overlay" *ngIf="identifying" role="status">
+        <div class="identify-card">
+          <div class="identify-label">This display is</div>
+          <div class="identify-name">{{ displayConfig?.name || 'Smart Display' }}</div>
+          <div class="identify-meta">{{ screenSize.width }}×{{ screenSize.height }} · …{{ token.slice(-6) }}</div>
+        </div>
       </div>
 
       <!-- Fullscreen Emergency Broadcast Takeover Overlay -->
@@ -243,6 +254,29 @@ import { ClockService } from '../services/clock.service';
       pointer-events: none;
       z-index: 0;
     }
+    .identify-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 6, 23, 0.55);
+      box-shadow: inset 0 0 0 12px #38bdf8;
+      animation: identify-pulse 1s ease-in-out infinite alternate;
+    }
+    .identify-card {
+      text-align: center;
+      padding: 4vh 6vw;
+      border-radius: 24px;
+      background: rgba(15, 23, 42, 0.92);
+      color: #ffffff;
+    }
+    .identify-label { font-size: 2.2vh; text-transform: uppercase; letter-spacing: 0.2em; color: #7dd3fc; }
+    .identify-name { font-size: 9vh; font-weight: 800; margin: 1vh 0; }
+    .identify-meta { font-size: 2.4vh; color: #94a3b8; }
+    @keyframes identify-pulse { from { box-shadow: inset 0 0 0 12px #38bdf8; } to { box-shadow: inset 0 0 0 24px #0ea5e9; } }
+
     /* The design canvas, scaled to the physical screen (see computeStageTransform) */
     .design-stage {
       position: absolute;
@@ -657,7 +691,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   })();
 
   stageTransformCss = '';
-  private screenSize: CanvasSize = { width: 0, height: 0 };
+  screenSize: CanvasSize = { width: 0, height: 0 };
 
   @HostListener('window:resize')
   updateStageTransform(): void {
@@ -698,9 +732,69 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   private clockTimerSub?: Subscription;
   /** Last layout version seen on the emergency poll; null until the server supports it */
   private lastConfigVersion: string | null = null;
+  /** Highest remote command id already executed (persisted so a reload doesn't repeat it) */
+  private lastCommandId: number | null = null;
+  /** Manual sleep/wake (TouchHub or fleet hub) that holds until the schedule next changes state */
+  private sleepOverride: { value: boolean; scheduledAtSet: boolean } | null = null;
+  identifyUntil = 0;
+
+  get identifying(): boolean {
+    return Date.now() < this.identifyUntil;
+  }
+
+  private get commandKey(): string {
+    return `sd_last_cmd_${this.token}`;
+  }
+
+  private handleRemoteCommands(commands: KioskCommand[], latestId?: number): void {
+    if (this.lastCommandId === null) {
+      const stored = Number(localStorage.getItem(this.commandKey) || NaN);
+      // First boot: skip anything queued before this kiosk started
+      this.lastCommandId = Number.isFinite(stored) ? stored : (latestId ?? 0);
+      if (!Number.isFinite(stored)) {
+        localStorage.setItem(this.commandKey, String(this.lastCommandId));
+        return;
+      }
+    }
+    for (const cmd of commands) {
+      if (cmd.id <= (this.lastCommandId ?? 0)) continue;
+      this.lastCommandId = cmd.id;
+      try { localStorage.setItem(this.commandKey, String(cmd.id)); } catch { /* ignore */ }
+      this.executeRemoteCommand(cmd);
+    }
+  }
+
+  private executeRemoteCommand(cmd: KioskCommand): void {
+    switch (cmd.command) {
+      case 'reload':
+        window.location.reload();
+        break;
+      case 'identify':
+        this.identifyUntil = Date.now() + 10_000;
+        setTimeout(() => (this.identifyUntil = 0), 10_000);
+        break;
+      case 'sleep':
+      case 'wake':
+        this.setSleepOverride(cmd.command === 'sleep');
+        break;
+      case 'goto_page': {
+        const idx = Number(cmd.payload?.page_index);
+        if (Number.isInteger(idx) && idx >= 0 && idx < this.pages.length) this.goToPage(idx);
+        break;
+      }
+      case 'screenshot':
+        this.telemetry.captureNow();
+        break;
+    }
+  }
+
+  private setSleepOverride(sleeping: boolean): void {
+    this.sleepOverride = { value: sleeping, scheduledAtSet: this.computeScheduledSleep(new Date()) };
+    this.isSleeping = sleeping;
+  }
   private slowPollCount = 0;
   private emergencyPollSub?: Subscription;
-  private token: string = '';
+  token: string = '';
 
   private touchStartX: number = 0;
   private touchStartY: number = 0;
@@ -715,7 +809,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     private wakeLock: WakeLockService,
     private emergencyService: EmergencyService,
     private audioChime: AudioChimeService,
-    private clock: ClockService
+    private clock: ClockService,
+    private telemetry: KioskTelemetryService
   ) {}
 
   getSafeYoutubeUrl(id?: string): SafeResourceUrl {
@@ -920,6 +1015,13 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       this.emergencyPollSub = interval(5000).subscribe(() => {
         this.checkEmergency();
       });
+
+      // Fleet hub: online status, screen info and a periodic screenshot thumbnail
+      this.telemetry.start(
+        this.token,
+        () => ({ pageIndex: this.activePageIndex, sleeping: this.isSleeping, perfMode: this.performanceMode }),
+        () => document.querySelector('.display-canvas') as HTMLElement | null
+      );
     }
 
     // 1-second clock for time, sleep check & audio chimes
@@ -932,8 +1034,9 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
 
   checkEmergency(): void {
     if (!this.token) return;
-    this.emergencyService.checkActiveBroadcast(this.token).subscribe({
+    this.emergencyService.checkActiveBroadcast(this.token, this.lastCommandId ?? 0).subscribe({
       next: (res) => {
+        this.handleRemoteCommands(res.commands || [], res.latest_command_id);
         // Instant publish: reload the layout as soon as the server's version stamp changes
         if (res.config_version) {
           if (this.lastConfigVersion && res.config_version !== this.lastConfigVersion) {
@@ -1179,7 +1282,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   }
 
   toggleNightModeManual(): void {
-    this.isSleeping = !this.isSleeping;
+    this.setSleepOverride(!this.isSleeping);
   }
 
   goToNextPage(): void {
@@ -1208,10 +1311,18 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       }
     }
 
+    const scheduled = this.computeScheduledSleep(now);
+    // A manual override lasts until the schedule itself flips (e.g. "wake" at night holds until morning)
+    if (this.sleepOverride && this.sleepOverride.scheduledAtSet !== scheduled) {
+      this.sleepOverride = null;
+    }
+    this.isSleeping = this.sleepOverride ? this.sleepOverride.value : scheduled;
+  }
+
+  private computeScheduledSleep(now: Date): boolean {
     const sched = this.displayConfig?.sleep_schedule;
     if (!sched || !sched.enabled || !sched.sleepTime || !sched.wakeTime) {
-      this.isSleeping = false;
-      return;
+      return false;
     }
 
     const curMinutes = now.getHours() * 60 + now.getMinutes();
@@ -1223,11 +1334,10 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     const wakeMin = wH * 60 + wM;
 
     if (sleepMin < wakeMin) {
-      this.isSleeping = curMinutes >= sleepMin && curMinutes < wakeMin;
-    } else {
-      // Over midnight (e.g. 23:00 to 06:30)
-      this.isSleeping = curMinutes >= sleepMin || curMinutes < wakeMin;
+      return curMinutes >= sleepMin && curMinutes < wakeMin;
     }
+    // Over midnight (e.g. 23:00 to 06:30)
+    return curMinutes >= sleepMin || curMinutes < wakeMin;
   }
 
   checkAudioChimes(): void {
@@ -1335,6 +1445,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     this.pollSub?.unsubscribe();
     this.carouselTimerSub?.unsubscribe();
     this.clockTimerSub?.unsubscribe();
+    this.telemetry.stop();
     this.emergencyPollSub?.unsubscribe();
     this.applyCustomCss();
   }

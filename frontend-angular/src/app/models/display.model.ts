@@ -562,7 +562,35 @@ export interface DisplaySummary {
   widget_count: number;
   device_count: number;
   created_at: string;
+  /** Fleet telemetry (Phase 4); absent until the fleet migration is applied */
+  last_seen_at?: string | null;
+  status?: DisplayStatus;
+  client?: KioskClientInfo | null;
+  thumbnail_at?: string | null;
+  has_thumbnail?: boolean;
 }
+
+export type DisplayStatus = 'online' | 'stale' | 'offline' | 'never';
+
+/** What a kiosk reports in its heartbeat */
+export interface KioskClientInfo {
+  app_version?: string;
+  screen_w?: number | null;
+  screen_h?: number | null;
+  viewport_w?: number;
+  viewport_h?: number;
+  dpr?: number;
+  user_agent?: string;
+  platform?: string;
+  uptime_s?: number;
+  perf_mode?: boolean;
+  heap_mb?: number | null;
+  online?: boolean;
+  page_index?: number;
+  sleeping?: boolean;
+}
+
+export type FleetCommand = 'reload' | 'identify' | 'sleep' | 'wake' | 'goto_page' | 'screenshot';
 
 export interface Device {
   id: number;
@@ -571,6 +599,9 @@ export interface Device {
   last_ping?: string;
   created_at?: string;
   display_name?: string;
+  last_seen_at?: string | null;
+  status?: DisplayStatus;
+  client?: KioskClientInfo | null;
 }
 
 export interface PairingCodeResponse {

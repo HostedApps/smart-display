@@ -162,16 +162,47 @@ if ($action === 'list_devices') {
     }
 
     $displayId = (int)($_GET['display_id'] ?? 0);
+    $filterSql = $displayId > 0 ? "AND dev.display_id = ?" : "";
+    $params = $displayId > 0 ? [$user['id'], $displayId] : [$user['id']];
     try {
-        $stmt = $pdo->prepare("
-            SELECT dev.id, dev.device_name, dev.ip_address, dev.last_ping, dev.created_at, d.name as display_name
-            FROM devices dev
-            JOIN displays d ON dev.display_id = d.id
-            WHERE d.user_id = ? " . ($displayId > 0 ? "AND dev.display_id = " . $displayId : "") . "
-            ORDER BY dev.last_ping DESC
-        ");
-        $stmt->execute([$user['id']]);
-        $devices = $stmt->fetchAll();
+        try {
+            $stmt = $pdo->prepare("
+                SELECT dev.id, dev.device_name, dev.ip_address, dev.last_ping, dev.created_at, d.name as display_name,
+                       UNIX_TIMESTAMP(dev.last_seen_at) AS last_seen_unix,
+                       TIMESTAMPDIFF(SECOND, dev.last_seen_at, NOW()) AS seen_age,
+                       dev.client_info_json
+                FROM devices dev
+                JOIN displays d ON dev.display_id = d.id
+                WHERE d.user_id = ? $filterSql
+                ORDER BY dev.last_ping DESC
+            ");
+            $stmt->execute($params);
+        } catch (\PDOException $e) {
+            // Telemetry migration not applied: legacy columns only
+            $stmt = $pdo->prepare("
+                SELECT dev.id, dev.device_name, dev.ip_address, dev.last_ping, dev.created_at, d.name as display_name
+                FROM devices dev
+                JOIN displays d ON dev.display_id = d.id
+                WHERE d.user_id = ? $filterSql
+                ORDER BY dev.last_ping DESC
+            ");
+            $stmt->execute($params);
+        }
+        $devices = array_map(function ($dev) {
+            $client = !empty($dev['client_info_json']) ? json_decode($dev['client_info_json'], true) : null;
+            $out = [
+                "id" => $dev['id'],
+                "device_name" => $dev['device_name'],
+                "ip_address" => $dev['ip_address'],
+                "last_ping" => $dev['last_ping'],
+                "created_at" => $dev['created_at'],
+                "display_name" => $dev['display_name'],
+                "last_seen_at" => fleetIsoFromUnix($dev['last_seen_unix'] ?? null),
+                "status" => fleetStatusFromAge($dev['seen_age'] ?? null),
+                "client" => is_array($client) ? $client : null
+            ];
+            return $out;
+        }, $stmt->fetchAll());
 
         echo json_encode([
             "success" => true,
