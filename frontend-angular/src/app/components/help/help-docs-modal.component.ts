@@ -68,7 +68,7 @@ import { WIDGET_REGISTRY } from '../widgets/widget-registry';
               <div class="flow-card">
                 <div class="step-badge">2</div>
                 <h4>Design in Visual Canvas</h4>
-                <p>Click <strong>"Edit Canvas"</strong>. Drag & drop widgets from the 19-widget palette. Resize widgets with 8-point handles, pick custom backgrounds (Unsplash, Video, YouTube ambient streams), and set sleep/wake schedules.</p>
+                <p>Click <strong>"Edit Canvas"</strong>. Drag & drop widgets from the widget palette. Resize widgets with 8-point handles, pick custom backgrounds (Unsplash, Video, YouTube ambient streams), and set sleep/wake schedules.</p>
               </div>
 
               <div class="flow-card">

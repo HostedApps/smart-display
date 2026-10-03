@@ -160,7 +160,7 @@ xset s noblank</code></pre>
               <pre><code>[Desktop Entry]
 Type=Application
 Name=Smart Display Kiosk
-Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required --incognito https://smart-kiosk.online/#/display/YOUR_TOKEN
+Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required https://smart-kiosk.online/#/display/YOUR_TOKEN
 X-GNOME-Autostart-enabled=true</code></pre>
             </div>
 

@@ -13,18 +13,18 @@ This guide provides step-by-step instructions to set up and deploy **Smart Displ
 
 Smart Display runs as a high-performance, web-native Progressive Web App (PWA) with responsive visual scaling:
 * **Admin Fleet Dashboard**: `https://smart-kiosk.online/#/admin/displays`
-* **Hardware 6-Digit PIN Pairing Screen**: `https://smart-kiosk.online/#/pair`
+* **Hardware PIN Pairing Screen**: `https://smart-kiosk.online/#/pair`
 * **Direct Kiosk Wall Display**: `https://smart-kiosk.online/#/display/:token`
 * **Mobile "WallDrop" Note & Photo Beam**: `https://smart-kiosk.online/#/drop/:token`
 
 ---
 
-## 2. Zero-Friction 6-Digit PIN Commissioning
+## 2. Zero-Friction PIN Commissioning
 
 1. Launch your client browser on the physical TV, iPad, or Raspberry Pi and open `https://smart-kiosk.online/#/pair`.
-2. The screen will display a large 6-digit PIN (e.g. `UP-5610`).
-3. From your phone or admin laptop, open **Fleet Hub** (`/#/admin/displays`) ➔ Click **"⚡ Pair Screen with PIN"**.
-4. Enter the 6-digit PIN and choose which screen configuration to bind to.
+2. The screen will display a large 6-character pairing code (two letters and four digits, e.g. `UP-5610`).
+3. From your phone or admin laptop, open **Fleet Hub** (`/#/admin/displays`) ➔ Click **"Pair Screen with PIN"**.
+4. Enter the code and choose which screen configuration to bind to.
 5. The device will automatically connect, store a hardware secret, and load the dashboard.
 
 ---
@@ -55,14 +55,17 @@ xset s noblank
 *Or via Desktop GUI:* **Menu ➔ Preferences ➔ Raspberry Pi Configuration ➔ Display ➔ Screen Blanking: OFF**.
 
 ### 3.3: Configure Fullscreen Kiosk Autostart
-Create `~/.config/autostart/smartdisplay.desktop`:
+**Recommended:** use the bundled kiosk script, which waits for the network before launching, clears Chromium's crash-restore prompts and restarts Chromium if it exits. See [`raspberry-pi/README_SETUP.md`](../raspberry-pi/README_SETUP.md).
+
+**Minimal alternative:** create `~/.config/autostart/smartdisplay.desktop`:
 ```ini
 [Desktop Entry]
 Type=Application
 Name=Smart Display Kiosk
-Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required --incognito https://smart-kiosk.online/#/display/YOUR_TOKEN
+Exec=chromium-browser --password-store=basic --ignore-certificate-errors --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --disable-pinch --disable-session-crashed-bubble --autoplay-policy=no-user-gesture-required https://smart-kiosk.online/#/display/YOUR_TOKEN
 X-GNOME-Autostart-enabled=true
 ```
+Don't add `--incognito`: a paired kiosk keeps its device token in browser storage, and incognito mode erases it on every restart.
 
 ### 3.4: Audio Volume Management
 ```bash
@@ -129,7 +132,9 @@ amixer set Master 100%
 
 | Symptom | Cause | Solution |
 | :--- | :--- | :--- |
-| **Offline Mode Badge** | Network dropped | Automatic offline cache served; retries every 15s. |
+| **Offline Mode Badge** | Network dropped or server unreachable | The last saved layout is shown from the offline cache; the screen retries automatically every few seconds and shows the reason (e.g. *Network or DNS Unreachable*). |
 | **No audio on alert** | Autoplay policy block | Launch with `--autoplay-policy=no-user-gesture-required`. |
-| **Screen edges clipped on TV** | HDMI Overscan active | Change TV picture setting to "Just Scan" / "1:1". |
+| **Screen edges clipped on TV** | HDMI Overscan active | Change TV picture setting to "Just Scan" / "1:1", or set **TV safe area** in the editor's display Settings. |
+| **Layout letterboxed or cropped** | Screen aspect ratio differs from the design canvas | Change **Fit Layout to Screen** (Fit / Fill / Stretch) in display Settings, or pick a matching canvas size. |
+| **Kiosk shows the pairing screen** | Device was never paired, or its browser storage was cleared | Pair again from the Fleet Hub. A paired kiosk keeps retrying on errors and does not unpair itself. |
 | **Screen turns black** | Power saver / DPMS | Disable OS screen blanking / set sleep to Never. |
