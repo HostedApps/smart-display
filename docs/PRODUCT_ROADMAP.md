@@ -6,6 +6,8 @@
 
 **Smart Display** has evolved into a versatile, high-performance, web-native digital wall canvas combining **custom visual layout freedom** (like DAKboard), **family productivity & routine management** (like Skylight Calendar & Hearth Display), and **zero-friction hardware commissioning** (like Yodeck).
 
+> **Phase naming:** "Phase 1–4" in this document refers to the original *widget & integration* roadmap. The *design & UX* work (themes, scaling, editor redesign, fleet hub, widget SDK) is tracked separately as Phases 0–5 in [`DESIGN_ENHANCEMENT_PLAN.md`](./DESIGN_ENHANCEMENT_PLAN.md), whose Progress table is the most up-to-date record of what has shipped.
+
 This document outlines:
 1. **Competitive Landscape Benchmark** (Feature-by-Feature matrix against market leaders).
 2. **Current Implementation Status** (What is shipped, hardened, and verified live in production).
@@ -19,21 +21,23 @@ This document outlines:
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Pricing & Deployment** | **Free / Self-Hosted + Cloud** | $5–$12/mo Subscription | $150–$600 Proprietary HW + Sub | $300+ HW + $10/mo Sub | Free / Self-Hosted Open Source |
 | **Hardware Compatibility** | **Any Browser, Pi 3/4/5, Fire TV, iPad, Android** | Pi, Fire TV, Web, Custom Frame | Proprietary Touch Display | Proprietary Touch Display | Raspberry Pi (Linux only) |
-| **Drag & Drop Canvas Editor** | ✅ **Full WYSIWYG, Undo/Redo, Align, HUD** | ✅ WYSIWYG Grid/Freeform | ❌ Fixed Templates Only | ❌ Fixed Templates Only | ❌ Manual JSON / CSS Config |
-| **Resolution Support** | ✅ **720p, 1080p, 2K QHD (1440p), 4K UHD** | ✅ 1080p, 4K | ❌ 1080p fixed | ❌ 1080p fixed | ⚠️ Depends on CSS |
+| **Drag & Drop Canvas Editor** | ✅ **WYSIWYG, touch & pen, smart guides, drafts, version history** | ✅ WYSIWYG Grid/Freeform | ❌ Fixed Templates Only | ❌ Fixed Templates Only | ❌ Manual JSON / CSS Config |
+| **Resolution Support** | ✅ **Design once, Fit/Fill scaling to any screen, TV safe area** | ✅ 1080p, 4K | ❌ 1080p fixed | ❌ 1080p fixed | ⚠️ Depends on CSS |
 | **6-Digit PIN Device Pairing** | ✅ **Instant Zero-Friction PIN Pairing** | ⚠️ Serial Number / Web Login | ⚠️ QR Code / Account App | ⚠️ Account Pairing | ❌ Manual Token Config |
 | **Multi-Feed Calendar Grid & Agenda** | ✅ **Multi-iCal, Google, Color-Coded Members** | ✅ iCal, Google, Outlook, Apple | ✅ Google, Outlook, Apple | ✅ Google, Apple, Outlook | ✅ iCal Modules |
-| **AI Paper Schedule / Flyer Scanner** | 🔄 *Roadmap Horizon 1* | ❌ None | ✅ "Magic Import" (Photo to events) | ⚠️ Basic Text Assistant | ❌ None |
+| **AI Paper Schedule / Flyer Scanner** | ✅ **Gemini flyer scanner via WallDrop** | ❌ None | ✅ "Magic Import" (Photo to events) | ⚠️ Basic Text Assistant | ❌ None |
 | **Photo Slideshows** | ✅ **Google Photos (100+), Drive CDN, Ken Burns** | ✅ Google, Dropbox, Flickr | ✅ Instant Phone App Upload | ✅ Slideshow Screensaver | ✅ Local/Google modules |
 | **Chore Charts & Gamified Streaks** | ✅ **Chores, Kid Avatars, Points, Streaks** | ❌ None (Basic Todo only) | ✅ Chores & Star Rewards | ✅ Streaks & Progress Bars | ⚠️ Community Modules |
 | **Meal Planning** | ✅ **7-Day Breakfast / Lunch / Dinner** | ❌ Custom HTML Only | ✅ Meal Planning Tab | ✅ Daily Meal Schedule | ⚠️ Custom Modules |
-| **Live Weather & Rain Radar** | ✅ **12h Hourly, 5d Daily, Animated Rain Radar** | ✅ Radar, Hourly, Alerts | ⚠️ Current & 5-Day Only | ⚠️ Basic Forecast | ✅ OpenWeather modules |
+| **Live Weather & Rain Radar** | ✅ **Keyless Open-Meteo, AQI/UV, hourly & daily, animated radar** | ✅ Radar, Hourly, Alerts | ⚠️ Current & 5-Day Only | ⚠️ Basic Forecast | ✅ OpenWeather modules |
 | **Financial / Stock & Crypto Tickers** | ✅ **Live Yahoo Tickers, Sparklines, 24h %** | ⚠️ Basic Stock Ticker | ❌ None | ❌ None | ✅ Crypto modules |
 | **Smart Home / IoT Entity Controls** | ✅ **Home Assistant Entity Toggle Cards** | ✅ Home Assistant, SmartThings | ❌ None | ❌ None | ✅ HA modules |
 | **Voice / AI Audio Read-Aloud** | ✅ **AI Morning Briefing + SpeechSynthesis** | ❌ None | ❌ None | ⚠️ Voice Notes | ⚠️ Alexa/Assistant mods |
 | **Mobile Instant Beam (WallDrop)** | ✅ **QR Code Instant Mobile Sticky Notes & Photos**| ❌ None | ⚠️ Companion App Only | ⚠️ App Only | ❌ None |
 | **Emergency Broadcast System** | ✅ **1-Click Strobe & Siren Takeover** | ❌ Signage only | ❌ None | ❌ None | ❌ None |
 | **OLED Burn-In Protection** | ✅ **Micro Pixel-Shift & Ambient Night Mode** | ⚠️ Basic Sleep Screen | ⚠️ Screen Blanking | ⚠️ Screen Blanking | ❌ None |
+| **Fleet Status, Screenshots & Remote Control** | ✅ **Live status, thumbnails, reload/identify/sleep, bulk actions** | ✅ | ❌ | ❌ | ❌ |
+| **Third-Party Widgets** | ✅ **Sandboxed custom widget SDK** | ⚠️ Custom HTML block | ❌ | ❌ | ✅ ~1,000 modules |
 
 ---
 
@@ -45,7 +49,9 @@ This document outlines:
 * **Multi-Page Carousels**: Timed page rotations with independent durations, carousel navigation dots, touch swipe gestures, and TV remote arrow navigation.
 * **Zero-Friction Commissioning**: 6-digit hardware PIN pairing screen (`/#/pair`) with instant database bonding from the Fleet Hub.
 
-### 🧩 Full Widget Suite (33 Production Widgets Shipped)
+### 🧩 Full Widget Suite (37 Production Widgets Shipped)
+
+The authoritative list is `frontend-angular/src/app/components/widgets/widget-registry.ts`; the admin catalog is in [`ADMIN_USER_GUIDE.md`](./ADMIN_USER_GUIDE.md#4-widget-catalog-37-widgets).
 
 #### Original Core Suite (19 Widgets)
 1. **Clock & Date**: Digital options with seconds toggle and time zone selection.
@@ -88,6 +94,23 @@ This document outlines:
 32. **Slack Channel Feed**: Real-time channel announcements feed with user avatars, handles, and timestamps.
 33. **Gmail Inbox Unread Badge**: Prominent badge counter with subject/sender preview snippets.
 
+#### Phase 4 Milestone 4A (2 Widgets + Dock)
+34. **TradingView Financial Charts**: Candlestick, line, area and Heikin-Ashi charts.
+35. **Reddit Curated Media**: Photo slideshows from chosen subreddits.
+* Plus the **TouchHub Navigation Dock** (a display feature, not a widget) and iCloud shared album support in the photo widget.
+
+#### Design Plan Phase 5 (2 Widgets)
+36. **Greeting & Compliments**: MagicMirror-style time-of-day greetings that react to weather and the next calendar event.
+37. **Custom Widget (SDK)**: User HTML or https pages in a sandboxed iframe with a `postMessage` protocol ([`WIDGET_SDK.md`](./WIDGET_SDK.md)).
+
+### 🖥️ Design & Fleet (Design Plan Phases 0–5, shipped)
+* **Themes**: Glass, Paper, Solid, Mirror, Ambient and High Contrast presets on shared design tokens, plus an accent colour.
+* **Display runtime**: resolution-independent Fit/Fill/Stretch scaling, instant publish (~5 s), Raspberry Pi performance mode, page transitions, burn-in shift.
+* **Editor**: right-hand inspector, touch/pen drag with smart guides, local drafts, version history, publish checks, device preview, 14 templates, Snap to Region.
+* **Fleet hub**: kiosk heartbeat, online/offline status, screenshot thumbnails, remote reload/identify/sleep/wake/change page, bulk actions, copy layout, duplicate display.
+* **Calendar views**: week, 3-day and today + upcoming, with weather on day headers.
+* **Widget event bus & text placeholders**: widgets share weather and next-event data; text widgets support live `{{placeholders}}`.
+
 ### 🛡️ Hardened Security & Kiosk Architecture
 * **SSRF Protection Shield**: Strict IP subnet resolution blocking RFC-1918 private subnets, loopback, and cloud metadata endpoints.
 * **Token-Bucket Rate Limiter**: Granular IP rate limiting on login, registration, PIN pairing, and proxy requests.
@@ -105,7 +128,9 @@ timeline
     section Phase 1 (Shipped) : 8 New Widgets : Screen Backup JSON : Custom Aspect Ratios : Auto-Arrange Engine
     section Phase 2 (Shipped) : Block Scheduling : Screen Scheduling : REST Fetch & Inbound Webhooks : Gauge Meter : Severe Weather Banner : Block Layers : 11 Google Fonts : 6 Starter Templates
     section Phase 3 (Shipped) : On-Screen Calendar : On-Screen Tasks : Interactive Spotify Controls : Whiteboard Canvas : Google Maps : Slack Feed : Gmail Badge : Rules Engine : Web Audio Chimes : Custom CSS
-    section Phase 4 (Next Up) : Android Play Store App : Fire TV / Android TV App : TouchHub Navigation Dock : Sonos Controller : SmartThings : Nest SDM : Apple iCloud Photos : TradingView Embed
+    section Phase 4A (Shipped) : TouchHub Navigation Dock : Apple iCloud Photos : TradingView Embed : Reddit Media
+    section Design Plan 0-5 (Shipped) : Themes & Tokens : Resolution Scaling : Editor Redesign : Fleet Hub : Calendar Views : Greeting Widget : Widget SDK
+    section Phase 4 (Next Up) : Android Play Store App : Fire TV / Android TV App : Sonos Controller : SmartThings : Nest SDM
 ```
 
 ---
@@ -166,14 +191,19 @@ timeline
 
 *Target Goal: Provide commercial digital signage power (Yodeck) with an open developer marketplace.*
 
-#### 3.1: Remote Fleet Diagnostics & Screen Preview Telemetry
+#### 3.1: Remote Fleet Diagnostics & Screen Preview Telemetry (Mostly Shipped)
+* **Shipped**: Live status, last seen, resolution, app version, memory, screenshot thumbnails and remote reload/identify/sleep/wake in the fleet hub.
+* **Remaining**: Raspberry Pi CPU temperature, network latency and remote reboot (need an on-device agent outside the browser).
 * **Description**: Enterprise and multi-home administrators can view live screenshot captures of active wall displays, monitor Raspberry Pi CPU temperatures, memory usage, network latency, and trigger remote reboots from the Fleet Hub.
 
-#### 3.2: Community Widget Marketplace & Sandboxed Developer SDK
+#### 3.2: Community Widget Marketplace & Sandboxed Developer SDK (SDK Shipped)
+* **Shipped**: Sandboxed iframe SDK with `postMessage` protocol, theme tokens and 4 examples ([`WIDGET_SDK.md`](./WIDGET_SDK.md)).
+* **Remaining**: Widget manifest, gallery / marketplace.
 * **Description**: Enable third-party developers to build and publish custom widgets using standard HTML5/TypeScript in isolated Shadow DOM / Web Component sandboxes.
 * **Examples**: Flight trackers, Tesla / EV battery monitors, package delivery tracking, sports live scores (NFL, NBA, Premier League), Duolingo streak cards.
 
-#### 3.3: Conditional Formatting & Smart Rules Engine
+#### 3.3: Conditional Formatting & Smart Rules Engine (First Version Shipped)
+* **Shipped**: Per-widget data rules with alert glow presets (Phase 3) and a widget event bus for shared weather / next-event state.
 * **Description**: Trigger visual widget state changes based on environmental or data rules:
   * *Rule: If rain probability > 60%, pulse Umbrella reminder badge.*
   * *Rule: If kid chore is overdue after 7 PM, highlight chore card in orange.*
@@ -191,19 +221,19 @@ timeline
 
 | Horizon | Feature Initiative | Business Impact | Technical Complexity | Priority |
 | :--- | :--- | :---: | :---: | :---: |
-| **H1** | AI Magic Flyer Photo-to-Calendar Scanner | 🔥 High (Skylight Parity) | Medium | **P0** |
+| **H1** | AI Magic Flyer Photo-to-Calendar Scanner | 🔥 High (Skylight Parity) | Medium | ✅ Shipped |
 | **H1** | Direct Google / Apple / Outlook OAuth Sync | 🔥 High (User Convenience) | Medium | **P0** |
 | **H1** | Two-Way Todoist / Google Tasks Check-off | Medium | Low | **P1** |
-| **H1** | HDMI-CEC TV Power Sleep Control | High (Energy & Screen Life) | Low | **P1** |
-| **H1** | AQI & Severe Weather Warning Badges | Medium | Low | **P2** |
+| **H1** | HDMI-CEC TV Power Sleep Control | High (Energy & Screen Life) | Low | ✅ Shipped |
+| **H1** | AQI & Severe Weather Warning Badges | Medium | Low | ✅ Shipped |
 | **H2** | Voice Memos & AI Voice Assistant | 🔥 High (Hands-Free Family) | High | **P1** |
 | **H2** | Gamified Chore Store & Point Leaderboard | High (Kids Engagement) | Low | **P1** |
 | **H2** | Smart Video Doorbell Motion Pop-Up | High (Smart Home Value) | Medium | **P2** |
 | **H2** | PIR Motion Wake & Gesture Page Flip | Medium | Medium | **P2** |
 | **H2** | Facial Recognition Profile Switching | High (Personalization) | High | **P3** |
-| **H3** | Remote Fleet Screenshots & Telemetry | High (Signage & Power Users) | Medium | **P1** |
+| **H3** | Remote Fleet Screenshots & Telemetry | High (Signage & Power Users) | Medium | ✅ Shipped (Pi agent remaining) |
 | **H3** | Smart Rules & Conditional Trigger Engine | High (Power Automation) | Medium | **P2** |
-| **H3** | Community Widget Marketplace SDK | 🔥 High (Ecosystem Growth) | High | **P2** |
+| **H3** | Community Widget Marketplace SDK | 🔥 High (Ecosystem Growth) | High | SDK ✅ / Gallery **P2** |
 | **H3** | Multi-Tenant RBAC Permissions | Medium | Medium | **P3** |
 | **H3** | Dedicated Flashable Pi OS Image | High (Zero-Config Setup) | Medium | **P2** |
 
@@ -211,15 +241,11 @@ timeline
 
 ## 5. Summary & Current Implementation Status
 
-With the completion of **Phase 1 (Quick Wins)**, **Phase 2 (Intelligent Scheduling & Data Platform)**, **Phase 3 (Interactivity & Integration Expansion)**, and **Phase 4 Milestone 4A (TouchHub Navigation, Financial & Media Feeds, iCloud Photos)**, Smart Display now boasts **35 production widgets**:
-1. **TouchHub Navigation Dock**: Touchscreen dock for quick page switching, drawing whiteboard overlay, family task list, Spotify mini-player, and sleep toggle.
-2. **TradingView Financial Charts Widget**: Real-time candlestick, line, area, and Heikin-Ashi charts with custom interval, dark/light themes, and volume indicators.
-3. **Reddit Curated Media Widget**: High-res photo slideshows from top subreddits (e.g. `r/EarthPorn`, `r/space`, `r/CityPorn`) with score and author badges.
-4. **Apple iCloud Shared Album Support**: Stream photos directly from iCloud public shared albums with automatic server-side parsing and transient caching.
-5. **Full Test Suite & Zero-Defect Kiosk Build**: 55/55 automated backend tests passing on production server, deployed to `smart-kiosk.online`, and verified on target Raspberry Pi kiosk hardware (`corelabel-infraRA`).
+Shipped: the widget & integration Phases 1–3, Phase 4 Milestone 4A (TouchHub dock, TradingView, Reddit media, iCloud shared albums), and design plan Phases 0–5 (themes, resolution scaling, editor redesign, fleet hub, calendar views, greeting widget, widget SDK). Smart Display now has **37 production widgets**, runs in production at `smart-kiosk.online`, and is verified on Raspberry Pi kiosk hardware.
 
-Moving into remaining Phase 4 deliverables:
+Next up:
 1. Native Android and Fire TV application wrappers for Google Play Store and Amazon Fire TV Appstore distribution.
 2. Expanded smart home controls (Sonos, SmartThings, Nest SDM).
-3. Additional cloud photo sources (Dropbox, OneDrive, Immich).
-
+3. Additional cloud photo sources (Dropbox, OneDrive, Immich), photo collage and captions.
+4. Horizon 2 family features: voice memos, chore rewards store, presence / motion wake, doorbell pop-up.
+5. Editor follow-ups from the design plan: schema-driven inspector forms, splitting the editor component, multi-select, onboarding wizard.

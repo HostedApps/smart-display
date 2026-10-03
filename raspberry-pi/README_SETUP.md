@@ -24,6 +24,14 @@ nano /home/pi/start_dashboard.sh
 
 Paste the contents of [`start_dashboard.sh`](./start_dashboard.sh) and save (`Ctrl+O`, `Enter`, `Ctrl+X`).
 
+**Set your display link:** edit the `TARGET_URL` line near the top of the script so it points at your display (copy it from the Fleet Hub card menu → *Copy kiosk link*), for example:
+```bash
+TARGET_URL="https://smart-kiosk.online/#/display/YOUR_TOKEN"
+```
+It ships with a placeholder token. To use PIN pairing, set it to `https://smart-kiosk.online/#/pair` for the first boot only: once paired, the screen loads its display automatically and stores its device token. Then change `TARGET_URL` to the display link, because the pairing page requests a new code every time it opens.
+
+The script also waits up to 45 s for the network on boot, clears Chromium's crash-restore state, and relaunches Chromium if it exits.
+
 Make the script executable:
 ```bash
 chmod +x /home/pi/start_dashboard.sh
@@ -39,7 +47,7 @@ mkdir -p /home/pi/.config/autostart
 nano /home/pi/.config/autostart/smart-display.desktop
 ```
 
-Paste this desktop entry:
+Paste this desktop entry (also provided as [`smart-display.desktop`](./smart-display.desktop)):
 ```ini
 [Desktop Entry]
 Type=Application
@@ -54,7 +62,7 @@ Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).
 ---
 
 ## 🌙 Step 4: (Optional) Night Standby Schedule via Cron
-To turn off your HDMI monitor at 11:00 PM and turn it back on at 6:30 AM every day:
+To turn off your HDMI monitor at 11:00 PM and turn it back on at 6:30 AM every day ([`display_power.sh`](./display_power.sh) tries HDMI-CEC, X11 DPMS, `vcgencmd` and `wlr-randr`, so it works with TVs and monitors on both X11 and Wayland). For TV power control over HDMI-CEC, install `cec-utils` (`sudo apt install -y cec-utils`).
 
 1. Copy `display_power.sh` to `/home/pi/display_power.sh` and make executable:
    ```bash

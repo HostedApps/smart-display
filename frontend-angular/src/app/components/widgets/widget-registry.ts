@@ -204,7 +204,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     tag: 'Weather',
     description: 'Current temperature, weather condition icons, humidity, wind, and 5-day forecasts.',
     tooltip: 'Current temperature, weather condition icons, humidity, wind, and 5-day forecast',
-    tips: 'City Name, Imperial (°F) or Metric (°C), and OpenWeather API Key.',
+    tips: 'City name and Imperial (°F) or Metric (°C). No API key needed; an OpenWeather key is optional.',
     component: WeatherWidgetComponent,
     defaultSize: { width: 360, height: 220 },
     defaultConfig: () => ({ city: 'San Jose', apiKey: '', units: 'imperial', showForecast: true })
