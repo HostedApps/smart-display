@@ -25,13 +25,13 @@ interface ClockNumber {
 @Component({
   selector: 'app-analog-clock-widget',
   template: `
-    <div class="analog-clock-card sd-card">
+    <div class="analog-clock-card">
       <div class="dial-container">
         <svg class="clock-svg" viewBox="0 0 200 200">
           <defs>
             <radialGradient id="faceGrad" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" style="stop-color: var(--sd-surface-2)" />
-              <stop offset="100%" style="stop-color: var(--sd-surface-3)" />
+              <stop offset="0%" stop-color="rgba(30, 41, 59, 0.5)" />
+              <stop offset="100%" stop-color="rgba(15, 23, 42, 0.75)" />
             </radialGradient>
             <filter id="dialShadow" x="-10%" y="-10%" width="120%" height="120%">
               <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.4" />
@@ -45,7 +45,7 @@ interface ClockNumber {
             cy="100" 
             r="90" 
             fill="url(#faceGrad)" 
-            style="stroke: var(--sd-border-color)"
+            stroke="rgba(255, 255, 255, 0.16)" 
             stroke-width="2" 
           />
 
@@ -55,7 +55,7 @@ interface ClockNumber {
             cy="100" 
             r="86" 
             fill="none" 
-            style="stroke: var(--sd-surface-3)"
+            stroke="rgba(255, 255, 255, 0.05)" 
             stroke-width="1" 
           />
 
@@ -67,7 +67,7 @@ interface ClockNumber {
               [attr.y1]="tick.y1"
               [attr.x2]="tick.x2"
               [attr.y2]="tick.y2"
-              [style.stroke]="tick.isMajor ? 'var(--sd-text)' : 'var(--sd-text-subtle)'"
+              [attr.stroke]="tick.isMajor ? '#ffffff' : 'rgba(255, 255, 255, 0.45)'"
               [attr.stroke-width]="tick.isMajor ? '2.5' : '1.25'"
               stroke-linecap="round"
             />
@@ -118,7 +118,7 @@ interface ClockNumber {
           />
 
           <!-- Center Pivot Dots -->
-          <circle cx="100" cy="100" r="4.5" style="fill: var(--sd-text)" filter="url(#dialShadow)" />
+          <circle cx="100" cy="100" r="4.5" fill="#ffffff" filter="url(#dialShadow)" />
           <circle 
             *ngIf="safeConfig.showSeconds" 
             cx="100" 
@@ -134,7 +134,12 @@ interface ClockNumber {
     .analog-clock-card {
       height: 100%;
       box-sizing: border-box;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
       padding: 12px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -161,7 +166,7 @@ interface ClockNumber {
     }
 
     .dial-number {
-      fill: var(--sd-text);
+      fill: rgba(255, 255, 255, 0.85);
       font-size: 11px;
       font-weight: 600;
       font-family: var(--font-display, 'Outfit', sans-serif);
@@ -178,13 +183,13 @@ interface ClockNumber {
     }
 
     .hour-hand {
-      stroke: var(--sd-text);
+      stroke: #ffffff;
       stroke-width: 4.5px;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
     }
 
     .minute-hand {
-      stroke: var(--sd-text);
+      stroke: rgba(255, 255, 255, 0.9);
       stroke-width: 2.75px;
       filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
     }
