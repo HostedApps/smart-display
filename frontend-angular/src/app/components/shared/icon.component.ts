@@ -79,7 +79,13 @@ const ICONS: Record<string, string> = {
   'align-horizontal-justify-end': '<rect width="6" height="14" x="2" y="5" rx="2"/> <rect width="6" height="10" x="12" y="7" rx="2"/> <path d="M22 2v20"/>',
   'align-vertical-justify-start': '<rect width="14" height="6" x="5" y="16" rx="2"/> <rect width="10" height="6" x="7" y="6" rx="2"/> <path d="M2 2h20"/>',
   'align-vertical-justify-center': '<rect width="14" height="6" x="5" y="16" rx="2"/> <rect width="10" height="6" x="7" y="2" rx="2"/> <path d="M2 12h20"/>',
-  'align-vertical-justify-end': '<rect width="14" height="6" x="5" y="12" rx="2"/> <rect width="10" height="6" x="7" y="2" rx="2"/> <path d="M2 22h20"/>'
+  'align-vertical-justify-end': '<rect width="14" height="6" x="5" y="12" rx="2"/> <rect width="10" height="6" x="7" y="2" rx="2"/> <path d="M2 22h20"/>',
+  'history': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/> <path d="M3 3v5h5"/> <path d="M12 7v5l4 2"/>',
+  'monitor-smartphone': '<path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"/> <path d="M10 19v-3.96 3.15"/> <path d="M7 19h5"/> <rect width="6" height="10" x="16" y="12" rx="2"/>',
+  'tv': '<rect width="20" height="15" x="2" y="7" rx="2" ry="2"/> <polyline points="17 2 12 7 7 2"/>',
+  'tablet': '<rect width="16" height="20" x="4" y="2" rx="2" ry="2"/> <line x1="12" x2="12.01" y1="18" y2="18"/>',
+  'play': '<polygon points="6 3 20 12 6 21 6 3"/>',
+  'laptop': '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>'
 };
 
 export type IconName = keyof typeof ICONS;

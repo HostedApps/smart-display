@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, HostListener, Type } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, HostListener, Type, NgZone, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
@@ -15,7 +15,8 @@ import {
   User
 } from '../../models/display.model';
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, WidgetDefinition, getWidgetDefinition } from '../widgets/widget-registry';
-import { getCanvasSize } from '../../utils/canvas-size.util';
+import { computeStageTransform, getCanvasSize } from '../../utils/canvas-size.util';
+import { LIVE_DISPLAY } from '../widgets/widget-context';
 import { THEME_PRESETS, ThemePreset, ThemePresetInfo, resolveTheme, themeClasses } from '../../utils/theme.util';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../services/auth.service';
@@ -136,1155 +137,6 @@ import { NotificationService } from '../../services/notification.service';
 
           <hr class="divider" />
 
-          <!-- Selected Widget Inspector -->
-          <div *ngIf="selectedWidget" class="inspector">
-            <div class="inspector-header">
-              <h3>Edit {{ selectedWidget.type | titlecase }}</h3>
-              <span class="dimension-tag">{{ selectedWidget.position.width }}×{{ selectedWidget.position.height }}</span>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label>X (px)</label>
-                <input type="number" [(ngModel)]="selectedWidget.position.x" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Y (px)</label>
-                <input type="number" [(ngModel)]="selectedWidget.position.y" class="input-control" />
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Width (px)</label>
-                <input type="number" [(ngModel)]="selectedWidget.position.width" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Height (px)</label>
-                <input type="number" [(ngModel)]="selectedWidget.position.height" class="input-control" />
-              </div>
-            </div>
-
-            <!-- Custom Styling Section -->
-            <div class="form-group">
-              <label>Opacity ({{ getWidgetOpacity() }}%)</label>
-              <input type="range" min="0.2" max="1" step="0.05" [ngModel]="selectedWidget.style?.opacity || 1" (ngModelChange)="setWidgetOpacity($event)" class="slider-control" />
-            </div>
-            <div class="form-group">
-              <label>Corner Radius ({{ selectedWidget.style?.borderRadius || 12 }}px)</label>
-              <input type="range" min="0" max="28" step="2" [ngModel]="selectedWidget.style?.borderRadius || 12" (ngModelChange)="setWidgetRadius($event)" class="slider-control" />
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Card Background</label>
-                <div class="color-reset-row">
-                  <input type="color" [ngModel]="selectedWidget.style?.backgroundColor || '#1e293b'" (ngModelChange)="setWidgetBackground($event)" class="input-control color-input" aria-label="Card background colour" />
-                  <button type="button" class="btn-reset-color" (click)="setWidgetBackground('')" [disabled]="!selectedWidget.style?.backgroundColor" title="Use the theme's default card background">Reset</button>
-                </div>
-              </div>
-              <div class="form-group checkbox-group" style="margin-top: 24px;">
-                <label>
-                  <input type="checkbox" [ngModel]="selectedWidget.style?.backdropBlur !== false" (ngModelChange)="setWidgetBlur($event)" /> Frosted Glass Blur
-                </label>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>Widget Font Override</label>
-              <select [ngModel]="selectedWidget.style?.fontFamily || ''" (ngModelChange)="setWidgetFont($event)" class="input-control">
-                <option value="">Default Canvas Font</option>
-                <option *ngFor="let font of availableFonts" [value]="font.id">{{ font.name }}</option>
-              </select>
-            </div>
-
-            <!-- Layer Properties (Rename, Lock, Hide) -->
-            <div class="form-group">
-              <label>Layer Nickname</label>
-              <input type="text" [(ngModel)]="selectedWidget.customName" [placeholder]="getWidgetTypeLabel(selectedWidget.type)" class="input-control" />
-            </div>
-            <div class="form-row layer-quick-toggles">
-              <button 
-                type="button"
-                class="btn-layer-pill" 
-                [class.active]="selectedWidget.locked" 
-                (click)="selectedWidget.locked = !selectedWidget.locked"
-                [title]="selectedWidget.locked ? 'Unlock Widget' : 'Lock Widget to canvas position'"
-              >
-                {{ selectedWidget.locked ? '🔒 Locked' : '🔓 Unlocked' }}
-              </button>
-              <button 
-                type="button"
-                class="btn-layer-pill" 
-                [class.active]="selectedWidget.hidden" 
-                (click)="selectedWidget.hidden = !selectedWidget.hidden"
-                [title]="selectedWidget.hidden ? 'Show on canvas' : 'Hide from canvas'"
-              >
-                {{ selectedWidget.hidden ? '🕶️ Hidden' : '👁️ Visible' }}
-              </button>
-            </div>
-
-            <!-- Active Schedule Section -->
-            <div class="schedule-config-box">
-              <div class="schedule-header" (click)="toggleWidgetScheduleEnabled()">
-                <div class="schedule-title-wrap">
-                  <span class="schedule-icon">🕒</span>
-                  <span class="schedule-title">Active Schedule</span>
-                </div>
-                <input type="checkbox" [checked]="isWidgetScheduleEnabled(selectedWidget)" (click)="$event.stopPropagation(); toggleWidgetScheduleEnabled()" />
-              </div>
-
-              <div class="schedule-body" *ngIf="isWidgetScheduleEnabled(selectedWidget)">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Start Time</label>
-                    <input type="time" [(ngModel)]="getOrCreateWidgetSchedule(selectedWidget).startTime" class="input-control" />
-                  </div>
-                  <div class="form-group">
-                    <label>End Time</label>
-                    <input type="time" [(ngModel)]="getOrCreateWidgetSchedule(selectedWidget).endTime" class="input-control" />
-                  </div>
-                </div>
-
-                <div class="form-group">
-                  <label>Active Days</label>
-                  <div class="days-pill-row">
-                    <button 
-                      *ngFor="let day of weekDays; let dIdx = index" 
-                      type="button" 
-                      class="day-pill"
-                      [class.active]="isDaySelected(getOrCreateWidgetSchedule(selectedWidget), dIdx)"
-                      (click)="toggleDay(getOrCreateWidgetSchedule(selectedWidget), dIdx)"
-                    >
-                      {{ day }}
-                    </button>
-                  </div>
-                  <div class="day-presets">
-                    <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'all')">Everyday</button>
-                    <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'weekdays')">Weekdays</button>
-                    <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'weekends')">Weekends</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Widget Specific Configs -->
-            <!-- Clock -->
-            <ng-container *ngIf="selectedWidget.type === 'clock'">
-              <div class="form-group">
-                <label>Format</label>
-                <select [(ngModel)]="selectedWidget.config.format" class="input-control">
-                  <option value="hh:mm:ss a">12-Hour (02:30:15 PM)</option>
-                  <option value="HH:mm:ss">24-Hour (14:30:15)</option>
-                  <option value="hh:mm a">Short 12-Hour (02:30 PM)</option>
-                  <option value="HH:mm">Short 24-Hour (14:30)</option>
-                </select>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showDate" /> Show Date</label>
-              </div>
-            </ng-container>
-
-            <!-- Weather -->
-            <ng-container *ngIf="selectedWidget.type === 'weather'">
-              <div class="weather-notice-banner">
-                <span class="weather-notice-icon">🌤️</span>
-                <span><strong>No API Key Required!</strong> Live temperature, conditions, UV index, and Air Quality (AQI) fetch automatically via Open-Meteo.</span>
-              </div>
-
-              <div class="form-group">
-                <label>City Name</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.city" placeholder="e.g. San Jose, CA or London" class="input-control" />
-                <div class="field-hint" style="font-size: 0.68rem; color: #94a3b8; margin-top: 4px;">
-                  Supports any global city or state (e.g. "Austin, TX", "Paris", "Tokyo").
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Units</label>
-                <select [(ngModel)]="selectedWidget.config.units" class="input-control">
-                  <option value="imperial">Imperial (°F, mph)</option>
-                  <option value="metric">Metric (°C, m/s)</option>
-                </select>
-              </div>
-
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showForecast" /> Show 5-Day Forecast Strip</label>
-              </div>
-
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showHourly" /> Show 12-Hour Hourly Forecast</label>
-              </div>
-
-              <div class="form-group">
-                <label>Severe Weather Alert (Optional)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.alert" placeholder="e.g. Winter Storm Warning" class="input-control" />
-              </div>
-
-              <details style="margin-top: 8px; font-size: 0.72rem; color: #94a3b8; cursor: pointer;">
-                <summary style="outline: none;">Advanced: Custom OpenWeather API Key</summary>
-                <div class="form-group" style="margin-top: 8px;">
-                  <label style="font-size: 0.68rem;">OpenWeather API Key (Optional)</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use zero-config Open-Meteo" class="input-control" />
-                </div>
-              </details>
-            </ng-container>
-
-            <!-- Calendar -->
-            <ng-container *ngIf="selectedWidget.type === 'calendar'">
-              <div class="form-group">
-                <label>View Mode</label>
-                <select [(ngModel)]="selectedWidget.config.viewMode" class="input-control">
-                  <option value="agenda">Agenda List View</option>
-                  <option value="month_grid">Monthly Wall Calendar Grid</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Calendar" class="input-control" />
-              </div>
-              
-              <div class="form-group" *ngIf="!selectedWidget.config.feeds || selectedWidget.config.feeds.length === 0">
-                <label>Single iCal URL</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.icalUrl" placeholder="https://calendar.google.com/..." class="input-control" />
-              </div>
-
-              <!-- Multi-Calendar Feeds Manager -->
-              <div class="feeds-manager">
-                <div class="section-subhead">
-                  <label>Family Member Feeds</label>
-                  <button type="button" (click)="addCalendarFeed(selectedWidget)" class="btn-xs-action">+ Add Feed</button>
-                </div>
-                <div *ngFor="let feed of selectedWidget.config.feeds; let fi = index" class="feed-config-row">
-                  <input type="color" [(ngModel)]="feed.color" class="color-picker-mini" />
-                  <input type="text" [(ngModel)]="feed.name" placeholder="Name (e.g. Mom)" class="input-control feed-name-input" />
-                  <input type="text" [(ngModel)]="feed.url" placeholder="iCal URL (.ics)" class="input-control feed-url-input" />
-                  <button type="button" (click)="removeCalendarFeed(selectedWidget, fi)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
-                </div>
-              </div>
-            </ng-container>
-
-            <!-- Photo Slideshow, Google Photos & Apple iCloud Albums -->
-            <ng-container *ngIf="selectedWidget.type === 'photo'">
-              <div class="form-group">
-                <label>Google Photos or Apple iCloud Shared Album URL</label>
-                <input 
-                  type="text" 
-                  [(ngModel)]="selectedWidget.config.albumUrl" 
-                  placeholder="https://photos.app.goo.gl/... or https://www.icloud.com/sharedalbum/#..." 
-                  class="input-control" 
-                />
-                <small style="font-size:0.65rem; color:#38bdf8;">Paste any Google Photos or Apple iCloud public shared album link to automatically stream photos.</small>
-              </div>
-
-              <div class="form-group">
-                <label>Or Custom Image URLs (one per line)</label>
-                <textarea 
-                  [ngModel]="getPhotoImagesText(selectedWidget)" 
-                  (ngModelChange)="setPhotoImagesText(selectedWidget, $event)" 
-                  rows="3" 
-                  class="input-control"
-                  placeholder="https://images.unsplash.com/..."
-                ></textarea>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Slide Interval (s)</label>
-                  <input type="number" [(ngModel)]="selectedWidget.config.intervalSeconds" min="3" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Image Fit</label>
-                  <select [(ngModel)]="selectedWidget.config.fitMode" class="input-control">
-                    <option value="cover">Cover (Fill Frame)</option>
-                    <option value="contain">Contain (Fit Whole Photo)</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.blurBackground" /> Blur Backdrop when Contained</label>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.kenBurns" /> Cinematic Ken Burns Pan & Zoom</label>
-              </div>
-            </ng-container>
-
-            <!-- RSS -->
-            <ng-container *ngIf="selectedWidget.type === 'rss'">
-              <div class="form-group">
-                <label>Feed URL</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.feedUrl" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
-              </div>
-            </ng-container>
-
-            <!-- Todo -->
-            <ng-container *ngIf="selectedWidget.type === 'todo'">
-              <div class="form-group">
-                <label>Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.filterCompleted" /> Hide Completed</label>
-              </div>
-            </ng-container>
-
-            <!-- Home Assistant & Smart Home -->
-            <ng-container *ngIf="selectedWidget.type === 'homeassistant'">
-              <div class="form-group">
-                <label>Widget Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Smart Home" class="input-control" />
-              </div>
-
-              <div class="form-group">
-                <label>Home Assistant URL (Optional)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.haUrl" placeholder="http://homeassistant.local:8123 or Nabu Casa" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Long-Lived Access Token (Optional)</label>
-                <input type="password" [(ngModel)]="selectedWidget.config.token" placeholder="Bearer Token" class="input-control" />
-                <small style="font-size:0.65rem; color:#94a3b8;">Leave blank to use interactive simulated smart tiles.</small>
-              </div>
-
-              <div class="smart-home-guide-box">
-                <strong>🔌 Google Home & Alexa Integration:</strong>
-                <p>Connect Google Home & Alexa through Home Assistant (Matter / Cloud) or customize the smart tiles directly below:</p>
-              </div>
-
-              <div class="section-subhead">
-                <label>Smart Entities</label>
-                <button type="button" (click)="addSmartHomeEntity(selectedWidget)" class="btn-xs-action">+ Add Entity</button>
-              </div>
-              <div *ngFor="let ent of (selectedWidget.config.entities || []); let ei = index" class="note-config-item">
-                <div class="note-config-top">
-                  <input type="text" [(ngModel)]="ent.icon" placeholder="💡" style="width:36px; text-align:center;" class="input-control" />
-                  <input type="text" [(ngModel)]="ent.label" placeholder="Entity Label (e.g. Living Room)" class="input-control" />
-                  <button type="button" (click)="removeSmartHomeEntity(selectedWidget, ei)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
-                </div>
-                <div class="form-row" style="margin-top:4px;">
-                  <input type="text" [(ngModel)]="ent.entityId" placeholder="light.living_room" class="input-control" />
-                  <input type="text" [(ngModel)]="ent.state" placeholder="on / 72°F" class="input-control" style="max-width:80px;" />
-                </div>
-              </div>
-            </ng-container>
-
-            <!-- Spotify -->
-            <ng-container *ngIf="selectedWidget.type === 'spotify'">
-              <div class="form-group">
-                <label>Track Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.track" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Artist</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.artist" class="input-control" />
-              </div>
-            </ng-container>
-
-            <!-- Markets & Stocks Ticker -->
-            <ng-container *ngIf="selectedWidget.type === 'stock_crypto'">
-              <div class="form-group">
-                <label>Widget Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Markets & Stocks" class="input-control" />
-              </div>
-
-              <div class="form-group">
-                <label>Stock Symbols (comma separated)</label>
-                <input 
-                  type="text" 
-                  [ngModel]="getStockSymbolsText(selectedWidget)" 
-                  (ngModelChange)="setStockSymbolsText(selectedWidget, $event)" 
-                  placeholder="AAPL, TSLA, NVDA, SPY, MSFT, GOOGL" 
-                  class="input-control" 
-                />
-                <div class="quick-tags-row">
-                  <span class="quick-tag-label">Quick Add:</span>
-                  <button type="button" (click)="addQuickStock(selectedWidget, 'AAPL')" class="tag-pill">+ AAPL</button>
-                  <button type="button" (click)="addQuickStock(selectedWidget, 'TSLA')" class="tag-pill">+ TSLA</button>
-                  <button type="button" (click)="addQuickStock(selectedWidget, 'NVDA')" class="tag-pill">+ NVDA</button>
-                  <button type="button" (click)="addQuickStock(selectedWidget, 'SPY')" class="tag-pill">+ SPY</button>
-                  <button type="button" (click)="addQuickStock(selectedWidget, 'MSFT')" class="tag-pill">+ MSFT</button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Crypto IDs (comma separated)</label>
-                <input 
-                  type="text" 
-                  [ngModel]="getCryptoIdsText(selectedWidget)" 
-                  (ngModelChange)="setCryptoIdsText(selectedWidget, $event)" 
-                  placeholder="bitcoin, ethereum, solana, dogecoin" 
-                  class="input-control" 
-                />
-                <div class="quick-tags-row">
-                  <span class="quick-tag-label">Quick Add:</span>
-                  <button type="button" (click)="addQuickCrypto(selectedWidget, 'bitcoin')" class="tag-pill">+ BTC</button>
-                  <button type="button" (click)="addQuickCrypto(selectedWidget, 'ethereum')" class="tag-pill">+ ETH</button>
-                  <button type="button" (click)="addQuickCrypto(selectedWidget, 'solana')" class="tag-pill">+ SOL</button>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Display Mode</label>
-                  <select [(ngModel)]="selectedWidget.config.mode" class="input-control">
-                    <option value="all">Combined (Stocks & Crypto)</option>
-                    <option value="stocks">Stocks Only</option>
-                    <option value="crypto">Crypto Only</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Currency</label>
-                  <select [(ngModel)]="selectedWidget.config.currency" class="input-control">
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="CAD">CAD ($)</option>
-                    <option value="INR">INR (₹)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showSparklines" /> Show Mini Trend Sparklines</label>
-              </div>
-            </ng-container>
-
-            <!-- Sticky Notes -->
-            <ng-container *ngIf="selectedWidget.type === 'sticky_note'">
-              <div class="form-group">
-                <label>Board Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Notes" class="input-control" />
-              </div>
-              <div class="section-subhead">
-                <label>Notes</label>
-                <button type="button" (click)="addStickyNote(selectedWidget)" class="btn-xs-action">+ Add Note</button>
-              </div>
-              <div *ngFor="let note of selectedWidget.config.notes; let ni = index" class="note-config-item">
-                <div class="note-config-top">
-                  <input type="color" [(ngModel)]="note.color" class="color-picker-mini" />
-                  <input type="text" [(ngModel)]="note.author" placeholder="Author (e.g. Mom)" class="input-control note-author-input" />
-                  <button type="button" (click)="removeStickyNote(selectedWidget, ni)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
-                </div>
-                <textarea [(ngModel)]="note.text" placeholder="Note message..." rows="2" class="input-control"></textarea>
-              </div>
-            </ng-container>
-
-            <!-- Countdown -->
-            <ng-container *ngIf="selectedWidget.type === 'countdown'">
-              <div class="form-group">
-                <label>Event Name</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Hawaii Vacation" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Target Date</label>
-                <input type="date" [(ngModel)]="selectedWidget.config.targetDate" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Emoji Icon</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.emoji" placeholder="🌴" class="input-control" />
-              </div>
-            </ng-container>
-
-            <!-- Meal Planner -->
-            <ng-container *ngIf="selectedWidget.type === 'meal_planner'">
-              <div class="form-group">
-                <label>Widget Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Weekly Menu" class="input-control" />
-              </div>
-              <div class="meal-days-editor">
-                <div *ngFor="let day of selectedWidget.config.days" class="meal-day-config">
-                  <span class="day-label">{{ day.day }}</span>
-                  <input type="text" [(ngModel)]="day.lunch" placeholder="Lunch" class="input-control" />
-                  <input type="text" [(ngModel)]="day.dinner" placeholder="Dinner" class="input-control" />
-                </div>
-              </div>
-            </ng-container>
-
-            <!-- Radar -->
-            <ng-container *ngIf="selectedWidget.type === 'radar'">
-              <div class="radar-notice-banner">
-                <span class="radar-notice-icon">ℹ️</span>
-                <span><strong>No API Key Required!</strong> Powered by RainViewer Global Precipitation Doppler Radar.</span>
-              </div>
-
-              <div class="form-group">
-                <label>Quick City Preset</label>
-                <select (change)="onRadarCitySelect(selectedWidget, $event)" class="input-control">
-                  <option value="">-- Choose City or Enter Manually --</option>
-                  <option value="San Francisco|37.77|-122.42">San Francisco, CA</option>
-                  <option value="New York|40.71|-74.00">New York, NY</option>
-                  <option value="Los Angeles|34.05|-118.24">Los Angeles, CA</option>
-                  <option value="Chicago|41.88|-87.63">Chicago, IL</option>
-                  <option value="Seattle|47.60|-122.33">Seattle, WA</option>
-                  <option value="Miami|25.76|-80.19">Miami, FL</option>
-                  <option value="Austin|30.27|-97.74">Austin, TX</option>
-                  <option value="Dallas|32.78|-96.80">Dallas, TX</option>
-                  <option value="Denver|39.74|-104.99">Denver, CO</option>
-                  <option value="Boston|42.36|-71.06">Boston, MA</option>
-                  <option value="Toronto|43.65|-79.38">Toronto, Canada</option>
-                  <option value="London|51.51|-0.13">London, UK</option>
-                  <option value="Paris|48.86|2.35">Paris, France</option>
-                  <option value="Berlin|52.52|13.40">Berlin, Germany</option>
-                  <option value="Tokyo|35.68|139.69">Tokyo, Japan</option>
-                  <option value="Sydney|-33.87|151.21">Sydney, Australia</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label>Location / City Label</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.cityName" placeholder="San Francisco Bay Area" class="input-control" />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Latitude</label>
-                  <input type="number" step="0.01" [(ngModel)]="selectedWidget.config.lat" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Longitude</label>
-                  <input type="number" step="0.01" [(ngModel)]="selectedWidget.config.lon" class="input-control" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Zoom Level (3-12)</label>
-                  <input type="number" min="3" max="12" [(ngModel)]="selectedWidget.config.zoom" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Color Palette</label>
-                  <select [(ngModel)]="selectedWidget.config.colorScheme" class="input-control">
-                    <option [value]="0">Original Black/White</option>
-                    <option [value]="1">Universal Blue</option>
-                    <option [value]="2">TITAN (Standard)</option>
-                    <option [value]="3">The Weather Channel</option>
-                    <option [value]="5">NEXRAD Level III</option>
-                    <option [value]="6">Rainbow</option>
-                  </select>
-                </div>
-              </div>
-            </ng-container>
-
-            <!-- Daily Quote -->
-            <ng-container *ngIf="selectedWidget.type === 'quote'">
-              <div class="form-group">
-                <label>Category</label>
-                <select [(ngModel)]="selectedWidget.config.category" class="input-control">
-                  <option value="inspirational">Inspirational Thoughts</option>
-                  <option value="wisdom">Stoic Philosophy & Wisdom</option>
-                  <option value="history">On This Day in History</option>
-                  <option value="custom">Custom Family Motto</option>
-                </select>
-              </div>
-              <div *ngIf="selectedWidget.config.category === 'custom'">
-                <div class="form-group">
-                  <label>Custom Quote Text</label>
-                  <textarea [(ngModel)]="selectedWidget.config.customQuote" placeholder="Family is not an important thing. It's everything." rows="2" class="input-control"></textarea>
-                </div>
-                <div class="form-group">
-                  <label>Author</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.customAuthor" placeholder="Michael J. Fox" class="input-control" />
-                </div>
-              </div>
-            </ng-container>
-
-            <!-- AI Ambient Briefing -->
-            <ng-container *ngIf="selectedWidget.type === 'ai_briefing'">
-              <div class="form-group">
-                <label>Your Name (for personalized greetings)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.userName" placeholder="e.g. Sandip" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Assistant Tone</label>
-                <select [(ngModel)]="selectedWidget.config.tone" class="input-control">
-                  <option value="warm">Warm & Encouraging (Family)</option>
-                  <option value="executive">Executive & Concise (Office)</option>
-                  <option value="motivational">High-Energy & Motivational</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Google Gemini API Key (Optional)</label>
-                <div style="display: flex; gap: 8px;">
-                  <input type="password" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use built-in ambient engine" class="input-control" style="flex: 1;" />
-                  <button type="button" (click)="testGeminiKey()" [disabled]="testingGemini" class="btn btn-secondary" style="white-space: nowrap; padding: 0 12px; font-size: 0.8rem;">
-                    {{ testingGemini ? 'Testing...' : 'Test Key' }}
-                  </button>
-                </div>
-                <div *ngIf="geminiTestResult" [style.color]="geminiTestResult.success ? '#34d399' : '#f87171'" style="font-size: 0.72rem; margin-top: 5px; font-weight: 600; word-break: break-word;">
-                  {{ geminiTestResult.success ? '✅ ' : '❌ ' }}{{ geminiTestResult.message }}
-                </div>
-                <small style="font-size:0.65rem; color:#94a3b8; display: block; margin-top: 4px;">Default built-in intelligence engine works with zero setup.</small>
-              </div>
-            </ng-container>
-
-            <!-- Gamified Chores & Habits -->
-            <ng-container *ngIf="selectedWidget.type === 'chores'">
-              <div class="form-group">
-                <label>Widget Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Chores & Habits" class="input-control" />
-              </div>
-              <p style="font-size:0.75rem; color:#94a3b8;">
-                Family members can interactively complete tasks, gain streak points, and trigger confetti directly on the screen!
-              </p>
-            </ng-container>
-
-            <!-- Live Camera PIP -->
-            <ng-container *ngIf="selectedWidget.type === 'camera_pip'">
-              <div class="form-group">
-                <label>Camera Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Driveway & Front Porch" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Snapshot URL (or Home Assistant proxy)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.snapshotUrl" placeholder="http://192.168.1.50/snapshot.jpg" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Video Stream URL (Optional WebRTC/HLS/MJPEG)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.streamUrl" placeholder="http://.../mjpeg or WebRTC stream" class="input-control" />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Aspect Ratio</label>
-                  <select [(ngModel)]="selectedWidget.config.aspectRatio" class="input-control">
-                    <option value="16:9">16 : 9 (Widescreen)</option>
-                    <option value="4:3">4 : 3 (Standard)</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Refresh Interval</label>
-                  <select [(ngModel)]="selectedWidget.config.refreshSeconds" class="input-control">
-                    <option [value]="2">2 seconds (Live)</option>
-                    <option [value]="4">4 seconds (Balanced)</option>
-                    <option [value]="10">10 seconds</option>
-                  </select>
-                </div>
-              </div>
-              <div style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 8px; padding: 10px; margin-top: 10px;">
-                <div style="font-size: 0.72rem; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">💡 Google & SimpliSafe Feed Tips:</div>
-                <div style="font-size: 0.68rem; color: #cbd5e1; line-height: 1.4;">
-                  • <strong>Home Assistant or Scrypted Bridge (Recommended):</strong> Google Nest and SimpliSafe protect their feeds behind cloud logins. Bridging them through Home Assistant or Scrypted produces an instant local snapshot or WebRTC/MJPEG URL you can paste above.<br>
-                  • <strong>Nest Public Live Link:</strong> In the Nest app, enable "Camera Sharing" &gt; "Share with password" or "Share publicly", and paste the embed link into Video Stream URL.
-                </div>
-              </div>
-            </ng-container>
-
-            <!-- Live Commute & Transit -->
-            <ng-container *ngIf="selectedWidget.type === 'commute'">
-              <div class="form-group">
-                <label>Widget Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Morning Commute" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Default View Mode</label>
-                <select [(ngModel)]="selectedWidget.config.mode" class="input-control">
-                  <option value="driving">Driving Routes & Live Traffic</option>
-                  <option value="transit">Public Transit Departures</option>
-                </select>
-              </div>
-            </ng-container>
-
-            <!-- YouTube Video / Stream Config -->
-            <ng-container *ngIf="selectedWidget.type === 'youtube'">
-              <div class="form-group">
-                <label>Widget Title (Optional)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Lofi Chill Beats / NASA Live" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>YouTube URL or Video ID</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.urlOrId" placeholder="https://www.youtube.com/watch?v=... or ID" class="input-control" />
-                <small style="font-size:0.65rem; color:#94a3b8;">Supports standard watch links, youtu.be, shorts, and live streams.</small>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.autoplay" /> Auto-Play Video</label>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.muted" /> Mute Audio (Required for wall kiosk autoplay)</label>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.loop" /> Loop Continuously</label>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showControls" /> Show Video Controls</label>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.isLive" /> Show Red "LIVE" Badge</label>
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'text'">
-              <div class="form-group">
-                <label>Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Body Text (Supports Line Breaks)</label>
-                <textarea [(ngModel)]="selectedWidget.config.body" rows="4" class="input-control"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Font Size</label>
-                <select [(ngModel)]="selectedWidget.config.fontSize" class="input-control">
-                  <option value="small">Small</option>
-                  <option value="medium">Medium</option>
-                  <option value="large">Large</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Text Alignment</label>
-                <select [(ngModel)]="selectedWidget.config.textAlign" class="input-control">
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'qrcode'">
-              <div class="form-group">
-                <label>Label</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.label" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>QR Code Data (URL, text, WiFi string)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.data" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Size (px)</label>
-                <input type="number" [(ngModel)]="selectedWidget.config.size" class="input-control" />
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'shapes'">
-              <div class="form-group">
-                <label>Shape Type</label>
-                <select [(ngModel)]="selectedWidget.config.shape" class="input-control">
-                  <option value="rectangle">Rectangle Fill</option>
-                  <option value="circle">Circle</option>
-                  <option value="horizontal_line">Horizontal Line (Divider)</option>
-                  <option value="vertical_line">Vertical Line (Divider)</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Color (Hex or Name)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.color" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Fill Opacity (0.0 - 1.0)</label>
-                <input type="number" step="0.1" min="0" max="1" [(ngModel)]="selectedWidget.config.fillOpacity" class="input-control" />
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'scheduled_text'">
-              <div class="form-group">
-                <label>Announcement Message</label>
-                <textarea [(ngModel)]="selectedWidget.config.message" rows="3" class="input-control"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Start Time (HH:MM)</label>
-                <input type="time" [(ngModel)]="selectedWidget.config.startTime" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>End Time (HH:MM)</label>
-                <input type="time" [(ngModel)]="selectedWidget.config.endTime" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Active Days (comma separated: Mon,Tue,Wed)</label>
-                <input type="text" [ngModel]="selectedWidget.config.showDays?.join(',')" (ngModelChange)="selectedWidget.config.showDays = $event.split(',')" class="input-control" />
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'button'">
-              <div class="form-group">
-                <label>Button Label</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.label" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Icon (Emoji)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.icon" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Target URL (Optional)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.url" placeholder="https://..." class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Button Style</label>
-                <select [(ngModel)]="selectedWidget.config.style" class="input-control">
-                  <option value="gradient">Vibrant Gradient</option>
-                  <option value="solid">Solid Indigo</option>
-                  <option value="outline">Outline Transparent</option>
-                </select>
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'sun_moon'">
-              <div class="form-group">
-                <label>City Name</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.cityName" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Latitude</label>
-                <input type="number" step="0.0001" [(ngModel)]="selectedWidget.config.latitude" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Longitude</label>
-                <input type="number" step="0.0001" [(ngModel)]="selectedWidget.config.longitude" class="input-control" />
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'analog_clock'">
-              <div class="form-group">
-                <label>Accent Color (Hex)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.accentColor" class="input-control" />
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showSeconds" /> Show Second Hand</label>
-              </div>
-              <div class="form-group checkbox-group">
-                <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showNumbers" /> Show Numbers</label>
-              </div>
-            </ng-container>
-            
-            <ng-container *ngIf="selectedWidget.type === 'rest_fetch'">
-              <div class="form-group">
-                <label>1-Click Quick Preset</label>
-                <select (change)="applyRestFetchPreset(selectedWidget, $any($event.target).value)" class="input-control">
-                  <option value="">Select a preset or custom API...</option>
-                  <option value="homeassistant">🏠 Home Assistant Sensor (corelabel-infraRA)</option>
-                  <option value="bitcoin">🪙 Bitcoin Live Price (CoinGecko)</option>
-                  <option value="ip_geo">📍 Public IP & City (ipapi.co)</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label>REST Endpoint URL</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.url" placeholder="https://api.example.com/data.json" class="input-control" />
-              </div>
-
-              <div class="form-group">
-                <label>Authorization Header (Optional)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.authHeader" placeholder="Bearer YOUR_TOKEN" class="input-control" />
-              </div>
-
-              <div class="form-group">
-                <label>JSON Data Key / Path</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.jsonPath" placeholder="state or data.price" class="input-control" />
-                <span class="field-hint">e.g. <code>state</code> for Home Assistant, <code>bitcoin.usd</code> for crypto</span>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Title Header</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Feed Title" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Icon / Emoji</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.icon" placeholder="🌐" class="input-control" />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Value Prefix</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.prefix" placeholder="$" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Value Suffix / Unit</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.unit" placeholder="°F, %, kW" class="input-control" />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Refresh Interval (seconds)</label>
-                <input type="number" min="5" max="3600" [(ngModel)]="selectedWidget.config.refreshSeconds" class="input-control" />
-              </div>
-            </ng-container>
-
-            <ng-container *ngIf="selectedWidget.type === 'gauge'">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Current Value</label>
-                  <input type="number" [(ngModel)]="selectedWidget.config.value" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Unit Label</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.unit" placeholder="°F, %, kW" class="input-control" />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Min Scale</label>
-                  <input type="number" [(ngModel)]="selectedWidget.config.min" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Max Scale</label>
-                  <input type="number" [(ngModel)]="selectedWidget.config.max" class="input-control" />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Title Header</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Gauge Title" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Icon / Emoji</label>
-                  <input type="text" [(ngModel)]="selectedWidget.config.icon" placeholder="⚡" class="input-control" />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Warning (Amber)</label>
-                  <input type="number" [(ngModel)]="selectedWidget.config.warnThreshold" placeholder="75" class="input-control" />
-                </div>
-                <div class="form-group">
-                  <label>Critical (Red)</label>
-                  <input type="number" [(ngModel)]="selectedWidget.config.critThreshold" placeholder="90" class="input-control" />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label>Color Theme</label>
-                <select [(ngModel)]="selectedWidget.config.colorScheme" class="input-control">
-                  <option value="green-yellow-red">Emerald → Amber → Crimson (Standard)</option>
-                  <option value="blue-cyan-emerald">Sky Blue → Cyan → Emerald</option>
-                </select>
-              </div>
-
-              <div class="push-webhook-box">
-                <span class="push-box-title">📡 Inbound Webhook / HA Push</span>
-                <p class="tab-desc">Push live data directly into this gauge via HTTP POST:</p>
-                <code class="webhook-snippet">POST /api/push_widget.php<br>{{ '{' }} "token": "{{ token }}", "widget_id": {{ selectedWidget.id }}, "value": 78.5 {{ '}' }}</code>
-              </div>
-            </ng-container>
-
-            <ng-container *ngIf="selectedWidget.type === 'whiteboard'">
-              <div class="form-group">
-                <label>Canvas Board Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.canvasTitle" placeholder="Family Notes & Doodles" class="input-control" />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Default Pen Color</label>
-                  <input type="color" [(ngModel)]="selectedWidget.config.defaultColor" class="input-control" style="height: 38px; padding: 2px;" />
-                </div>
-                <div class="form-group">
-                  <label>Background Color</label>
-                  <input type="color" [(ngModel)]="selectedWidget.config.backgroundColor" class="input-control" style="height: 38px; padding: 2px;" />
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Default Stroke Width: {{ selectedWidget.config.defaultSize || 3 }}px</label>
-                <input type="range" min="1" max="12" step="1" [(ngModel)]="selectedWidget.config.defaultSize" class="slider-control" />
-              </div>
-            </ng-container>
-
-            <ng-container *ngIf="selectedWidget.type === 'google_maps'">
-              <div class="form-group">
-                <label>Widget Title</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Live Traffic & Map" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Location / Address or City</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.address" placeholder="Austin, TX" class="input-control" />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Zoom Level: {{ selectedWidget.config.zoom || 13 }}</label>
-                  <input type="range" min="3" max="19" step="1" [(ngModel)]="selectedWidget.config.zoom" class="slider-control" />
-                </div>
-                <div class="form-group">
-                  <label>Map View Type</label>
-                  <select [(ngModel)]="selectedWidget.config.mapType" class="input-control">
-                    <option value="m">Roadmap (Standard)</option>
-                    <option value="k">Satellite Aerial</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-group checkbox-group">
-                <label>
-                  <input type="checkbox" [(ngModel)]="selectedWidget.config.showTraffic" /> Show Live Traffic Indicator Badge
-                </label>
-              </div>
-            </ng-container>
-
-            <ng-container *ngIf="selectedWidget.type === 'slack'">
-              <div class="form-group">
-                <label>Slack Channel Name</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.channelName" placeholder="announcements" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Max Messages Shown</label>
-                <input type="number" min="1" max="15" [(ngModel)]="selectedWidget.config.maxItems" class="input-control" />
-              </div>
-            </ng-container>
-
-            <ng-container *ngIf="selectedWidget.type === 'gmail'">
-              <div class="form-group">
-                <label>Google / Gmail Account</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.accountEmail" placeholder="user@gmail.com" class="input-control" />
-              </div>
-              <div class="form-group">
-                <label>Unread Badge Count</label>
-                <input type="number" min="0" [(ngModel)]="selectedWidget.config.unreadCount" class="input-control" />
-              </div>
-            </ng-container>
-
-            <!-- TradingView Interactive Financial Charts -->
-            <ng-container *ngIf="selectedWidget.type === 'tradingview'">
-              <div class="form-group">
-                <label>Symbol / Ticker</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.symbol" placeholder="NASDAQ:AAPL, BINANCE:BTCUSDT" class="input-control" />
-                <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8;">Supports stocks, crypto, forex, indices (e.g. NASDAQ:AAPL, BINANCE:BTCUSDT, FX:EURUSD, SPY)</span>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Chart Interval</label>
-                  <select [(ngModel)]="selectedWidget.config.interval" class="input-control">
-                    <option value="1">1 Minute</option>
-                    <option value="5">5 Minutes</option>
-                    <option value="15">15 Minutes</option>
-                    <option value="60">1 Hour</option>
-                    <option value="1D">1 Day (Daily)</option>
-                    <option value="1W">1 Week</option>
-                    <option value="1M">1 Month</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Color Theme</label>
-                  <select [(ngModel)]="selectedWidget.config.theme" class="input-control">
-                    <option value="dark">Dark Theme</option>
-                    <option value="light">Light Theme</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Chart Style</label>
-                  <select [(ngModel)]="selectedWidget.config.chartStyle" class="input-control">
-                    <option value="1">Candlesticks</option>
-                    <option value="2">Line Chart</option>
-                    <option value="3">Area Chart</option>
-                    <option value="8">Heikin Ashi</option>
-                  </select>
-                </div>
-                <div class="form-group checkbox-group" style="margin-top: 24px;">
-                  <label>
-                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showVolume" /> Show Volume Indicator
-                  </label>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Custom Title (Optional)</label>
-                <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Tech Portfolio, Bitcoin Tracker" class="input-control" />
-              </div>
-            </ng-container>
-
-            <!-- Reddit Curated Photography & Media Feed -->
-            <ng-container *ngIf="selectedWidget.type === 'reddit'">
-              <div class="form-group">
-                <label>Subreddit</label>
-                <div style="display: flex; gap: 8px;">
-                  <span style="display: flex; align-items: center; color: #94a3b8; font-weight: 600;">r/</span>
-                  <input type="text" [(ngModel)]="selectedWidget.config.subreddit" placeholder="EarthPorn, space, wallpapers, aww" class="input-control" />
-                </div>
-                <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8;">Curated suggestions: EarthPorn, space, CityPorn, wallpapers, art, aww, ITAP</span>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Sort Feed By</label>
-                  <select [(ngModel)]="selectedWidget.config.sort" class="input-control">
-                    <option value="hot">🔥 Hot Posts</option>
-                    <option value="top">⭐ Top Rated</option>
-                    <option value="new">✨ New Posts</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Slide Interval (Seconds)</label>
-                  <input type="number" min="5" max="300" [(ngModel)]="selectedWidget.config.intervalSeconds" class="input-control" />
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group checkbox-group">
-                  <label>
-                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showScore" /> Show Upvote Count
-                  </label>
-                </div>
-                <div class="form-group checkbox-group">
-                  <label>
-                    <input type="checkbox" [(ngModel)]="selectedWidget.config.showTitle" /> Show Post Title & Author
-                  </label>
-                </div>
-              </div>
-            </ng-container>
-
-            <hr class="divider" />
-
-            <!-- Phase 3: Linked Widget Interaction -->
-            <div class="form-group">
-              <label>🔗 Linked Target Widget</label>
-              <select [(ngModel)]="selectedWidget.linkedWidgetId" class="input-control">
-                <option [ngValue]="undefined">None (Standalone Widget)</option>
-                <option *ngFor="let other of getOtherWidgets(selectedWidget)" [ngValue]="other.id">
-                  #{{ other.id }} - {{ other.type | titlecase }} ({{ other.position.width }}×{{ other.position.height }})
-                </option>
-              </select>
-              <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 4px;">Pair this widget with another widget on canvas for synchronized interaction or updates.</span>
-            </div>
-
-            <hr class="divider" />
-
-            <!-- Phase 3: Rules Engine / Conditional Formatting -->
-            <div class="rules-card">
-              <div class="rules-header">
-                <label style="font-weight: 600; color: #f1f5f9; margin: 0;">⚡ Conditional Alert Rules</label>
-                <button type="button" class="btn-secondary-small" (click)="addRuleToSelectedWidget()">+ Add Rule</button>
-              </div>
-              <p class="tab-desc" style="margin-bottom: 8px;">Apply glowing neon alerts, borders, and pulse animations when data thresholds trigger.</p>
-
-              <div *ngIf="!selectedWidget.rules || selectedWidget.rules.length === 0" style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 4px 0;">
-                No rules active on this widget.
-              </div>
-
-              <div *ngFor="let rule of selectedWidget.rules; let ri = index" class="rule-item">
-                <button type="button" class="rule-delete-btn" (click)="removeRuleFromSelectedWidget(ri)" title="Delete Rule" aria-label="Delete rule"><app-icon name="x" [size]="14"></app-icon></button>
-                <div class="form-row" style="margin-bottom: 6px;">
-                  <div class="form-group" style="flex: 1;">
-                    <label style="font-size: 0.72rem;">Field</label>
-                    <input type="text" [(ngModel)]="rule.field" placeholder="value / temp / state" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;" />
-                  </div>
-                  <div class="form-group" style="width: 70px;">
-                    <label style="font-size: 0.72rem;">Condition</label>
-                    <select [(ngModel)]="rule.operator" class="input-control" style="font-size: 0.75rem; padding: 4px 2px;">
-                      <option value="gt">&gt;</option>
-                      <option value="lt">&lt;</option>
-                      <option value="eq">==</option>
-                      <option value="neq">!=</option>
-                      <option value="contains">has</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="flex: 1;">
-                    <label style="font-size: 0.72rem;">Threshold</label>
-                    <input type="text" [(ngModel)]="rule.threshold" placeholder="e.g. 80" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;" />
-                  </div>
-                </div>
-                <div class="form-group" style="margin: 0;">
-                  <label style="font-size: 0.72rem;">Alert Visual Effect</label>
-                  <select [(ngModel)]="rule.className" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;">
-                    <option value="alert-glow-red">🔴 Alert Red (Flashing Crimson Glow)</option>
-                    <option value="alert-glow-amber">🟡 Warning Amber (Flashing Amber)</option>
-                    <option value="highlight-green">🟢 Highlight Green (Emerald Glow)</option>
-                    <option value="pulse-border">🔵 Pulse Border (Pulsing Neon)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <hr class="divider" />
-
-            <button (click)="removeSelectedWidget()" class="btn btn-danger">Delete Widget</button>
-          </div>
         </div>
 
         <!-- TAB: LAYERS & Z-INDEX -->
@@ -1715,11 +567,17 @@ import { NotificationService } from '../../services/notification.service';
         </div>
 
         <div class="actions">
+          <div class="publish-status" [class.dirty]="isDirty" role="status" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span *ngIf="!isDirty">All changes published</span>
+            <span *ngIf="isDirty">Unpublished changes<ng-container *ngIf="draftSavedAt"> · draft saved {{ draftSavedAt | date:'shortTime' }}</ng-container></span>
+          </div>
           <button (click)="saveConfiguration()" [disabled]="saving" class="btn btn-primary">
-            {{ saving ? 'Saving...' : 'Save & Publish' }}
+            {{ saving ? 'Publishing…' : (isDirty ? 'Save & Publish' : 'Publish Again') }}
           </button>
-          
+
           <div class="export-actions">
+            <button (click)="openHistory()" class="btn-secondary-small"><app-icon name="history" [size]="13"></app-icon> History</button>
             <button (click)="exportConfiguration()" class="btn-secondary-small">Export JSON</button>
             <label class="btn-secondary-small">
               Import JSON
@@ -1731,6 +589,12 @@ import { NotificationService } from '../../services/notification.service';
 
       <!-- Visual Canvas Viewport with Auto-Zoom Stage -->
       <main class="canvas-viewport" id="editorViewport" (click)="selectedWidget = null">
+        <div class="draft-banner" *ngIf="pendingDraft" role="alert" (click)="$event.stopPropagation()">
+          <app-icon name="file-text" [size]="16"></app-icon>
+          <span>You have an unpublished draft from {{ pendingDraft.savedAt | date:'MMM d, h:mm a' }}.</span>
+          <button type="button" class="btn-secondary-small" (click)="restoreDraft()">Restore draft</button>
+          <button type="button" class="btn-link" (click)="discardDraft()">Discard</button>
+        </div>
         <!-- Floating Canvas Power Toolbar (Undo, Redo, Duplication, Alignment) -->
         <div class="canvas-power-toolbar" (click)="$event.stopPropagation()">
           <div class="power-tool-group">
@@ -1739,6 +603,9 @@ import { NotificationService } from '../../services/notification.service';
             </button>
             <button (click)="redo()" [disabled]="!canRedo()" class="power-btn" title="Redo (Ctrl+Y / ⌘Y)">
               <app-icon name="redo-2" [size]="14"></app-icon> Redo
+            </button>
+            <button (click)="showPreview = true; selectedWidget = null" class="power-btn" title="Preview on a TV, tablet or Pi screen">
+              <app-icon name="play" [size]="14"></app-icon> Preview
             </button>
           </div>
 
@@ -1815,6 +682,10 @@ import { NotificationService } from '../../services/notification.service';
               [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
             ></iframe>
 
+            <!-- Smart alignment guides while dragging -->
+            <div *ngFor="let gx of activeGuides.x" class="snap-guide snap-guide-v" [style.left.px]="gx"></div>
+            <div *ngFor="let gy of activeGuides.y" class="snap-guide snap-guide-h" [style.top.px]="gy"></div>
+
             <!-- Severe Weather Banner Preview in Editor Canvas -->
             <app-severe-weather-alert-banner 
               *ngIf="weatherAlertText" 
@@ -1836,7 +707,13 @@ import { NotificationService } from '../../services/notification.service';
               [style.border-radius.px]="widget.style?.borderRadius !== undefined ? widget.style?.borderRadius : 12"
               [style.--sd-radius]="widget.style?.borderRadius != null ? widget.style!.borderRadius + 'px' : null"
               [style.fontFamily]="getWidgetFont(widget)"
-              (mousedown)="startDrag($event, widget)"
+              tabindex="0"
+              role="button"
+              [attr.aria-label]="(widget.customName || getWidgetTypeLabel(widget.type)) + ', ' + widget.position.width + ' by ' + widget.position.height + (widget.locked ? ', locked' : '')"
+              [attr.aria-pressed]="selectedWidget === widget"
+              (keydown.enter)="selectWidget(widget, $any($event))"
+              (keydown.space)="$event.preventDefault(); selectWidget(widget, $any($event))"
+              (pointerdown)="startDrag($event, widget)"
               (click)="selectWidget(widget, $event)"
             >
               <!-- Live Position HUD Badge on Selected Widget -->
@@ -1863,17 +740,25 @@ import { NotificationService } from '../../services/notification.service';
 
               <!-- 8-Point Visual Resize Handles -->
               <ng-container *ngIf="selectedWidget === widget && !widget.locked">
-                <div class="resize-handle handle-nw" (mousedown)="startResize($event, widget, 'nw')"></div>
-                <div class="resize-handle handle-n"  (mousedown)="startResize($event, widget, 'n')"></div>
-                <div class="resize-handle handle-ne" (mousedown)="startResize($event, widget, 'ne')"></div>
-                <div class="resize-handle handle-e"  (mousedown)="startResize($event, widget, 'e')"></div>
-                <div class="resize-handle handle-se" (mousedown)="startResize($event, widget, 'se')"></div>
-                <div class="resize-handle handle-s"  (mousedown)="startResize($event, widget, 's')"></div>
-                <div class="resize-handle handle-sw" (mousedown)="startResize($event, widget, 'sw')"></div>
-                <div class="resize-handle handle-w"  (mousedown)="startResize($event, widget, 'w')"></div>
+                <div class="resize-handle handle-nw" (pointerdown)="startResize($event, widget, 'nw')"></div>
+                <div class="resize-handle handle-n"  (pointerdown)="startResize($event, widget, 'n')"></div>
+                <div class="resize-handle handle-ne" (pointerdown)="startResize($event, widget, 'ne')"></div>
+                <div class="resize-handle handle-e"  (pointerdown)="startResize($event, widget, 'e')"></div>
+                <div class="resize-handle handle-se" (pointerdown)="startResize($event, widget, 'se')"></div>
+                <div class="resize-handle handle-s"  (pointerdown)="startResize($event, widget, 's')"></div>
+                <div class="resize-handle handle-sw" (pointerdown)="startResize($event, widget, 'sw')"></div>
+                <div class="resize-handle handle-w"  (pointerdown)="startResize($event, widget, 'w')"></div>
               </ng-container>
             </div>
           </div>
+        </div>
+
+        <!-- Empty page: point people at templates -->
+        <div class="canvas-empty-state" *ngIf="pageWidgets.length === 0 && !pendingDraft" (click)="$event.stopPropagation()">
+          <app-icon name="layout-template" [size]="32"></app-icon>
+          <h2>This page is empty</h2>
+          <p>Start from one of {{ dashboardTemplates.length }} ready-made layouts, or add widgets from the palette on the left.</p>
+          <button type="button" class="btn btn-primary" (click)="openTemplatesModal()"><app-icon name="layout-template" [size]="15"></app-icon> Browse templates</button>
         </div>
 
         <!-- Floating Viewport Zoom Toolbar -->
@@ -1891,6 +776,1262 @@ import { NotificationService } from '../../services/notification.service';
           </div>
         </div>
       </main>
+
+      <!-- Right-hand Inspector: settings for the selected widget -->
+      <aside class="inspector-panel" [class.has-selection]="!!selectedWidget" aria-label="Widget settings">
+        <ng-container *ngIf="selectedWidget; else noSelection">
+          <div class="inspector-head">
+            <span class="inspector-icon"><app-icon [name]="widgetSvgIcon(selectedWidget.type)" [size]="18"></app-icon></span>
+            <div class="inspector-title">
+              <h3>{{ selectedWidget.customName || getWidgetTypeLabel(selectedWidget.type) }}</h3>
+              <span class="inspector-sub">{{ getWidgetTypeLabel(selectedWidget.type) }} · {{ selectedWidget.position.width }}×{{ selectedWidget.position.height }}</span>
+            </div>
+            <button type="button" class="inspector-close" (click)="selectedWidget = null" aria-label="Close widget settings"><app-icon name="x" [size]="16"></app-icon></button>
+          </div>
+
+          <div class="inspector-tabs" role="tablist">
+            <button type="button" role="tab" [attr.aria-selected]="inspectorTab === 'content'" [class.active]="inspectorTab === 'content'" (click)="inspectorTab = 'content'">Content</button>
+            <button type="button" role="tab" [attr.aria-selected]="inspectorTab === 'style'" [class.active]="inspectorTab === 'style'" (click)="inspectorTab = 'style'">Style</button>
+            <button type="button" role="tab" [attr.aria-selected]="inspectorTab === 'behaviour'" [class.active]="inspectorTab === 'behaviour'" (click)="inspectorTab = 'behaviour'">
+              Behaviour
+              <span class="tab-dot" *ngIf="selectedWidget.schedule?.enabled || selectedWidget.rules?.length || selectedWidget.locked || selectedWidget.hidden" aria-label="has active settings"></span>
+            </button>
+          </div>
+
+          <div class="inspector-body inspector" role="tabpanel">
+            <!-- CONTENT: what the widget shows -->
+            <ng-container *ngIf="inspectorTab === 'content'">
+                <!-- Widget Specific Configs -->
+                <!-- Clock -->
+                <ng-container *ngIf="selectedWidget.type === 'clock'">
+                  <div class="form-group">
+                    <label>Format</label>
+                    <select [(ngModel)]="selectedWidget.config.format" class="input-control">
+                      <option value="hh:mm:ss a">12-Hour (02:30:15 PM)</option>
+                      <option value="HH:mm:ss">24-Hour (14:30:15)</option>
+                      <option value="hh:mm a">Short 12-Hour (02:30 PM)</option>
+                      <option value="HH:mm">Short 24-Hour (14:30)</option>
+                    </select>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showDate" /> Show Date</label>
+                  </div>
+                </ng-container>
+
+                <!-- Weather -->
+                <ng-container *ngIf="selectedWidget.type === 'weather'">
+                  <div class="weather-notice-banner">
+                    <span class="weather-notice-icon">🌤️</span>
+                    <span><strong>No API Key Required!</strong> Live temperature, conditions, UV index, and Air Quality (AQI) fetch automatically via Open-Meteo.</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label>City Name</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.city" placeholder="e.g. San Jose, CA or London" class="input-control" />
+                    <div class="field-hint" style="font-size: 0.68rem; color: #94a3b8; margin-top: 4px;">
+                      Supports any global city or state (e.g. "Austin, TX", "Paris", "Tokyo").
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Units</label>
+                    <select [(ngModel)]="selectedWidget.config.units" class="input-control">
+                      <option value="imperial">Imperial (°F, mph)</option>
+                      <option value="metric">Metric (°C, m/s)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showForecast" /> Show 5-Day Forecast Strip</label>
+                  </div>
+
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showHourly" /> Show 12-Hour Hourly Forecast</label>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Severe Weather Alert (Optional)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.alert" placeholder="e.g. Winter Storm Warning" class="input-control" />
+                  </div>
+
+                  <details style="margin-top: 8px; font-size: 0.72rem; color: #94a3b8; cursor: pointer;">
+                    <summary style="outline: none;">Advanced: Custom OpenWeather API Key</summary>
+                    <div class="form-group" style="margin-top: 8px;">
+                      <label style="font-size: 0.68rem;">OpenWeather API Key (Optional)</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use zero-config Open-Meteo" class="input-control" />
+                    </div>
+                  </details>
+                </ng-container>
+
+                <!-- Calendar -->
+                <ng-container *ngIf="selectedWidget.type === 'calendar'">
+                  <div class="form-group">
+                    <label>View Mode</label>
+                    <select [(ngModel)]="selectedWidget.config.viewMode" class="input-control">
+                      <option value="agenda">Agenda List View</option>
+                      <option value="month_grid">Monthly Wall Calendar Grid</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Calendar" class="input-control" />
+                  </div>
+              
+                  <div class="form-group" *ngIf="!selectedWidget.config.feeds || selectedWidget.config.feeds.length === 0">
+                    <label>Single iCal URL</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.icalUrl" placeholder="https://calendar.google.com/..." class="input-control" />
+                  </div>
+
+                  <!-- Multi-Calendar Feeds Manager -->
+                  <div class="feeds-manager">
+                    <div class="section-subhead">
+                      <label>Family Member Feeds</label>
+                      <button type="button" (click)="addCalendarFeed(selectedWidget)" class="btn-xs-action">+ Add Feed</button>
+                    </div>
+                    <div *ngFor="let feed of selectedWidget.config.feeds; let fi = index" class="feed-config-row">
+                      <input type="color" [(ngModel)]="feed.color" class="color-picker-mini" />
+                      <input type="text" [(ngModel)]="feed.name" placeholder="Name (e.g. Mom)" class="input-control feed-name-input" />
+                      <input type="text" [(ngModel)]="feed.url" placeholder="iCal URL (.ics)" class="input-control feed-url-input" />
+                      <button type="button" (click)="removeCalendarFeed(selectedWidget, fi)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- Photo Slideshow, Google Photos & Apple iCloud Albums -->
+                <ng-container *ngIf="selectedWidget.type === 'photo'">
+                  <div class="form-group">
+                    <label>Google Photos or Apple iCloud Shared Album URL</label>
+                    <input 
+                      type="text" 
+                      [(ngModel)]="selectedWidget.config.albumUrl" 
+                      placeholder="https://photos.app.goo.gl/... or https://www.icloud.com/sharedalbum/#..." 
+                      class="input-control" 
+                    />
+                    <small style="font-size:0.65rem; color:#38bdf8;">Paste any Google Photos or Apple iCloud public shared album link to automatically stream photos.</small>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Or Custom Image URLs (one per line)</label>
+                    <textarea 
+                      [ngModel]="getPhotoImagesText(selectedWidget)" 
+                      (ngModelChange)="setPhotoImagesText(selectedWidget, $event)" 
+                      rows="3" 
+                      class="input-control"
+                      placeholder="https://images.unsplash.com/..."
+                    ></textarea>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Slide Interval (s)</label>
+                      <input type="number" [(ngModel)]="selectedWidget.config.intervalSeconds" min="3" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Image Fit</label>
+                      <select [(ngModel)]="selectedWidget.config.fitMode" class="input-control">
+                        <option value="cover">Cover (Fill Frame)</option>
+                        <option value="contain">Contain (Fit Whole Photo)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.blurBackground" /> Blur Backdrop when Contained</label>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.kenBurns" /> Cinematic Ken Burns Pan & Zoom</label>
+                  </div>
+                </ng-container>
+
+                <!-- RSS -->
+                <ng-container *ngIf="selectedWidget.type === 'rss'">
+                  <div class="form-group">
+                    <label>Feed URL</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.feedUrl" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
+                  </div>
+                </ng-container>
+
+                <!-- Todo -->
+                <ng-container *ngIf="selectedWidget.type === 'todo'">
+                  <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.filterCompleted" /> Hide Completed</label>
+                  </div>
+                </ng-container>
+
+                <!-- Home Assistant & Smart Home -->
+                <ng-container *ngIf="selectedWidget.type === 'homeassistant'">
+                  <div class="form-group">
+                    <label>Widget Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Smart Home" class="input-control" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Home Assistant URL (Optional)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.haUrl" placeholder="http://homeassistant.local:8123 or Nabu Casa" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Long-Lived Access Token (Optional)</label>
+                    <input type="password" [(ngModel)]="selectedWidget.config.token" placeholder="Bearer Token" class="input-control" />
+                    <small style="font-size:0.65rem; color:#94a3b8;">Leave blank to use interactive simulated smart tiles.</small>
+                  </div>
+
+                  <div class="smart-home-guide-box">
+                    <strong>🔌 Google Home & Alexa Integration:</strong>
+                    <p>Connect Google Home & Alexa through Home Assistant (Matter / Cloud) or customize the smart tiles directly below:</p>
+                  </div>
+
+                  <div class="section-subhead">
+                    <label>Smart Entities</label>
+                    <button type="button" (click)="addSmartHomeEntity(selectedWidget)" class="btn-xs-action">+ Add Entity</button>
+                  </div>
+                  <div *ngFor="let ent of (selectedWidget.config.entities || []); let ei = index" class="note-config-item">
+                    <div class="note-config-top">
+                      <input type="text" [(ngModel)]="ent.icon" placeholder="💡" style="width:36px; text-align:center;" class="input-control" />
+                      <input type="text" [(ngModel)]="ent.label" placeholder="Entity Label (e.g. Living Room)" class="input-control" />
+                      <button type="button" (click)="removeSmartHomeEntity(selectedWidget, ei)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
+                    </div>
+                    <div class="form-row" style="margin-top:4px;">
+                      <input type="text" [(ngModel)]="ent.entityId" placeholder="light.living_room" class="input-control" />
+                      <input type="text" [(ngModel)]="ent.state" placeholder="on / 72°F" class="input-control" style="max-width:80px;" />
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- Spotify -->
+                <ng-container *ngIf="selectedWidget.type === 'spotify'">
+                  <div class="form-group">
+                    <label>Track Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.track" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Artist</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.artist" class="input-control" />
+                  </div>
+                </ng-container>
+
+                <!-- Markets & Stocks Ticker -->
+                <ng-container *ngIf="selectedWidget.type === 'stock_crypto'">
+                  <div class="form-group">
+                    <label>Widget Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Markets & Stocks" class="input-control" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Stock Symbols (comma separated)</label>
+                    <input 
+                      type="text" 
+                      [ngModel]="getStockSymbolsText(selectedWidget)" 
+                      (ngModelChange)="setStockSymbolsText(selectedWidget, $event)" 
+                      placeholder="AAPL, TSLA, NVDA, SPY, MSFT, GOOGL" 
+                      class="input-control" 
+                    />
+                    <div class="quick-tags-row">
+                      <span class="quick-tag-label">Quick Add:</span>
+                      <button type="button" (click)="addQuickStock(selectedWidget, 'AAPL')" class="tag-pill">+ AAPL</button>
+                      <button type="button" (click)="addQuickStock(selectedWidget, 'TSLA')" class="tag-pill">+ TSLA</button>
+                      <button type="button" (click)="addQuickStock(selectedWidget, 'NVDA')" class="tag-pill">+ NVDA</button>
+                      <button type="button" (click)="addQuickStock(selectedWidget, 'SPY')" class="tag-pill">+ SPY</button>
+                      <button type="button" (click)="addQuickStock(selectedWidget, 'MSFT')" class="tag-pill">+ MSFT</button>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Crypto IDs (comma separated)</label>
+                    <input 
+                      type="text" 
+                      [ngModel]="getCryptoIdsText(selectedWidget)" 
+                      (ngModelChange)="setCryptoIdsText(selectedWidget, $event)" 
+                      placeholder="bitcoin, ethereum, solana, dogecoin" 
+                      class="input-control" 
+                    />
+                    <div class="quick-tags-row">
+                      <span class="quick-tag-label">Quick Add:</span>
+                      <button type="button" (click)="addQuickCrypto(selectedWidget, 'bitcoin')" class="tag-pill">+ BTC</button>
+                      <button type="button" (click)="addQuickCrypto(selectedWidget, 'ethereum')" class="tag-pill">+ ETH</button>
+                      <button type="button" (click)="addQuickCrypto(selectedWidget, 'solana')" class="tag-pill">+ SOL</button>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Display Mode</label>
+                      <select [(ngModel)]="selectedWidget.config.mode" class="input-control">
+                        <option value="all">Combined (Stocks & Crypto)</option>
+                        <option value="stocks">Stocks Only</option>
+                        <option value="crypto">Crypto Only</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Currency</label>
+                      <select [(ngModel)]="selectedWidget.config.currency" class="input-control">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="CAD">CAD ($)</option>
+                        <option value="INR">INR (₹)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showSparklines" /> Show Mini Trend Sparklines</label>
+                  </div>
+                </ng-container>
+
+                <!-- Sticky Notes -->
+                <ng-container *ngIf="selectedWidget.type === 'sticky_note'">
+                  <div class="form-group">
+                    <label>Board Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Notes" class="input-control" />
+                  </div>
+                  <div class="section-subhead">
+                    <label>Notes</label>
+                    <button type="button" (click)="addStickyNote(selectedWidget)" class="btn-xs-action">+ Add Note</button>
+                  </div>
+                  <div *ngFor="let note of selectedWidget.config.notes; let ni = index" class="note-config-item">
+                    <div class="note-config-top">
+                      <input type="color" [(ngModel)]="note.color" class="color-picker-mini" />
+                      <input type="text" [(ngModel)]="note.author" placeholder="Author (e.g. Mom)" class="input-control note-author-input" />
+                      <button type="button" (click)="removeStickyNote(selectedWidget, ni)" class="btn-icon-danger" aria-label="Remove"><app-icon name="x" [size]="14"></app-icon></button>
+                    </div>
+                    <textarea [(ngModel)]="note.text" placeholder="Note message..." rows="2" class="input-control"></textarea>
+                  </div>
+                </ng-container>
+
+                <!-- Countdown -->
+                <ng-container *ngIf="selectedWidget.type === 'countdown'">
+                  <div class="form-group">
+                    <label>Event Name</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Hawaii Vacation" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Target Date</label>
+                    <input type="date" [(ngModel)]="selectedWidget.config.targetDate" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Emoji Icon</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.emoji" placeholder="🌴" class="input-control" />
+                  </div>
+                </ng-container>
+
+                <!-- Meal Planner -->
+                <ng-container *ngIf="selectedWidget.type === 'meal_planner'">
+                  <div class="form-group">
+                    <label>Widget Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Weekly Menu" class="input-control" />
+                  </div>
+                  <div class="meal-days-editor">
+                    <div *ngFor="let day of selectedWidget.config.days" class="meal-day-config">
+                      <span class="day-label">{{ day.day }}</span>
+                      <input type="text" [(ngModel)]="day.lunch" placeholder="Lunch" class="input-control" />
+                      <input type="text" [(ngModel)]="day.dinner" placeholder="Dinner" class="input-control" />
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- Radar -->
+                <ng-container *ngIf="selectedWidget.type === 'radar'">
+                  <div class="radar-notice-banner">
+                    <span class="radar-notice-icon">ℹ️</span>
+                    <span><strong>No API Key Required!</strong> Powered by RainViewer Global Precipitation Doppler Radar.</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Quick City Preset</label>
+                    <select (change)="onRadarCitySelect(selectedWidget, $event)" class="input-control">
+                      <option value="">-- Choose City or Enter Manually --</option>
+                      <option value="San Francisco|37.77|-122.42">San Francisco, CA</option>
+                      <option value="New York|40.71|-74.00">New York, NY</option>
+                      <option value="Los Angeles|34.05|-118.24">Los Angeles, CA</option>
+                      <option value="Chicago|41.88|-87.63">Chicago, IL</option>
+                      <option value="Seattle|47.60|-122.33">Seattle, WA</option>
+                      <option value="Miami|25.76|-80.19">Miami, FL</option>
+                      <option value="Austin|30.27|-97.74">Austin, TX</option>
+                      <option value="Dallas|32.78|-96.80">Dallas, TX</option>
+                      <option value="Denver|39.74|-104.99">Denver, CO</option>
+                      <option value="Boston|42.36|-71.06">Boston, MA</option>
+                      <option value="Toronto|43.65|-79.38">Toronto, Canada</option>
+                      <option value="London|51.51|-0.13">London, UK</option>
+                      <option value="Paris|48.86|2.35">Paris, France</option>
+                      <option value="Berlin|52.52|13.40">Berlin, Germany</option>
+                      <option value="Tokyo|35.68|139.69">Tokyo, Japan</option>
+                      <option value="Sydney|-33.87|151.21">Sydney, Australia</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Location / City Label</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.cityName" placeholder="San Francisco Bay Area" class="input-control" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Latitude</label>
+                      <input type="number" step="0.01" [(ngModel)]="selectedWidget.config.lat" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Longitude</label>
+                      <input type="number" step="0.01" [(ngModel)]="selectedWidget.config.lon" class="input-control" />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Zoom Level (3-12)</label>
+                      <input type="number" min="3" max="12" [(ngModel)]="selectedWidget.config.zoom" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Color Palette</label>
+                      <select [(ngModel)]="selectedWidget.config.colorScheme" class="input-control">
+                        <option [value]="0">Original Black/White</option>
+                        <option [value]="1">Universal Blue</option>
+                        <option [value]="2">TITAN (Standard)</option>
+                        <option [value]="3">The Weather Channel</option>
+                        <option [value]="5">NEXRAD Level III</option>
+                        <option [value]="6">Rainbow</option>
+                      </select>
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- Daily Quote -->
+                <ng-container *ngIf="selectedWidget.type === 'quote'">
+                  <div class="form-group">
+                    <label>Category</label>
+                    <select [(ngModel)]="selectedWidget.config.category" class="input-control">
+                      <option value="inspirational">Inspirational Thoughts</option>
+                      <option value="wisdom">Stoic Philosophy & Wisdom</option>
+                      <option value="history">On This Day in History</option>
+                      <option value="custom">Custom Family Motto</option>
+                    </select>
+                  </div>
+                  <div *ngIf="selectedWidget.config.category === 'custom'">
+                    <div class="form-group">
+                      <label>Custom Quote Text</label>
+                      <textarea [(ngModel)]="selectedWidget.config.customQuote" placeholder="Family is not an important thing. It's everything." rows="2" class="input-control"></textarea>
+                    </div>
+                    <div class="form-group">
+                      <label>Author</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.customAuthor" placeholder="Michael J. Fox" class="input-control" />
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- AI Ambient Briefing -->
+                <ng-container *ngIf="selectedWidget.type === 'ai_briefing'">
+                  <div class="form-group">
+                    <label>Your Name (for personalized greetings)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.userName" placeholder="e.g. Sandip" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Assistant Tone</label>
+                    <select [(ngModel)]="selectedWidget.config.tone" class="input-control">
+                      <option value="warm">Warm & Encouraging (Family)</option>
+                      <option value="executive">Executive & Concise (Office)</option>
+                      <option value="motivational">High-Energy & Motivational</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Google Gemini API Key (Optional)</label>
+                    <div style="display: flex; gap: 8px;">
+                      <input type="password" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use built-in ambient engine" class="input-control" style="flex: 1;" />
+                      <button type="button" (click)="testGeminiKey()" [disabled]="testingGemini" class="btn btn-secondary" style="white-space: nowrap; padding: 0 12px; font-size: 0.8rem;">
+                        {{ testingGemini ? 'Testing...' : 'Test Key' }}
+                      </button>
+                    </div>
+                    <div *ngIf="geminiTestResult" [style.color]="geminiTestResult.success ? '#34d399' : '#f87171'" style="font-size: 0.72rem; margin-top: 5px; font-weight: 600; word-break: break-word;">
+                      {{ geminiTestResult.success ? '✅ ' : '❌ ' }}{{ geminiTestResult.message }}
+                    </div>
+                    <small style="font-size:0.65rem; color:#94a3b8; display: block; margin-top: 4px;">Default built-in intelligence engine works with zero setup.</small>
+                  </div>
+                </ng-container>
+
+                <!-- Gamified Chores & Habits -->
+                <ng-container *ngIf="selectedWidget.type === 'chores'">
+                  <div class="form-group">
+                    <label>Widget Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Family Chores & Habits" class="input-control" />
+                  </div>
+                  <p style="font-size:0.75rem; color:#94a3b8;">
+                    Family members can interactively complete tasks, gain streak points, and trigger confetti directly on the screen!
+                  </p>
+                </ng-container>
+
+                <!-- Live Camera PIP -->
+                <ng-container *ngIf="selectedWidget.type === 'camera_pip'">
+                  <div class="form-group">
+                    <label>Camera Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Driveway & Front Porch" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Snapshot URL (or Home Assistant proxy)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.snapshotUrl" placeholder="http://192.168.1.50/snapshot.jpg" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Video Stream URL (Optional WebRTC/HLS/MJPEG)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.streamUrl" placeholder="http://.../mjpeg or WebRTC stream" class="input-control" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Aspect Ratio</label>
+                      <select [(ngModel)]="selectedWidget.config.aspectRatio" class="input-control">
+                        <option value="16:9">16 : 9 (Widescreen)</option>
+                        <option value="4:3">4 : 3 (Standard)</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Refresh Interval</label>
+                      <select [(ngModel)]="selectedWidget.config.refreshSeconds" class="input-control">
+                        <option [value]="2">2 seconds (Live)</option>
+                        <option [value]="4">4 seconds (Balanced)</option>
+                        <option [value]="10">10 seconds</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 8px; padding: 10px; margin-top: 10px;">
+                    <div style="font-size: 0.72rem; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">💡 Google & SimpliSafe Feed Tips:</div>
+                    <div style="font-size: 0.68rem; color: #cbd5e1; line-height: 1.4;">
+                      • <strong>Home Assistant or Scrypted Bridge (Recommended):</strong> Google Nest and SimpliSafe protect their feeds behind cloud logins. Bridging them through Home Assistant or Scrypted produces an instant local snapshot or WebRTC/MJPEG URL you can paste above.<br>
+                      • <strong>Nest Public Live Link:</strong> In the Nest app, enable "Camera Sharing" &gt; "Share with password" or "Share publicly", and paste the embed link into Video Stream URL.
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- Live Commute & Transit -->
+                <ng-container *ngIf="selectedWidget.type === 'commute'">
+                  <div class="form-group">
+                    <label>Widget Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Morning Commute" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Default View Mode</label>
+                    <select [(ngModel)]="selectedWidget.config.mode" class="input-control">
+                      <option value="driving">Driving Routes & Live Traffic</option>
+                      <option value="transit">Public Transit Departures</option>
+                    </select>
+                  </div>
+                </ng-container>
+
+                <!-- YouTube Video / Stream Config -->
+                <ng-container *ngIf="selectedWidget.type === 'youtube'">
+                  <div class="form-group">
+                    <label>Widget Title (Optional)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Lofi Chill Beats / NASA Live" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>YouTube URL or Video ID</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.urlOrId" placeholder="https://www.youtube.com/watch?v=... or ID" class="input-control" />
+                    <small style="font-size:0.65rem; color:#94a3b8;">Supports standard watch links, youtu.be, shorts, and live streams.</small>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.autoplay" /> Auto-Play Video</label>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.muted" /> Mute Audio (Required for wall kiosk autoplay)</label>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.loop" /> Loop Continuously</label>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showControls" /> Show Video Controls</label>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.isLive" /> Show Red "LIVE" Badge</label>
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'text'">
+                  <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Body Text (Supports Line Breaks)</label>
+                    <textarea [(ngModel)]="selectedWidget.config.body" rows="4" class="input-control"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label>Font Size</label>
+                    <select [(ngModel)]="selectedWidget.config.fontSize" class="input-control">
+                      <option value="small">Small</option>
+                      <option value="medium">Medium</option>
+                      <option value="large">Large</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Text Alignment</label>
+                    <select [(ngModel)]="selectedWidget.config.textAlign" class="input-control">
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'qrcode'">
+                  <div class="form-group">
+                    <label>Label</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.label" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>QR Code Data (URL, text, WiFi string)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.data" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Size (px)</label>
+                    <input type="number" [(ngModel)]="selectedWidget.config.size" class="input-control" />
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'shapes'">
+                  <div class="form-group">
+                    <label>Shape Type</label>
+                    <select [(ngModel)]="selectedWidget.config.shape" class="input-control">
+                      <option value="rectangle">Rectangle Fill</option>
+                      <option value="circle">Circle</option>
+                      <option value="horizontal_line">Horizontal Line (Divider)</option>
+                      <option value="vertical_line">Vertical Line (Divider)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Color (Hex or Name)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.color" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Fill Opacity (0.0 - 1.0)</label>
+                    <input type="number" step="0.1" min="0" max="1" [(ngModel)]="selectedWidget.config.fillOpacity" class="input-control" />
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'scheduled_text'">
+                  <div class="form-group">
+                    <label>Announcement Message</label>
+                    <textarea [(ngModel)]="selectedWidget.config.message" rows="3" class="input-control"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label>Start Time (HH:MM)</label>
+                    <input type="time" [(ngModel)]="selectedWidget.config.startTime" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>End Time (HH:MM)</label>
+                    <input type="time" [(ngModel)]="selectedWidget.config.endTime" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Active Days (comma separated: Mon,Tue,Wed)</label>
+                    <input type="text" [ngModel]="selectedWidget.config.showDays?.join(',')" (ngModelChange)="selectedWidget.config.showDays = $event.split(',')" class="input-control" />
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'button'">
+                  <div class="form-group">
+                    <label>Button Label</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.label" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Icon (Emoji)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.icon" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Target URL (Optional)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.url" placeholder="https://..." class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Button Style</label>
+                    <select [(ngModel)]="selectedWidget.config.style" class="input-control">
+                      <option value="gradient">Vibrant Gradient</option>
+                      <option value="solid">Solid Indigo</option>
+                      <option value="outline">Outline Transparent</option>
+                    </select>
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'sun_moon'">
+                  <div class="form-group">
+                    <label>City Name</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.cityName" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Latitude</label>
+                    <input type="number" step="0.0001" [(ngModel)]="selectedWidget.config.latitude" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Longitude</label>
+                    <input type="number" step="0.0001" [(ngModel)]="selectedWidget.config.longitude" class="input-control" />
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'analog_clock'">
+                  <div class="form-group">
+                    <label>Accent Color (Hex)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.accentColor" class="input-control" />
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showSeconds" /> Show Second Hand</label>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.config.showNumbers" /> Show Numbers</label>
+                  </div>
+                </ng-container>
+            
+                <ng-container *ngIf="selectedWidget.type === 'rest_fetch'">
+                  <div class="form-group">
+                    <label>1-Click Quick Preset</label>
+                    <select (change)="applyRestFetchPreset(selectedWidget, $any($event.target).value)" class="input-control">
+                      <option value="">Select a preset or custom API...</option>
+                      <option value="homeassistant">🏠 Home Assistant Sensor (corelabel-infraRA)</option>
+                      <option value="bitcoin">🪙 Bitcoin Live Price (CoinGecko)</option>
+                      <option value="ip_geo">📍 Public IP & City (ipapi.co)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>REST Endpoint URL</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.url" placeholder="https://api.example.com/data.json" class="input-control" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>Authorization Header (Optional)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.authHeader" placeholder="Bearer YOUR_TOKEN" class="input-control" />
+                  </div>
+
+                  <div class="form-group">
+                    <label>JSON Data Key / Path</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.jsonPath" placeholder="state or data.price" class="input-control" />
+                    <span class="field-hint">e.g. <code>state</code> for Home Assistant, <code>bitcoin.usd</code> for crypto</span>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Title Header</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Feed Title" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Icon / Emoji</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.icon" placeholder="🌐" class="input-control" />
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Value Prefix</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.prefix" placeholder="$" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Value Suffix / Unit</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.unit" placeholder="°F, %, kW" class="input-control" />
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Refresh Interval (seconds)</label>
+                    <input type="number" min="5" max="3600" [(ngModel)]="selectedWidget.config.refreshSeconds" class="input-control" />
+                  </div>
+                </ng-container>
+
+                <ng-container *ngIf="selectedWidget.type === 'gauge'">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Current Value</label>
+                      <input type="number" [(ngModel)]="selectedWidget.config.value" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Unit Label</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.unit" placeholder="°F, %, kW" class="input-control" />
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Min Scale</label>
+                      <input type="number" [(ngModel)]="selectedWidget.config.min" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Max Scale</label>
+                      <input type="number" [(ngModel)]="selectedWidget.config.max" class="input-control" />
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Title Header</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Gauge Title" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Icon / Emoji</label>
+                      <input type="text" [(ngModel)]="selectedWidget.config.icon" placeholder="⚡" class="input-control" />
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Warning (Amber)</label>
+                      <input type="number" [(ngModel)]="selectedWidget.config.warnThreshold" placeholder="75" class="input-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Critical (Red)</label>
+                      <input type="number" [(ngModel)]="selectedWidget.config.critThreshold" placeholder="90" class="input-control" />
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Color Theme</label>
+                    <select [(ngModel)]="selectedWidget.config.colorScheme" class="input-control">
+                      <option value="green-yellow-red">Emerald → Amber → Crimson (Standard)</option>
+                      <option value="blue-cyan-emerald">Sky Blue → Cyan → Emerald</option>
+                    </select>
+                  </div>
+
+                  <div class="push-webhook-box">
+                    <span class="push-box-title">📡 Inbound Webhook / HA Push</span>
+                    <p class="tab-desc">Push live data directly into this gauge via HTTP POST:</p>
+                    <code class="webhook-snippet">POST /api/push_widget.php<br>{{ '{' }} "token": "{{ token }}", "widget_id": {{ selectedWidget.id }}, "value": 78.5 {{ '}' }}</code>
+                  </div>
+                </ng-container>
+
+                <ng-container *ngIf="selectedWidget.type === 'whiteboard'">
+                  <div class="form-group">
+                    <label>Canvas Board Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.canvasTitle" placeholder="Family Notes & Doodles" class="input-control" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Default Pen Color</label>
+                      <input type="color" [(ngModel)]="selectedWidget.config.defaultColor" class="input-control" style="height: 38px; padding: 2px;" />
+                    </div>
+                    <div class="form-group">
+                      <label>Background Color</label>
+                      <input type="color" [(ngModel)]="selectedWidget.config.backgroundColor" class="input-control" style="height: 38px; padding: 2px;" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Default Stroke Width: {{ selectedWidget.config.defaultSize || 3 }}px</label>
+                    <input type="range" min="1" max="12" step="1" [(ngModel)]="selectedWidget.config.defaultSize" class="slider-control" />
+                  </div>
+                </ng-container>
+
+                <ng-container *ngIf="selectedWidget.type === 'google_maps'">
+                  <div class="form-group">
+                    <label>Widget Title</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="Live Traffic & Map" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Location / Address or City</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.address" placeholder="Austin, TX" class="input-control" />
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Zoom Level: {{ selectedWidget.config.zoom || 13 }}</label>
+                      <input type="range" min="3" max="19" step="1" [(ngModel)]="selectedWidget.config.zoom" class="slider-control" />
+                    </div>
+                    <div class="form-group">
+                      <label>Map View Type</label>
+                      <select [(ngModel)]="selectedWidget.config.mapType" class="input-control">
+                        <option value="m">Roadmap (Standard)</option>
+                        <option value="k">Satellite Aerial</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label>
+                      <input type="checkbox" [(ngModel)]="selectedWidget.config.showTraffic" /> Show Live Traffic Indicator Badge
+                    </label>
+                  </div>
+                </ng-container>
+
+                <ng-container *ngIf="selectedWidget.type === 'slack'">
+                  <div class="form-group">
+                    <label>Slack Channel Name</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.channelName" placeholder="announcements" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Max Messages Shown</label>
+                    <input type="number" min="1" max="15" [(ngModel)]="selectedWidget.config.maxItems" class="input-control" />
+                  </div>
+                </ng-container>
+
+                <ng-container *ngIf="selectedWidget.type === 'gmail'">
+                  <div class="form-group">
+                    <label>Google / Gmail Account</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.accountEmail" placeholder="user@gmail.com" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Unread Badge Count</label>
+                    <input type="number" min="0" [(ngModel)]="selectedWidget.config.unreadCount" class="input-control" />
+                  </div>
+                </ng-container>
+
+                <!-- TradingView Interactive Financial Charts -->
+                <ng-container *ngIf="selectedWidget.type === 'tradingview'">
+                  <div class="form-group">
+                    <label>Symbol / Ticker</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.symbol" placeholder="NASDAQ:AAPL, BINANCE:BTCUSDT" class="input-control" />
+                    <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8;">Supports stocks, crypto, forex, indices (e.g. NASDAQ:AAPL, BINANCE:BTCUSDT, FX:EURUSD, SPY)</span>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Chart Interval</label>
+                      <select [(ngModel)]="selectedWidget.config.interval" class="input-control">
+                        <option value="1">1 Minute</option>
+                        <option value="5">5 Minutes</option>
+                        <option value="15">15 Minutes</option>
+                        <option value="60">1 Hour</option>
+                        <option value="1D">1 Day (Daily)</option>
+                        <option value="1W">1 Week</option>
+                        <option value="1M">1 Month</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Color Theme</label>
+                      <select [(ngModel)]="selectedWidget.config.theme" class="input-control">
+                        <option value="dark">Dark Theme</option>
+                        <option value="light">Light Theme</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Chart Style</label>
+                      <select [(ngModel)]="selectedWidget.config.chartStyle" class="input-control">
+                        <option value="1">Candlesticks</option>
+                        <option value="2">Line Chart</option>
+                        <option value="3">Area Chart</option>
+                        <option value="8">Heikin Ashi</option>
+                      </select>
+                    </div>
+                    <div class="form-group checkbox-group" style="margin-top: 24px;">
+                      <label>
+                        <input type="checkbox" [(ngModel)]="selectedWidget.config.showVolume" /> Show Volume Indicator
+                      </label>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Custom Title (Optional)</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.title" placeholder="e.g. Tech Portfolio, Bitcoin Tracker" class="input-control" />
+                  </div>
+                </ng-container>
+
+                <!-- Reddit Curated Photography & Media Feed -->
+                <ng-container *ngIf="selectedWidget.type === 'reddit'">
+                  <div class="form-group">
+                    <label>Subreddit</label>
+                    <div style="display: flex; gap: 8px;">
+                      <span style="display: flex; align-items: center; color: #94a3b8; font-weight: 600;">r/</span>
+                      <input type="text" [(ngModel)]="selectedWidget.config.subreddit" placeholder="EarthPorn, space, wallpapers, aww" class="input-control" />
+                    </div>
+                    <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8;">Curated suggestions: EarthPorn, space, CityPorn, wallpapers, art, aww, ITAP</span>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Sort Feed By</label>
+                      <select [(ngModel)]="selectedWidget.config.sort" class="input-control">
+                        <option value="hot">🔥 Hot Posts</option>
+                        <option value="top">⭐ Top Rated</option>
+                        <option value="new">✨ New Posts</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Slide Interval (Seconds)</label>
+                      <input type="number" min="5" max="300" [(ngModel)]="selectedWidget.config.intervalSeconds" class="input-control" />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group checkbox-group">
+                      <label>
+                        <input type="checkbox" [(ngModel)]="selectedWidget.config.showScore" /> Show Upvote Count
+                      </label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                      <label>
+                        <input type="checkbox" [(ngModel)]="selectedWidget.config.showTitle" /> Show Post Title & Author
+                      </label>
+                    </div>
+                  </div>
+                </ng-container>
+
+              <p class="field-hint" *ngIf="!hasContentSettings(selectedWidget.type)">This widget has no content settings. Use the Style tab to change how it looks.</p>
+            </ng-container>
+
+            <!-- STYLE: size, position and appearance -->
+            <ng-container *ngIf="inspectorTab === 'style'">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>X (px)</label>
+                    <input type="number" [(ngModel)]="selectedWidget.position.x" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Y (px)</label>
+                    <input type="number" [(ngModel)]="selectedWidget.position.y" class="input-control" />
+                  </div>
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Width (px)</label>
+                    <input type="number" [(ngModel)]="selectedWidget.position.width" class="input-control" />
+                  </div>
+                  <div class="form-group">
+                    <label>Height (px)</label>
+                    <input type="number" [(ngModel)]="selectedWidget.position.height" class="input-control" />
+                  </div>
+                </div>
+
+                <!-- Custom Styling Section -->
+                <div class="form-group">
+                  <label>Opacity ({{ getWidgetOpacity() }}%)</label>
+                  <input type="range" min="0.2" max="1" step="0.05" [ngModel]="selectedWidget.style?.opacity || 1" (ngModelChange)="setWidgetOpacity($event)" class="slider-control" />
+                </div>
+                <div class="form-group">
+                  <label>Corner Radius ({{ selectedWidget.style?.borderRadius || 12 }}px)</label>
+                  <input type="range" min="0" max="28" step="2" [ngModel]="selectedWidget.style?.borderRadius || 12" (ngModelChange)="setWidgetRadius($event)" class="slider-control" />
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Card Background</label>
+                    <div class="color-reset-row">
+                      <input type="color" [ngModel]="selectedWidget.style?.backgroundColor || '#1e293b'" (ngModelChange)="setWidgetBackground($event)" class="input-control color-input" aria-label="Card background colour" />
+                      <button type="button" class="btn-reset-color" (click)="setWidgetBackground('')" [disabled]="!selectedWidget.style?.backgroundColor" title="Use the theme's default card background">Reset</button>
+                    </div>
+                  </div>
+                  <div class="form-group checkbox-group" style="margin-top: 24px;">
+                    <label>
+                      <input type="checkbox" [ngModel]="selectedWidget.style?.backdropBlur !== false" (ngModelChange)="setWidgetBlur($event)" /> Frosted Glass Blur
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label>Widget Font Override</label>
+                  <select [ngModel]="selectedWidget.style?.fontFamily || ''" (ngModelChange)="setWidgetFont($event)" class="input-control">
+                    <option value="">Default Canvas Font</option>
+                    <option *ngFor="let font of availableFonts" [value]="font.id">{{ font.name }}</option>
+                  </select>
+                </div>
+
+
+            </ng-container>
+
+            <!-- BEHAVIOUR: layer, schedule, links and rules -->
+            <ng-container *ngIf="inspectorTab === 'behaviour'">
+                <!-- Layer Properties (Rename, Lock, Hide) -->
+                <div class="form-group">
+                  <label>Layer Nickname</label>
+                  <input type="text" [(ngModel)]="selectedWidget.customName" [placeholder]="getWidgetTypeLabel(selectedWidget.type)" class="input-control" />
+                </div>
+                <div class="form-row layer-quick-toggles">
+                  <button 
+                    type="button"
+                    class="btn-layer-pill" 
+                    [class.active]="selectedWidget.locked" 
+                    (click)="selectedWidget.locked = !selectedWidget.locked"
+                    [title]="selectedWidget.locked ? 'Unlock Widget' : 'Lock Widget to canvas position'"
+                  >
+                    <app-icon [name]="selectedWidget.locked ? 'lock' : 'lock-open'" [size]="14"></app-icon> {{ selectedWidget.locked ? 'Locked' : 'Unlocked' }}
+                  </button>
+                  <button 
+                    type="button"
+                    class="btn-layer-pill" 
+                    [class.active]="selectedWidget.hidden" 
+                    (click)="selectedWidget.hidden = !selectedWidget.hidden"
+                    [title]="selectedWidget.hidden ? 'Show on canvas' : 'Hide from canvas'"
+                  >
+                    <app-icon [name]="selectedWidget.hidden ? 'eye-off' : 'eye'" [size]="14"></app-icon> {{ selectedWidget.hidden ? 'Hidden' : 'Visible' }}
+                  </button>
+                </div>
+
+                <!-- Active Schedule Section -->
+                <div class="schedule-config-box">
+                  <div class="schedule-header" (click)="toggleWidgetScheduleEnabled()">
+                    <div class="schedule-title-wrap">
+                      <span class="schedule-icon">🕒</span>
+                      <span class="schedule-title">Active Schedule</span>
+                    </div>
+                    <input type="checkbox" [checked]="isWidgetScheduleEnabled(selectedWidget)" (click)="$event.stopPropagation(); toggleWidgetScheduleEnabled()" />
+                  </div>
+
+                  <div class="schedule-body" *ngIf="isWidgetScheduleEnabled(selectedWidget)">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" [(ngModel)]="getOrCreateWidgetSchedule(selectedWidget).startTime" class="input-control" />
+                      </div>
+                      <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" [(ngModel)]="getOrCreateWidgetSchedule(selectedWidget).endTime" class="input-control" />
+                      </div>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Active Days</label>
+                      <div class="days-pill-row">
+                        <button 
+                          *ngFor="let day of weekDays; let dIdx = index" 
+                          type="button" 
+                          class="day-pill"
+                          [class.active]="isDaySelected(getOrCreateWidgetSchedule(selectedWidget), dIdx)"
+                          (click)="toggleDay(getOrCreateWidgetSchedule(selectedWidget), dIdx)"
+                        >
+                          {{ day }}
+                        </button>
+                      </div>
+                      <div class="day-presets">
+                        <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'all')">Everyday</button>
+                        <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'weekdays')">Weekdays</button>
+                        <button type="button" class="btn-preset-mini" (click)="setDayPreset(getOrCreateWidgetSchedule(selectedWidget), 'weekends')">Weekends</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+                <!-- Phase 3: Linked Widget Interaction -->
+                <div class="form-group">
+                  <label>Linked Target Widget</label>
+                  <select [(ngModel)]="selectedWidget.linkedWidgetId" class="input-control">
+                    <option [ngValue]="undefined">None (Standalone Widget)</option>
+                    <option *ngFor="let other of getOtherWidgets(selectedWidget)" [ngValue]="other.id">
+                      #{{ other.id }} - {{ other.type | titlecase }} ({{ other.position.width }}×{{ other.position.height }})
+                    </option>
+                  </select>
+                  <span class="field-hint" style="font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 4px;">Pair this widget with another widget on canvas for synchronized interaction or updates.</span>
+                </div>
+
+                <hr class="divider" />
+
+                <!-- Phase 3: Rules Engine / Conditional Formatting -->
+                <div class="rules-card">
+                  <div class="rules-header">
+                    <label style="font-weight: 600; color: #f1f5f9; margin: 0; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px;"><app-icon name="zap" [size]="14"></app-icon> Alert Rules</label>
+                    <button type="button" class="btn-secondary-small" (click)="addRuleToSelectedWidget()">+ Add Rule</button>
+                  </div>
+                  <p class="tab-desc" style="margin-bottom: 8px;">Apply glowing neon alerts, borders, and pulse animations when data thresholds trigger.</p>
+
+                  <div *ngIf="!selectedWidget.rules || selectedWidget.rules.length === 0" style="font-size: 0.8rem; color: #94a3b8; font-style: italic; padding: 4px 0;">
+                    No rules active on this widget.
+                  </div>
+
+                  <div *ngFor="let rule of selectedWidget.rules; let ri = index" class="rule-item">
+                    <button type="button" class="rule-delete-btn" (click)="removeRuleFromSelectedWidget(ri)" title="Delete Rule" aria-label="Delete rule"><app-icon name="x" [size]="14"></app-icon></button>
+                    <div class="form-row" style="margin-bottom: 6px;">
+                      <div class="form-group" style="flex: 1;">
+                        <label style="font-size: 0.72rem;">Field</label>
+                        <input type="text" [(ngModel)]="rule.field" placeholder="value / temp / state" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;" />
+                      </div>
+                      <div class="form-group" style="width: 70px;">
+                        <label style="font-size: 0.72rem;">Condition</label>
+                        <select [(ngModel)]="rule.operator" class="input-control" style="font-size: 0.75rem; padding: 4px 2px;">
+                          <option value="gt">&gt;</option>
+                          <option value="lt">&lt;</option>
+                          <option value="eq">==</option>
+                          <option value="neq">!=</option>
+                          <option value="contains">has</option>
+                        </select>
+                      </div>
+                      <div class="form-group" style="flex: 1;">
+                        <label style="font-size: 0.72rem;">Threshold</label>
+                        <input type="text" [(ngModel)]="rule.threshold" placeholder="e.g. 80" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;" />
+                      </div>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                      <label style="font-size: 0.72rem;">Alert Visual Effect</label>
+                      <select [(ngModel)]="rule.className" class="input-control" style="font-size: 0.75rem; padding: 4px 6px;">
+                        <option value="alert-glow-red">🔴 Alert Red (Flashing Crimson Glow)</option>
+                        <option value="alert-glow-amber">🟡 Warning Amber (Flashing Amber)</option>
+                        <option value="highlight-green">🟢 Highlight Green (Emerald Glow)</option>
+                        <option value="pulse-border">🔵 Pulse Border (Pulsing Neon)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+
+            </ng-container>
+          </div>
+
+          <div class="inspector-footer">
+            <button type="button" (click)="duplicateSelectedWidget()" class="btn btn-secondary"><app-icon name="copy-plus" [size]="14"></app-icon> Duplicate</button>
+            <button type="button" (click)="removeSelectedWidget()" class="btn btn-danger"><app-icon name="trash-2" [size]="14"></app-icon> Delete</button>
+          </div>
+        </ng-container>
+
+        <ng-template #noSelection>
+          <div class="inspector-empty">
+            <app-icon name="mouse-pointer-click" [size]="28"></app-icon>
+            <h3>No widget selected</h3>
+            <p>Click a widget on the canvas to edit its content, style and schedule — or add one from the palette.</p>
+            <ul class="shortcut-list">
+              <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> Undo / redo</li>
+              <li><kbd>Ctrl</kbd>+<kbd>D</kbd> Duplicate</li>
+              <li><kbd>Arrows</kbd> Nudge · <kbd>Shift</kbd> 10px</li>
+              <li><kbd>Delete</kbd> Remove widget</li>
+              <li><kbd>Alt</kbd> while dragging: no guides</li>
+            </ul>
+          </div>
+        </ng-template>
+      </aside>
+
+      <!-- Preview: the current page on a chosen device, scaled exactly like the kiosk does -->
+      <div class="preview-overlay" *ngIf="showPreview" role="dialog" aria-modal="true" aria-label="Display preview">
+        <div class="preview-toolbar">
+          <div class="preview-devices" role="radiogroup" aria-label="Preview device">
+            <button *ngFor="let d of previewDevices" type="button" role="radio" [attr.aria-checked]="previewDeviceId === d.id"
+                    [class.active]="previewDeviceId === d.id" (click)="previewDeviceId = d.id">
+              <app-icon [name]="d.icon" [size]="15"></app-icon> {{ d.name }}
+              <span class="preview-res">{{ d.width }}×{{ d.height }}</span>
+            </button>
+          </div>
+          <button type="button" class="btn btn-secondary" (click)="showPreview = false"><app-icon name="x" [size]="14"></app-icon> Close preview</button>
+        </div>
+        <div class="preview-stage-area">
+          <div class="preview-bezel" [style.width.px]="previewDevice.width * previewFrameScale" [style.height.px]="previewDevice.height * previewFrameScale">
+            <div class="preview-screen" [ngClass]="canvasThemeClasses" [style.--sd-accent]="displayConfig.accent_color || null"
+                 [style.background]="getCanvasBackgroundStyle()" [style.fontFamily]="canvasFontFamily"
+                 [style.width.px]="previewDevice.width" [style.height.px]="previewDevice.height"
+                 [style.transform]="'scale(' + previewFrameScale + ')'">
+              <div class="preview-design-stage" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight" [style.transform]="previewStageTransform">
+                <div *ngFor="let widget of previewWidgets" class="preview-widget sd-widget-box"
+                     [style.left.px]="widget.position.x" [style.top.px]="widget.position.y"
+                     [style.width.px]="widget.position.width" [style.height.px]="widget.position.height"
+                     [style.opacity]="widget.style?.opacity ?? 1"
+                     [style.--sd-radius]="widget.style?.borderRadius != null ? widget.style!.borderRadius + 'px' : null"
+                     [style.fontFamily]="getWidgetFont(widget)">
+                  <div class="sd-widget-host" [class.sd-has-bg]="!!widget.style?.backgroundColor" [class.sd-no-blur]="widget.style?.backdropBlur === false"
+                       [style.--sd-widget-bg]="widget.style?.backgroundColor || null">
+                    <ng-container *ngComponentOutlet="widgetComponent(widget.type); inputs: { config: widget.config }; injector: liveInjector"></ng-container>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="preview-caption">{{ previewDevice.name }} · layout {{ canvasWidth }}×{{ canvasHeight }} shown with “{{ displayConfig.scale_mode || 'fit' }}” scaling. Widgets behave as on the live display.</p>
+        </div>
+      </div>
+
+      <!-- Version History Modal -->
+      <div class="history-backdrop" *ngIf="showHistoryModal" (click)="showHistoryModal = false">
+        <div class="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title" (click)="$event.stopPropagation()">
+          <div class="history-head">
+            <h2 id="history-title" class="section-heading"><app-icon name="history" [size]="18"></app-icon> Version History</h2>
+            <button type="button" class="inspector-close" (click)="showHistoryModal = false" aria-label="Close"><app-icon name="x" [size]="16"></app-icon></button>
+          </div>
+          <p class="field-hint">The last 20 publishes are kept. Restoring loads a version into the editor; nothing changes on the display until you publish.</p>
+          <div *ngIf="historyLoading" class="history-empty">Loading…</div>
+          <div *ngIf="!historyLoading && historyVersions.length === 0" class="history-empty">No published versions yet. Each publish from now on is saved here.</div>
+          <ul class="history-list" *ngIf="!historyLoading && historyVersions.length > 0">
+            <li *ngFor="let v of historyVersions; let first = first">
+              <div class="history-meta">
+                <strong>{{ v.created_at | date:'MMM d, y · h:mm a' }}</strong>
+                <span>{{ v.label || (first ? 'Current published version' : 'Published') }} · {{ v.widget_count }} widget{{ v.widget_count === 1 ? '' : 's' }}</span>
+              </div>
+              <button type="button" class="btn-secondary-small" (click)="restoreVersion(v)" [disabled]="first && !isDirty">Restore</button>
+            </li>
+          </ul>
+        </div>
+      </div>
 
       <!-- Help & Documentation Modal -->
       <app-help-docs-modal *ngIf="showHelpModal" (closed)="showHelpModal = false"></app-help-docs-modal>
@@ -1971,6 +2112,7 @@ import { NotificationService } from '../../services/notification.service';
                 <div class="template-icon-large">{{ tmpl.icon }}</div>
                 <h3 class="template-title">{{ tmpl.name }}</h3>
                 <span class="template-cat">{{ tmpl.category }}</span>
+                <span class="template-theme-hint" *ngIf="tmpl.recommendedTheme">Best with the {{ tmpl.recommendedTheme | titlecase }} theme</span>
               </div>
 
               <p class="template-description">{{ tmpl.description }}</p>
@@ -2014,7 +2156,8 @@ import { NotificationService } from '../../services/notification.service';
       overflow: hidden;
     }
     .sidebar {
-      width: 400px;
+      width: 340px;
+      flex-shrink: 0;
       background: #0f172a;
       display: flex;
       flex-direction: column;
@@ -2349,6 +2492,204 @@ import { NotificationService } from '../../services/notification.service';
       font-size: 0.75rem;
       color: #94a3b8;
     }
+    .canvas-empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      max-width: 360px;
+      padding: 28px;
+      text-align: center;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      color: #94a3b8;
+    }
+    .canvas-empty-state h2 { margin: 0; font-size: 1.15rem; color: #f1f5f9; }
+    .canvas-empty-state p { font-size: 0.85rem; line-height: 1.5; margin: 0 0 6px; }
+    .canvas-empty-state .btn { display: inline-flex; align-items: center; gap: 6px; }
+    .preview-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      background: #05080f;
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      flex-wrap: wrap;
+    }
+    .preview-devices { display: flex; gap: 6px; flex-wrap: wrap; }
+    .preview-devices button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.03);
+      color: #cbd5e1;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .preview-devices button.active { border-color: #38bdf8; color: #ffffff; background: rgba(56, 189, 248, 0.15); }
+    .preview-res { color: #64748b; font-weight: 500; font-size: 0.7rem; }
+    .preview-toolbar .btn { display: inline-flex; align-items: center; gap: 6px; }
+    .preview-stage-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      min-height: 0;
+    }
+    .preview-bezel {
+      position: relative;
+      overflow: hidden;
+      border-radius: 6px;
+      box-shadow: 0 0 0 10px #111827, 0 0 0 11px rgba(255, 255, 255, 0.12), 0 30px 80px rgba(0, 0, 0, 0.7);
+    }
+    .preview-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      overflow: hidden;
+    }
+    .preview-design-stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+    }
+    .preview-widget {
+      position: absolute;
+      box-sizing: border-box;
+      padding: 6px;
+    }
+    .preview-caption { font-size: 0.78rem; color: #64748b; }
+    .publish-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-bottom: 8px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+    .publish-status.dirty .status-dot {
+      background: #f59e0b;
+    }
+    .draft-banner {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: #1e293b;
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      border-radius: 10px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+      font-size: 0.82rem;
+      color: #f1f5f9;
+      white-space: nowrap;
+    }
+    .btn-link {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .history-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(2, 6, 23, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .history-modal {
+      width: 100%;
+      max-width: 520px;
+      max-height: 80vh;
+      overflow-y: auto;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 20px;
+      color: #f1f5f9;
+    }
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .history-head h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .history-empty {
+      padding: 24px 0;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+    .history-list {
+      list-style: none;
+      padding: 0;
+      margin: 14px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .history-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 10px;
+    }
+    .history-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 0.82rem;
+    }
+    .history-meta span {
+      color: #94a3b8;
+      font-size: 0.75rem;
+    }
     .color-reset-row {
       display: flex;
       gap: 6px;
@@ -2547,13 +2888,184 @@ import { NotificationService } from '../../services/notification.service';
     }
 
     .inspector {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 14px;
       display: flex;
       flex-direction: column;
       gap: 10px;
+    }
+
+    /* ---- Right-hand inspector panel ---- */
+    .inspector-panel {
+      width: 340px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: #0f172a;
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.35);
+      z-index: 20;
+      min-height: 0;
+    }
+    .inspector-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .inspector-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      flex-shrink: 0;
+    }
+    .inspector-title {
+      flex: 1;
+      min-width: 0;
+    }
+    .inspector-title h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .inspector-sub {
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+    .inspector-close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .inspector-close:hover, .inspector-close:focus-visible {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .inspector-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .inspector-tabs button {
+      flex: 1;
+      position: relative;
+      padding: 7px 8px;
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .inspector-tabs button:hover { color: #ffffff; }
+    .inspector-tabs button.active {
+      color: #ffffff;
+      background: rgba(56, 189, 248, 0.16);
+    }
+    .inspector-tabs button:focus-visible { outline: 2px solid #38bdf8; outline-offset: 1px; }
+    .tab-dot {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+    }
+    .inspector-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px 20px;
+    }
+    .inspector-footer {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .inspector-body .form-group {
+      min-width: 0;
+    }
+    .inspector-body .input-control {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+    .inspector-footer .btn {
+      margin: 0;
+      padding: 9px 12px;
+      font-size: 0.85rem;
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .inspector-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 10px;
+      padding: 48px 24px;
+      color: #94a3b8;
+    }
+    .inspector-empty h3 {
+      margin: 4px 0 0;
+      font-size: 1rem;
+      color: #e2e8f0;
+    }
+    .inspector-empty p {
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    .shortcut-list {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.75rem;
+      text-align: left;
+    }
+    kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      font-family: inherit;
+      font-size: 0.7rem;
+      color: #e2e8f0;
+    }
+
+    /* Narrow screens: inspector floats over the canvas only while a widget is selected */
+    @media (max-width: 1279px) {
+      .inspector-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        transform: translateX(100%);
+        transition: transform 0.2s ease;
+      }
+      .inspector-panel.has-selection {
+        transform: none;
+      }
     }
     .inspector-header {
       display: flex;
@@ -3001,8 +3513,27 @@ import { NotificationService } from '../../services/notification.service';
       background-size: 20px 20px;
     }
 
+    .snap-guide {
+      position: absolute;
+      z-index: 50;
+      pointer-events: none;
+      background: #f472b6;
+    }
+    .snap-guide-v { top: 0; bottom: 0; width: 1px; }
+    .snap-guide-h { left: 0; right: 0; height: 1px; }
+    .draggable-widget:focus-visible {
+      outline: 2px solid #38bdf8;
+      outline-offset: 2px;
+    }
+    .template-theme-hint {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.7rem;
+      color: #38bdf8;
+    }
     .draggable-widget {
       position: absolute;
+      touch-action: none;
       cursor: move;
       border: 1px dashed rgba(255, 255, 255, 0.3);
       border-radius: 12px;
@@ -3037,6 +3568,7 @@ import { NotificationService } from '../../services/notification.service';
     /* 8-Point Visual Handles */
     .resize-handle {
       position: absolute;
+      touch-action: none;
       width: 10px;
       height: 10px;
       background-color: #ffffff;
@@ -3852,12 +4384,22 @@ import { NotificationService } from '../../services/notification.service';
     }
   `]
 })
-export class DashboardEditorComponent implements OnInit, AfterViewInit {
+export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   token: string = '';
   saving: boolean = false;
   activeTab: 'layout' | 'layers' | 'pages' | 'settings' = 'layout';
   readonly widgetTypeCount = WIDGET_REGISTRY.length;
   paletteOpen = true;
+  inspectorTab: 'content' | 'style' | 'behaviour' = 'content';
+  private static readonly TYPES_WITH_CONTENT_FORMS = new Set<string>(['ai_briefing', 'analog_clock', 'button', 'calendar', 'camera_pip', 'chores', 'clock', 'commute', 'countdown', 'gauge', 'gmail', 'google_maps', 'homeassistant', 'meal_planner', 'photo', 'qrcode', 'quote', 'radar', 'reddit', 'rest_fetch', 'rss', 'scheduled_text', 'shapes', 'slack', 'spotify', 'sticky_note', 'stock_crypto', 'sun_moon', 'text', 'todo', 'tradingview', 'weather', 'whiteboard', 'youtube']);
+
+  hasContentSettings(type: string): boolean {
+    return DashboardEditorComponent.TYPES_WITH_CONTENT_FORMS.has(type);
+  }
+
+  widgetSvgIcon(type: string): string {
+    return getWidgetDefinition(type)?.svgIcon || 'shapes';
+  }
   paletteQuery = '';
 
   get paletteGroups(): { id: string; label: string; widgets: WidgetDefinition[] }[] {
@@ -3879,6 +4421,189 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   readonly themePresets = THEME_PRESETS;
 
+  // ---- Change tracking, drafts, history ----
+  isDirty = false;
+  draftSavedAt: Date | null = null;
+  /** A local draft newer than the published layout, offered for restore on load */
+  pendingDraft: { savedAt: string; payload: Record<string, any> } | null = null;
+  showHistoryModal = false;
+  historyLoading = false;
+  historyVersions: { id: number; label: string | null; widget_count: number; created_at: string }[] = [];
+  private lastSavedJson = '';
+  private changeTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+    if (this.isDirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  };
+
+  private get draftKey(): string {
+    return `sd_editor_draft_${this.token}`;
+  }
+
+  /** Baseline after loading or publishing; the layout is "clean" until it differs from this. */
+  private markSavedBaselineKeepDraft(): void {
+    this.lastSavedJson = JSON.stringify(this.buildSavePayload());
+    this.isDirty = false;
+    this.checkForDraft();
+  }
+
+  private markSaved(): void {
+    this.lastSavedJson = JSON.stringify(this.buildSavePayload());
+    this.isDirty = false;
+    this.draftSavedAt = null;
+    try { localStorage.removeItem(this.draftKey); } catch { /* storage unavailable */ }
+  }
+
+  /** Runs every 1.5s outside Angular: detects edits and keeps a local draft so work survives a closed tab. */
+  private startChangeTracking(): void {
+    this.zone.runOutsideAngular(() => {
+      this.changeTimer = setInterval(() => {
+        if (!this.lastSavedJson) return;
+        const json = JSON.stringify(this.buildSavePayload());
+        const dirty = json !== this.lastSavedJson;
+        if (dirty) {
+          try {
+            localStorage.setItem(this.draftKey, JSON.stringify({ savedAt: new Date().toISOString(), payload: JSON.parse(json) }));
+          } catch { /* storage full or unavailable */ }
+        }
+        if (dirty !== this.isDirty || dirty) {
+          this.zone.run(() => {
+            this.isDirty = dirty;
+            if (dirty) this.draftSavedAt = new Date();
+          });
+        }
+      }, 1500);
+    });
+  }
+
+  private checkForDraft(): void {
+    try {
+      const raw = localStorage.getItem(this.draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft?.payload && JSON.stringify(draft.payload) !== this.lastSavedJson) {
+        this.pendingDraft = draft;
+      } else {
+        localStorage.removeItem(this.draftKey);
+      }
+    } catch { /* corrupt draft: ignore */ }
+  }
+
+  restoreDraft(): void {
+    if (!this.pendingDraft) return;
+    this.applyPayload(this.pendingDraft.payload);
+    this.pendingDraft = null;
+    this.notifications.info('Draft restored. Publish when you are ready.');
+  }
+
+  discardDraft(): void {
+    this.pendingDraft = null;
+    try { localStorage.removeItem(this.draftKey); } catch { /* ignore */ }
+  }
+
+  /** Loads a saved payload (draft or history version) into the editor without publishing it. */
+  applyPayload(p: Record<string, any>): void {
+    if (!p) return;
+    const d = this.displayConfig;
+    for (const key of ['name', 'theme', 'orientation', 'refresh_interval', 'font_family', 'scale_mode', 'safe_area', 'page_transition', 'performance_mode', 'burn_in_shift', 'touchhub_enabled']) {
+      if (p[key] !== undefined) (d as any)[key] = p[key];
+    }
+    d.accent_color = p['accent_color'] || undefined;
+    if (p['background']) this.backgroundConfig = p['background'];
+    if (p['sleep_schedule']) this.sleepSchedule = p['sleep_schedule'];
+    if (Array.isArray(p['pages']) && p['pages'].length) this.pages = p['pages'];
+    if (p['logo_url'] !== undefined) this.logoUrl = p['logo_url'] || '';
+    if (p['show_logo_kiosk'] !== undefined) this.showLogoKiosk = !!p['show_logo_kiosk'];
+    if (p['weather_alerts_enabled'] !== undefined) this.weatherAlertsEnabled = !!p['weather_alerts_enabled'];
+    if (p['weather_alert'] !== undefined) this.weatherAlertText = p['weather_alert'] || '';
+    if (p['custom_css'] !== undefined) this.customCss = p['custom_css'] || '';
+    if (p['audio_chimes_enabled'] !== undefined) this.audioChimesEnabled = !!p['audio_chimes_enabled'];
+    if (p['hourly_chime'] !== undefined) this.hourlyChime = !!p['hourly_chime'];
+    if (p['touchhub_config']) {
+      this.touchHubAutoHide = p['touchhub_config'].autoHide !== false;
+      this.touchHubPosition = p['touchhub_config'].position || 'bottom';
+    }
+    if (Array.isArray(p['widgets'])) this.widgets = p['widgets'];
+    if (d.orientation === 'freeform') {
+      this.canvasWidth = p['canvas_width'] || this.canvasWidth;
+      this.canvasHeight = p['canvas_height'] || this.canvasHeight;
+    }
+    this.activePageId = this.pages[0]?.id || 'default';
+    this.selectedWidget = null;
+    this.updateOrientation();
+    this.pushHistory();
+  }
+
+  openHistory(): void {
+    this.showHistoryModal = true;
+    this.historyLoading = true;
+    this.http.get<{ success: boolean; versions: any[] }>(`${environment.apiUrl}/display_versions.php?token=${this.token}`)
+      .subscribe({
+        next: res => {
+          this.historyVersions = res?.versions || [];
+          this.historyLoading = false;
+        },
+        error: () => {
+          this.historyVersions = [];
+          this.historyLoading = false;
+          this.notifications.error('Could not load version history.');
+        }
+      });
+  }
+
+  async restoreVersion(v: { id: number; created_at: string }): Promise<void> {
+    if (this.isDirty) {
+      const ok = await this.notifications.confirm('Your unpublished changes will be replaced by this version.', { title: 'Restore this version?', confirmLabel: 'Restore' });
+      if (!ok) return;
+    }
+    this.http.get<{ success: boolean; version: { snapshot: Record<string, any> } }>(`${environment.apiUrl}/display_versions.php?token=${this.token}&id=${v.id}`)
+      .subscribe({
+        next: res => {
+          this.applyPayload(res.version.snapshot);
+          this.showHistoryModal = false;
+          this.notifications.info('Version restored in the editor. Publish to send it to the display.');
+        },
+        error: () => this.notifications.error('Could not load that version.')
+      });
+  }
+
+  /** Problems worth a second look before publishing (not hard errors) */
+  validateBeforePublish(): string[] {
+    const issues: string[] = [];
+    const isUrl = (v: any) => typeof v === 'string' && /^(https?|webcal):\/\/\S+$/i.test(v.trim());
+    const pageName = (w: Widget) => this.pages.length > 1 ? ` on page "${this.pages.find(p => p.id === w.page_id)?.name || w.page_id}"` : '';
+    for (const w of this.widgets) {
+      const name = `${w.customName || this.getWidgetTypeLabel(w.type)}${pageName(w)}`;
+      const p = w.position;
+      if (p.x < 0 || p.y < 0 || p.x + p.width > this.canvasWidth + 1 || p.y + p.height > this.canvasHeight + 1) {
+        issues.push(`${name} extends past the edge of the ${this.canvasWidth}×${this.canvasHeight} canvas.`);
+      }
+      const c = w.config || {};
+      if (w.type === 'calendar') {
+        const urls = (c['feeds'] || []).map((f: any) => f?.url).filter((u: any) => u);
+        if (!urls.length && !c['icalUrl'] && !(c['customEvents'] || []).length) issues.push(`${name} has no calendar connected and will show "No calendars connected".`);
+        urls.filter((u: string) => !isUrl(u)).forEach((u: string) => issues.push(`${name}: "${u}" is not a valid calendar link.`));
+      }
+      if (w.type === 'rss' && c['feedUrl'] && !isUrl(c['feedUrl'])) issues.push(`${name}: the feed address is not a valid URL.`);
+      if (w.type === 'photo' && c['albumUrl'] && !isUrl(c['albumUrl'])) issues.push(`${name}: the album link is not a valid URL.`);
+      if (w.type === 'rest_fetch' && !isUrl(c['url'])) issues.push(`${name} has no valid data URL.`);
+      if (w.type === 'homeassistant' && (!c['haUrl'] || !c['token'])) issues.push(`${name} is not connected to Home Assistant yet.`);
+    }
+    return issues;
+  }
+
+  canLeave(): boolean | Promise<boolean> {
+    if (!this.isDirty) return true;
+    return this.notifications.confirm('You have changes that are not published yet. A draft is kept in this browser.', { title: 'Leave the editor?', confirmLabel: 'Leave' });
+  }
+
+  ngOnDestroy(): void {
+    if (this.changeTimer) clearInterval(this.changeTimer);
+    window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+  }
+
   get activeTheme(): ThemePreset {
     return resolveTheme(this.displayConfig?.theme);
   }
@@ -3897,6 +4622,53 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   selectTheme(id: ThemePreset): void {
     this.displayConfig.theme = id;
+  }
+
+  /** Templates designed for a specific look (e.g. Mirror) switch the theme, and say so */
+  private adoptRecommendedTheme(tmpl: DashboardTemplate): void {
+    if (tmpl.recommendedTheme && this.activeTheme !== tmpl.recommendedTheme) {
+      this.displayConfig.theme = tmpl.recommendedTheme;
+      const name = THEME_PRESETS.find(t => t.id === tmpl.recommendedTheme)?.name || tmpl.recommendedTheme;
+      this.notifications.info(`Theme switched to ${name} to suit this template. Change it any time in Settings.`);
+    }
+  }
+
+  // ---- Preview mode ----
+  showPreview = false;
+  previewDeviceId = 'tv';
+  readonly previewDevices = [
+    { id: 'tv', name: 'TV 1080p', icon: 'tv', width: 1920, height: 1080 },
+    { id: 'tv4k', name: 'TV 4K', icon: 'tv', width: 3840, height: 2160 },
+    { id: 'portrait', name: 'Portrait', icon: 'monitor-smartphone', width: 1080, height: 1920 },
+    { id: 'ipad', name: 'iPad', icon: 'tablet', width: 2048, height: 1536 },
+    { id: 'pi', name: 'Pi 7" screen', icon: 'monitor', width: 800, height: 480 },
+    { id: 'laptop', name: 'Laptop', icon: 'laptop', width: 1440, height: 900 }
+  ];
+  /** Widgets inside the preview behave like on a real display (no sample data, live states) */
+  readonly liveInjector = Injector.create({ providers: [{ provide: LIVE_DISPLAY, useValue: true }], parent: this.injector });
+
+  get previewDevice() {
+    return this.previewDevices.find(d => d.id === this.previewDeviceId) || this.previewDevices[0];
+  }
+
+  /** Device screen shrunk to fit the preview area */
+  get previewFrameScale(): number {
+    const d = this.previewDevice;
+    const maxW = Math.max(320, window.innerWidth - 160);
+    const maxH = Math.max(240, window.innerHeight - 220);
+    return Math.min(maxW / d.width, maxH / d.height);
+  }
+
+  /** Same placement maths the kiosk uses (Fit/Fill/Stretch + safe area) */
+  get previewStageTransform(): string {
+    const d = this.previewDevice;
+    const t = computeStageTransform({ width: this.canvasWidth, height: this.canvasHeight }, { width: d.width, height: d.height },
+      this.displayConfig.scale_mode || 'fit', this.displayConfig.safe_area || 0);
+    return `translate(${t.offsetX}px, ${t.offsetY}px) scale(${t.scaleX}, ${t.scaleY})`;
+  }
+
+  get previewWidgets(): Widget[] {
+    return this.pageWidgets.filter(w => !w.hidden);
   }
 
   setAccentColor(color: string): void {
@@ -4104,6 +4876,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     });
     this.selectedWidget = null;
     this.showTemplatesModal = false;
+    this.adoptRecommendedTheme(tmpl);
     this.pushHistory();
   }
 
@@ -4132,6 +4905,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     });
     this.selectedWidget = null;
     this.showTemplatesModal = false;
+    this.adoptRecommendedTheme(tmpl);
     this.pushHistory();
   }
 
@@ -4142,7 +4916,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     private authService: AuthService,
     private sanitizer: DomSanitizer,
     private chimeService: AudioChimeService,
-    private notifications: NotificationService
+    private notifications: NotificationService,
+    private zone: NgZone,
+    private injector: Injector
   ) {}
 
   goToFleet(): void {
@@ -4254,12 +5030,18 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
               this.canvasHeight = res.display.canvas_height || 1024;
             }
             this.updateOrientation();
+            this.markSavedBaselineKeepDraft();
           }
         });
     }
 
-    window.addEventListener('mousemove', (e) => this.onMouseMove(e));
-    window.addEventListener('mouseup', () => this.stopDragOrResize());
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
+    this.startChangeTracking();
+
+    // Pointer events cover mouse, touch and pen, so the canvas works on tablets too
+    window.addEventListener('pointermove', (e) => this.onMouseMove(e));
+    window.addEventListener('pointerup', () => this.stopDragOrResize());
+    window.addEventListener('pointercancel', () => this.stopDragOrResize());
     window.addEventListener('resize', () => {
       if (this.autoFit) {
         this.calculateAutoFit();
@@ -4344,8 +5126,10 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
 
   selectWidget(widget: Widget, event: MouseEvent): void {
     event.stopPropagation();
+    if (this.selectedWidget !== widget) {
+      this.inspectorTab = this.hasContentSettings(widget.type) ? 'content' : 'style';
+    }
     this.selectedWidget = widget;
-    this.paletteOpen = false;
   }
 
   addWidget(type: Widget['type']): void {
@@ -4363,7 +5147,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     };
     this.widgets.push(newWidget);
     this.selectedWidget = newWidget;
-    this.paletteOpen = false;
+    this.inspectorTab = 'content';
     this.pushHistory();
   }
 
@@ -4535,7 +5319,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     return Math.round(val / this.gridSnapSize) * this.gridSnapSize;
   }
 
-  startDrag(event: MouseEvent, widget: Widget): void {
+  startDrag(event: PointerEvent, widget: Widget): void {
     if (this.isResizing || widget.locked) return;
     this.isDragging = true;
     this.selectedWidget = widget;
@@ -4545,7 +5329,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     this.widgetStartY = widget.position.y;
   }
 
-  startResize(event: MouseEvent, widget: Widget, handle: string): void {
+  startResize(event: PointerEvent, widget: Widget, handle: string): void {
     event.stopPropagation();
     if (widget.locked) return;
     this.isResizing = true;
@@ -4714,7 +5498,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     return getWidgetDefinition(type)?.name || (type ? type.toUpperCase() : 'Widget');
   }
 
-  onMouseMove(event: MouseEvent): void {
+  onMouseMove(event: PointerEvent): void {
     if (!this.selectedWidget) return;
 
     const zoom = this.zoomLevel || 1.0;
@@ -4723,11 +5507,21 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       const dx = (event.clientX - this.dragStartX) / zoom;
       const dy = (event.clientY - this.dragStartY) / zoom;
 
-      const rawX = Math.max(0, Math.min(this.canvasWidth - this.selectedWidget.position.width, this.widgetStartX + dx));
-      const rawY = Math.max(0, Math.min(this.canvasHeight - this.selectedWidget.position.height, this.widgetStartY + dy));
+      const w = this.selectedWidget.position.width;
+      const h = this.selectedWidget.position.height;
+      let x = this.snap(Math.max(0, Math.min(this.canvasWidth - w, this.widgetStartX + dx)));
+      let y = this.snap(Math.max(0, Math.min(this.canvasHeight - h, this.widgetStartY + dy)));
 
-      this.selectedWidget.position.x = this.snap(rawX);
-      this.selectedWidget.position.y = this.snap(rawY);
+      // Smart guides: align left/centre/right and top/middle/bottom with other widgets and the canvas
+      this.activeGuides = { x: [], y: [] };
+      if (!event.altKey) {
+        const gx = this.findGuideSnap([x, x + w / 2, x + w], this.guideTargets('x'));
+        const gy = this.findGuideSnap([y, y + h / 2, y + h], this.guideTargets('y'));
+        if (gx) { x = Math.max(0, Math.min(this.canvasWidth - w, x + gx.delta)); this.activeGuides.x = [gx.line]; }
+        if (gy) { y = Math.max(0, Math.min(this.canvasHeight - h, y + gy.delta)); this.activeGuides.y = [gy.line]; }
+      }
+      this.selectedWidget.position.x = Math.round(x);
+      this.selectedWidget.position.y = Math.round(y);
     } else if (this.isResizing) {
       const dx = (event.clientX - this.resizeStartX) / zoom;
       const dy = (event.clientY - this.resizeStartY) / zoom;
@@ -4759,11 +5553,67 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
         }
       }
 
-      this.selectedWidget.position.x = this.snap(newX);
-      this.selectedWidget.position.y = this.snap(newY);
-      this.selectedWidget.position.width = this.snap(newW);
-      this.selectedWidget.position.height = this.snap(newH);
+      newX = this.snap(newX);
+      newY = this.snap(newY);
+      newW = this.snap(newW);
+      newH = this.snap(newH);
+
+      // Smart guides for the edges being dragged
+      this.activeGuides = { x: [], y: [] };
+      if (!event.altKey) {
+        if (this.resizeHandle.includes('e')) {
+          const g = this.findGuideSnap([newX + newW], this.guideTargets('x'));
+          if (g && newW + g.delta >= minW) { newW += g.delta; this.activeGuides.x = [g.line]; }
+        } else if (this.resizeHandle.includes('w')) {
+          const g = this.findGuideSnap([newX], this.guideTargets('x'));
+          if (g && newW - g.delta >= minW && newX + g.delta >= 0) { newX += g.delta; newW -= g.delta; this.activeGuides.x = [g.line]; }
+        }
+        if (this.resizeHandle.includes('s')) {
+          const g = this.findGuideSnap([newY + newH], this.guideTargets('y'));
+          if (g && newH + g.delta >= minH) { newH += g.delta; this.activeGuides.y = [g.line]; }
+        } else if (this.resizeHandle.includes('n')) {
+          const g = this.findGuideSnap([newY], this.guideTargets('y'));
+          if (g && newH - g.delta >= minH && newY + g.delta >= 0) { newY += g.delta; newH -= g.delta; this.activeGuides.y = [g.line]; }
+        }
+      }
+
+      this.selectedWidget.position.x = Math.round(newX);
+      this.selectedWidget.position.y = Math.round(newY);
+      this.selectedWidget.position.width = Math.round(newW);
+      this.selectedWidget.position.height = Math.round(newH);
     }
+  }
+
+  /** Alignment lines currently snapped to while dragging/resizing (canvas px) */
+  activeGuides: { x: number[]; y: number[] } = { x: [], y: [] };
+  private static readonly GUIDE_THRESHOLD_SCREEN_PX = 6;
+
+  /** Edges and centres of the canvas and of every other visible widget on this page */
+  private guideTargets(axis: 'x' | 'y'): number[] {
+    const size = axis === 'x' ? this.canvasWidth : this.canvasHeight;
+    const targets = [0, size / 2, size];
+    for (const w of this.pageWidgets) {
+      if (w === this.selectedWidget || w.hidden) continue;
+      const start = axis === 'x' ? w.position.x : w.position.y;
+      const len = axis === 'x' ? w.position.width : w.position.height;
+      targets.push(start, start + len / 2, start + len);
+    }
+    return targets;
+  }
+
+  /** Closest target within the threshold for any of the moving edges; delta moves the edge onto the line */
+  private findGuideSnap(edges: number[], targets: number[]): { delta: number; line: number } | null {
+    const threshold = DashboardEditorComponent.GUIDE_THRESHOLD_SCREEN_PX / (this.zoomLevel || 1);
+    let best: { delta: number; line: number } | null = null;
+    for (const edge of edges) {
+      for (const t of targets) {
+        const d = t - edge;
+        if (Math.abs(d) <= threshold && (!best || Math.abs(d) < Math.abs(best.delta))) {
+          best = { delta: d, line: t };
+        }
+      }
+    }
+    return best;
   }
 
   stopDragOrResize(): void {
@@ -4773,6 +5623,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     this.isDragging = false;
     this.isResizing = false;
     this.resizeHandle = '';
+    this.activeGuides = { x: [], y: [] };
   }
 
   pushHistory(): void {
@@ -4921,9 +5772,9 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
     }
   }
 
-  saveConfiguration(): void {
-    this.saving = true;
-    const payload = {
+  /** Everything save_display.php stores; also used for change tracking, drafts and history. */
+  buildSavePayload(): Record<string, any> {
+    return {
       token: this.token,
       name: this.displayConfig.name,
       theme: this.displayConfig.theme,
@@ -4956,12 +5807,26 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit {
       },
       widgets: this.widgets
     };
+  }
+
+  async saveConfiguration(): Promise<void> {
+    const issues = this.validateBeforePublish();
+    if (issues.length > 0) {
+      const proceed = await this.notifications.confirm(
+        issues.map(i => '• ' + i).join('\n'),
+        { title: `Publish with ${issues.length} issue${issues.length === 1 ? '' : 's'}?`, confirmLabel: 'Publish anyway' }
+      );
+      if (!proceed) return;
+    }
+    this.saving = true;
+    const payload = this.buildSavePayload();
 
     this.http.post<{ success: boolean; id_map?: Record<string, number> }>(`${environment.apiUrl}/save_display.php`, payload)
       .subscribe({
         next: (res) => {
           this.saving = false;
           this.applySavedWidgetIds(res?.id_map);
+          this.markSaved();
           this.notifications.success('Layout and settings published to the display.');
         },
         error: (err) => {

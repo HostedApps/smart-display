@@ -196,13 +196,72 @@ try {
     }
 
     $pdo->commit();
-    echo json_encode(["success" => true, "message" => "Display settings & layout saved securely", "id_map" => (object)$idMap]);
+
+    $versionId = recordDisplayVersion($pdo, $displayId, $userId, $input, count($keptIds), $idMap);
+
+    echo json_encode(["success" => true, "message" => "Display settings & layout saved securely", "id_map" => (object)$idMap, "version_id" => $versionId]);
 } catch (\Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
     http_response_code(500);
     echo json_encode(["error" => "Failed to save: " . $e->getMessage()]);
+}
+
+/**
+ * Store a version-history snapshot of the saved payload and prune the display's
+ * history to the newest 20 entries. Versioning is best-effort:
+ * any failure (e.g. migration_display_versions.sql not applied yet) is swallowed
+ * so it never breaks saving. Returns the new version id, or null.
+ */
+function recordDisplayVersion(PDO $pdo, int $displayId, int $userId, array $input, int $widgetCount, array $idMap = []): ?int {
+    $limit = 20;
+    try {
+        $snapshot = $input;
+        unset($snapshot['token']);
+        // Store database ids (not the editor's temporary ids) so restoring keeps webhook ids and links intact
+        if (!empty($idMap) && isset($snapshot['widgets']) && is_array($snapshot['widgets'])) {
+            foreach ($snapshot['widgets'] as &$sw) {
+                if (is_array($sw) && isset($sw['id']) && isset($idMap[(string)$sw['id']])) {
+                    $sw['id'] = $idMap[(string)$sw['id']];
+                }
+                if (is_array($sw) && isset($sw['linkedWidgetId']) && isset($idMap[(string)$sw['linkedWidgetId']])) {
+                    $sw['linkedWidgetId'] = $idMap[(string)$sw['linkedWidgetId']];
+                }
+            }
+            unset($sw);
+        }
+        $snapshotJson = json_encode($snapshot, JSON_UNESCAPED_UNICODE);
+        if ($snapshotJson === false) {
+            return null;
+        }
+
+        $label = null;
+        if (isset($input['version_label']) && is_scalar($input['version_label'])) {
+            $label = mb_substr(trim(strip_tags((string)$input['version_label'])), 0, 100);
+            if ($label === '') {
+                $label = null;
+            }
+        }
+
+        $ins = $pdo->prepare("INSERT INTO display_versions (display_id, user_id, label, widget_count, snapshot_json) VALUES (?, ?, ?, ?, ?)");
+        $ins->execute([$displayId, $userId, $label, $widgetCount, $snapshotJson]);
+        $versionId = (int)$pdo->lastInsertId();
+
+        // Prune: everything beyond the newest $limit versions for this display
+        $oldStmt = $pdo->prepare("SELECT id FROM display_versions WHERE display_id = ? ORDER BY created_at DESC, id DESC LIMIT 18446744073709551615 OFFSET $limit");
+        $oldStmt->execute([$displayId]);
+        $oldIds = array_map('intval', $oldStmt->fetchAll(PDO::FETCH_COLUMN));
+        if (!empty($oldIds)) {
+            $placeholders = implode(',', array_fill(0, count($oldIds), '?'));
+            $del = $pdo->prepare("DELETE FROM display_versions WHERE display_id = ? AND id IN ($placeholders)");
+            $del->execute(array_merge([$displayId], $oldIds));
+        }
+
+        return $versionId;
+    } catch (\Throwable $e) {
+        return null;
+    }
 }
 
 /**
