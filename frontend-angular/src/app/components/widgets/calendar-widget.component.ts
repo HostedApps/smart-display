@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { interval, Subscription, forkJoin, of } from 'rxjs';
@@ -6,6 +6,10 @@ import { catchError } from 'rxjs/operators';
 import { ICalParserService, CalendarEvent } from '../../services/ical-parser.service';
 import { environment } from '../../../environments/environment';
 import { CalendarFeed } from '../../models/display.model';
+import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 interface MonthDay {
   date: Date;
@@ -18,7 +22,7 @@ interface MonthDay {
 @Component({
   selector: 'app-calendar-widget',
   template: `
-    <div class="calendar-card" [class.grid-mode]="config.viewMode === 'month_grid'">
+    <div class="calendar-card sd-card" [class.grid-mode]="config.viewMode === 'month_grid'">
       <!-- Header -->
       <div class="calendar-header">
         <div class="header-left">
@@ -87,6 +91,11 @@ interface MonthDay {
         </div>
       </div>
 
+      <!-- Live display with nothing real to show -->
+      <app-widget-state *ngIf="calState === 'empty'" message="No calendars connected" hint="Add an iCal / Google / Outlook calendar link in the editor."></app-widget-state>
+      <app-widget-state *ngIf="calState === 'error'" kind="error" message="Calendar unavailable" hint="Couldn't load your calendar feeds. Retrying automatically."></app-widget-state>
+
+      <ng-container *ngIf="calState === 'ok'">
       <!-- VIEW MODE 1: AGENDA LIST VIEW -->
       <div class="agenda-view" *ngIf="config.viewMode !== 'month_grid'">
         <div class="events-list" *ngIf="events.length > 0; else noEvents">
@@ -138,18 +147,14 @@ interface MonthDay {
           </div>
         </div>
       </div>
+      </ng-container>
     </div>
   `,
   styles: [`
     .calendar-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 14px 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -160,7 +165,7 @@ interface MonthDay {
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: var(--sd-border);
     }
     .header-left {
       display: flex;
@@ -170,13 +175,13 @@ interface MonthDay {
     .cal-icon {
       width: 16px;
       height: 16px;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
     }
     .widget-title {
-      font-size: 0.95rem;
+      font-size: var(--sd-fs-title);
       font-weight: 600;
       margin: 0;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .calendar-legend {
       display: flex;
@@ -186,8 +191,8 @@ interface MonthDay {
       display: flex;
       align-items: center;
       gap: 4px;
-      font-size: 0.65rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-muted);
       font-weight: 600;
     }
     .legend-chip .dot {
@@ -214,15 +219,15 @@ interface MonthDay {
       align-items: center;
       gap: 10px;
       padding: 6px 10px;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: var(--sd-surface-2);
+      border-radius: var(--sd-radius-sm);
+      border: var(--sd-border);
       position: relative;
       overflow: hidden;
       transition: background 0.2s;
     }
     .event-item:hover {
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--sd-surface-3);
     }
     .event-accent-bar {
       position: absolute;
@@ -236,22 +241,22 @@ interface MonthDay {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.06);
+      background: var(--sd-surface-2);
       border-radius: 6px;
       min-width: 36px;
       padding: 3px;
     }
     .event-day {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 1.05rem;
+      font-size: var(--sd-fs-title);
       font-weight: 700;
       line-height: 1;
-      color: #ffffff;
+      color: var(--sd-text);
     }
     .event-month {
-      font-size: 0.6rem;
+      font-size: var(--sd-fs-xs);
       text-transform: uppercase;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       font-weight: 600;
     }
     .event-info {
@@ -265,27 +270,27 @@ interface MonthDay {
       gap: 6px;
     }
     .event-title {
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       font-weight: 600;
-      color: #ffffff;
+      color: var(--sd-text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .feed-tag {
-      font-size: 0.6rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     .event-time {
-      font-size: 0.7rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       margin-top: 1px;
     }
     .event-location {
-      font-size: 0.65rem;
-      color: #64748b;
+      font-size: var(--sd-fs-xs);
+      color: var(--sd-text-subtle);
     }
 
     /* Month Grid View */
@@ -299,9 +304,9 @@ interface MonthDay {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       text-align: center;
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       text-transform: uppercase;
       margin-bottom: 4px;
     }
@@ -313,29 +318,29 @@ interface MonthDay {
       flex: 1;
     }
     .day-matrix-cell {
-      background: rgba(255, 255, 255, 0.03);
+      background: var(--sd-surface-2);
       border-radius: 6px;
       padding: 3px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.02);
+      border: var(--sd-border);
     }
     .day-matrix-cell.other-month { opacity: 0.25; }
     .day-matrix-cell.today {
-      background: rgba(14, 165, 233, 0.15);
-      border: 1px solid #0ea5e9;
-      box-shadow: 0 0 10px rgba(14, 165, 233, 0.3);
+      background: var(--sd-accent-soft);
+      border: 1px solid var(--sd-accent);
+      box-shadow: 0 0 10px var(--sd-accent-border);
     }
     .cell-num {
-      font-size: 0.7rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       line-height: 1;
-      color: #cbd5e1;
+      color: var(--sd-text-muted);
       margin-bottom: 2px;
     }
     .today .cell-num {
-      color: #38bdf8;
+      color: var(--sd-accent);
       font-weight: 700;
     }
     .cell-events {
@@ -345,7 +350,7 @@ interface MonthDay {
       overflow: hidden;
     }
     .cell-event-chip {
-      font-size: 0.55rem;
+      font-size: var(--sd-fs-xs);
       color: #0f172a;
       font-weight: 700;
       padding: 1px 3px;
@@ -363,46 +368,45 @@ interface MonthDay {
       display: flex;
       align-items: center;
       gap: 4px;
-      background: rgba(56, 189, 248, 0.15);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      color: #38bdf8;
-      border-radius: 8px;
+      background: var(--sd-accent-soft);
+      border: 1px solid var(--sd-accent-border);
+      color: var(--sd-accent);
+      border-radius: var(--sd-radius-sm);
       padding: 2px 8px;
-      font-size: 0.7rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
     }
     .add-event-btn:hover {
-      background: rgba(56, 189, 248, 0.3);
-      border-color: #38bdf8;
+      background: var(--sd-accent-border);
+      border-color: var(--sd-accent);
     }
     .plus-icon {
       width: 12px;
       height: 12px;
     }
     .add-event-panel {
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      border-radius: 10px;
+      background: var(--sd-surface-2);
+      border: 1px solid var(--sd-accent-border);
+      border-radius: var(--sd-radius-sm);
       padding: 8px 10px;
       margin-bottom: 8px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
     .event-input {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: var(--sd-surface-3);
+      border: var(--sd-border);
       border-radius: 6px;
-      color: #ffffff;
+      color: var(--sd-text);
       padding: 6px 8px;
-      font-size: 0.8rem;
+      font-size: var(--sd-fs-sm);
       outline: none;
     }
     .event-input:focus {
-      border-color: #38bdf8;
+      border-color: var(--sd-accent);
     }
     .event-fields-row {
       display: flex;
@@ -410,17 +414,17 @@ interface MonthDay {
       align-items: center;
     }
     .date-input, .time-input {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: var(--sd-surface-3);
+      border: var(--sd-border);
       border-radius: 6px;
-      color: #ffffff;
+      color: var(--sd-text);
       padding: 4px 6px;
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       outline: none;
     }
     .all-day-label {
-      font-size: 0.7rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       display: flex;
       align-items: center;
       gap: 4px;
@@ -438,10 +442,10 @@ interface MonthDay {
       flex-wrap: wrap;
     }
     .cat-chip {
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--sd-surface-2);
       border: 1px solid transparent;
-      color: #cbd5e1;
-      font-size: 0.65rem;
+      color: var(--sd-text-muted);
+      font-size: var(--sd-fs-xs);
       font-weight: 600;
       border-radius: 4px;
       padding: 2px 6px;
@@ -451,7 +455,7 @@ interface MonthDay {
       gap: 4px;
     }
     .cat-chip.active {
-      background: rgba(255, 255, 255, 0.15);
+      background: var(--sd-surface-3);
     }
     .cat-chip .dot {
       width: 6px;
@@ -465,16 +469,16 @@ interface MonthDay {
     .btn-cancel {
       background: none;
       border: none;
-      color: #94a3b8;
-      font-size: 0.7rem;
+      color: var(--sd-text-muted);
+      font-size: var(--sd-fs-sm);
       cursor: pointer;
       padding: 3px 6px;
     }
     .btn-save {
-      background: #0284c7;
+      background: var(--sd-accent);
       border: none;
-      color: #ffffff;
-      font-size: 0.7rem;
+      color: var(--sd-on-accent);
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       border-radius: 5px;
       padding: 3px 10px;
@@ -484,7 +488,7 @@ interface MonthDay {
       opacity: 0.4;
       cursor: not-allowed;
     }
-    .empty-state { color: #94a3b8; font-size: 0.8rem; margin-top: 16px; text-align: center; }
+    .empty-state { color: var(--sd-text-muted); font-size: var(--sd-fs-sm); margin-top: 16px; text-align: center; }
   `]
 })
 export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
@@ -501,6 +505,9 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
   currentDate: Date = new Date();
   private pollSub?: Subscription;
   private displayToken: string = '';
+  /** Live displays only: 'empty' (nothing configured) / 'error' (all feeds failed) replace the event views. */
+  calState: 'ok' | 'empty' | 'error' = 'ok';
+  readonly isLive: boolean;
 
   showAddModal: boolean = false;
   newEventTitle: string = '';
@@ -530,6 +537,9 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     if (this.config.icalUrl) {
       return [{ name: 'Calendar', url: this.config.icalUrl, color: '#38bdf8' }];
     }
+    if (this.isLive) {
+      return [];
+    }
     return [
       { name: 'Kids', url: '', color: '#ec4899' },
       { name: 'Work', url: '', color: '#3b82f6' },
@@ -537,11 +547,14 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     ];
   }
 
-  constructor(
+  constructor(private dataCache: DataCacheService, 
     private http: HttpClient, 
     private icalParser: ICalParserService,
-    private route: ActivatedRoute
-  ) {}
+    private route: ActivatedRoute,
+    @Optional() @Inject(LIVE_DISPLAY) live: boolean | null
+  ) {
+    this.isLive = !!live;
+  }
 
   ngOnInit(): void {
     this.displayToken = this.route.snapshot.paramMap.get('token') || '';
@@ -590,6 +603,7 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
     };
 
     this.events.push(newEv);
+    this.calState = 'ok';
     this.events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
     this.buildMonthGrid();
     this.closeAddModal();
@@ -634,7 +648,13 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
     const feeds = this.activeFeeds.filter(f => !!f.url);
     if (feeds.length === 0) {
-      this.events = customEvents.length > 0 ? customEvents : this.defaultEvents;
+      if (this.isLive) {
+        // Never show sample events on a live display
+        this.calState = customEvents.length > 0 ? 'ok' : 'empty';
+        this.events = customEvents;
+      } else {
+        this.events = customEvents.length > 0 ? customEvents : this.defaultEvents;
+      }
       this.events.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
       this.buildMonthGrid();
       return;
@@ -642,22 +662,30 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
     const requests = feeds.map(feed => {
       const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_ical&url=${encodeURIComponent(feed.url)}`;
-      return this.http.get(proxyUrl, { responseType: 'text' }).pipe(
+      return this.dataCache.getText(proxyUrl, 2 * MINUTE).pipe(
         catchError(() => of(''))
       );
     });
 
     forkJoin(requests).subscribe(results => {
       let combined: CalendarEvent[] = [...customEvents];
+      let loadedFeeds = 0;
       results.forEach((rawIcal, idx) => {
         if (rawIcal) {
+          loadedFeeds++;
           const parsed = this.icalParser.parse(rawIcal, feeds[idx].name, feeds[idx].color);
           combined = combined.concat(parsed);
         }
       });
 
       combined.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-      this.events = combined.length > 0 ? combined : (customEvents.length > 0 ? customEvents : this.defaultEvents);
+      if (this.isLive) {
+        // Real events only; error state when every feed failed and there is nothing else to show
+        this.events = combined;
+        this.calState = (loadedFeeds === 0 && customEvents.length === 0) ? 'error' : 'ok';
+      } else {
+        this.events = combined.length > 0 ? combined : (customEvents.length > 0 ? customEvents : this.defaultEvents);
+      }
       this.buildMonthGrid();
     });
   }

@@ -1,0 +1,213 @@
+/* ==========================================================
+   Smart Display — design tokens & theme presets
+   ----------------------------------------------------------
+   Widgets style themselves only through these --sd-* tokens.
+   A canvas (kiosk display or editor stage) carries
+   `sd-themed sd-theme-<preset>`; the preset sets base tokens,
+   `.sd-themed` derives the rest so an inline --sd-accent
+   override on the canvas flows through to every widget.
+   ========================================================== */
+
+/* ---- Base tokens: Glass (default) ---- */
+:root,
+.sd-theme-glass {
+  --sd-canvas-bg: #080c14;
+  --sd-surface: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --sd-surface-2: rgba(255, 255, 255, 0.05);
+  --sd-surface-3: rgba(255, 255, 255, 0.1);
+  --sd-border-color: rgba(255, 255, 255, 0.1);
+  --sd-border-width: 1px;
+  --sd-radius: 16px;
+  --sd-radius-sm: 10px;
+  --sd-blur: blur(16px);
+  --sd-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+  --sd-text: #f8fafc;
+  --sd-text-muted: #94a3b8;
+  --sd-text-subtle: #64748b;
+  --sd-accent: #38bdf8;
+  --sd-on-accent: #ffffff;
+  --sd-success: #10b981;
+  --sd-warning: #f59e0b;
+  --sd-danger: #ef4444;
+  --sd-info: #3b82f6;
+  --sd-weight-display: 600;
+  --sd-text-shadow: none;
+}
+
+/* ---- Paper: light theme ---- */
+.sd-theme-paper {
+  --sd-canvas-bg: #eef2f7;
+  --sd-surface: rgba(255, 255, 255, 0.88);
+  --sd-surface-2: rgba(15, 23, 42, 0.05);
+  --sd-surface-3: rgba(15, 23, 42, 0.09);
+  --sd-border-color: rgba(15, 23, 42, 0.1);
+  --sd-blur: blur(10px);
+  --sd-shadow: 0 10px 30px -12px rgba(15, 23, 42, 0.25);
+  --sd-text: #0f172a;
+  --sd-text-muted: #475569;
+  --sd-text-subtle: #64748b;
+  --sd-accent: #0284c7;
+  --sd-success: #059669;
+  --sd-warning: #d97706;
+  --sd-danger: #dc2626;
+  --sd-info: #2563eb;
+}
+
+/* ---- Solid: opaque cards, no blur (also the low-power choice for Raspberry Pi) ---- */
+.sd-theme-solid {
+  --sd-canvas-bg: #0b1120;
+  --sd-surface: #162033;
+  --sd-surface-2: rgba(255, 255, 255, 0.05);
+  --sd-surface-3: rgba(255, 255, 255, 0.09);
+  --sd-border-color: rgba(255, 255, 255, 0.07);
+  --sd-blur: none;
+  --sd-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Mirror: MagicMirror-style pure black, no cards, light type ---- */
+.sd-theme-mirror {
+  --sd-canvas-bg: #000000;
+  --sd-surface: transparent;
+  --sd-surface-2: transparent;
+  --sd-surface-3: rgba(255, 255, 255, 0.06);
+  --sd-border-color: transparent;
+  --sd-blur: none;
+  --sd-shadow: none;
+  --sd-text: #ffffff;
+  --sd-text-muted: #a3a3a3;
+  --sd-text-subtle: #737373;
+  --sd-accent: #e5e5e5;
+  --sd-on-accent: #000000;
+  --sd-weight-display: 300;
+}
+
+/* ---- Ambient: photo-first, dark scrims over a background image or video ---- */
+.sd-theme-ambient {
+  --sd-canvas-bg: #000000;
+  --sd-surface: rgba(0, 0, 0, 0.35);
+  --sd-surface-2: rgba(255, 255, 255, 0.08);
+  --sd-surface-3: rgba(255, 255, 255, 0.14);
+  --sd-border-color: rgba(255, 255, 255, 0.12);
+  --sd-blur: blur(18px) saturate(140%);
+  --sd-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --sd-text: #ffffff;
+  --sd-text-muted: rgba(255, 255, 255, 0.78);
+  --sd-text-subtle: rgba(255, 255, 255, 0.6);
+  --sd-text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* ---- High contrast: accessibility, maximum legibility ---- */
+.sd-theme-contrast {
+  --sd-canvas-bg: #000000;
+  --sd-surface: #000000;
+  --sd-surface-2: #121212;
+  --sd-surface-3: #262626;
+  --sd-border-color: #ffffff;
+  --sd-border-width: 2px;
+  --sd-blur: none;
+  --sd-shadow: none;
+  --sd-text: #ffffff;
+  --sd-text-muted: #e5e5e5;
+  --sd-text-subtle: #d4d4d4;
+  --sd-accent: #ffd60a;
+  --sd-on-accent: #000000;
+  --sd-success: #4ade80;
+  --sd-warning: #fde047;
+  --sd-danger: #f87171;
+  --sd-info: #7dd3fc;
+  --sd-weight-display: 700;
+}
+
+/* ---- Derived tokens (computed on the canvas so accent overrides propagate) ---- */
+:root,
+.sd-themed {
+  --sd-border: var(--sd-border-width) solid var(--sd-border-color);
+  --sd-accent-soft: color-mix(in srgb, var(--sd-accent) 16%, transparent);
+  --sd-accent-border: color-mix(in srgb, var(--sd-accent) 40%, transparent);
+  --sd-success-soft: color-mix(in srgb, var(--sd-success) 16%, transparent);
+  --sd-warning-soft: color-mix(in srgb, var(--sd-warning) 16%, transparent);
+  --sd-danger-soft: color-mix(in srgb, var(--sd-danger) 16%, transparent);
+
+  /* Type scale: grows with the widget box (cqmin of the widget container), never below today's sizes */
+  --sd-fs-xs: clamp(0.62rem, 2.4cqmin, 0.95rem);
+  --sd-fs-sm: clamp(0.72rem, 2.9cqmin, 1.1rem);
+  --sd-fs-body: clamp(0.85rem, 3.4cqmin, 1.35rem);
+  --sd-fs-title: clamp(0.95rem, 4.2cqmin, 1.7rem);
+  --sd-fs-lg: clamp(1.2rem, 6.5cqmin, 2.8rem);
+  --sd-fs-xl: clamp(1.8rem, 12cqmin, 5rem);
+  --sd-fs-hero: clamp(2.4rem, 34cqmin, 12rem);
+}
+
+.sd-themed {
+  background-color: var(--sd-canvas-bg);
+  color: var(--sd-text);
+}
+
+/* Each widget box is a size container, so --sd-fs-* scale with the widget */
+.sd-widget-box {
+  container-type: size;
+}
+
+/* ---- Shared widget card frame ---- */
+.sd-card {
+  background: var(--sd-surface);
+  border: var(--sd-border);
+  border-radius: var(--sd-radius);
+  backdrop-filter: var(--sd-blur);
+  -webkit-backdrop-filter: var(--sd-blur);
+  box-shadow: var(--sd-shadow);
+  color: var(--sd-text);
+  text-shadow: var(--sd-text-shadow);
+}
+
+/* ---- Widget host: fills the widget box; carries the page-enter animation ---- */
+.sd-widget-host {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- Page transitions: newly shown widgets animate in; widgets shared across pages stay put ---- */
+.sd-transition-fade .sd-widget-host { animation: sd-enter-fade 0.6s ease-out both; }
+.sd-transition-slide .sd-widget-host { animation: sd-enter-slide 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sd-transition-zoom .sd-widget-host { animation: sd-enter-zoom 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes sd-enter-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sd-enter-slide { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes sd-enter-zoom { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* ---- Burn-in protection: shift the whole layout up to 4px, one step every 5 minutes ---- */
+.sd-orbit {
+  animation: sd-orbit 2400s steps(8, jump-none) infinite;
+}
+@keyframes sd-orbit {
+  0%    { translate: 0 0; }
+  12.5% { translate: 3px 1px; }
+  25%   { translate: 4px 3px; }
+  37.5% { translate: 2px 4px; }
+  50%   { translate: -1px 3px; }
+  62.5% { translate: -4px 1px; }
+  75%   { translate: -3px -2px; }
+  87.5% { translate: -1px -4px; }
+  100%  { translate: 0 0; }
+}
+
+/* ---- Performance mode (Raspberry Pi / low-power): no blur, shadows or animations inside widgets ---- */
+.sd-perf {
+  --sd-blur: none;
+  --sd-shadow: none;
+}
+.sd-perf .sd-widget-host *,
+.sd-perf .sd-widget-host *::before,
+.sd-perf .sd-widget-host *::after {
+  animation: none !important;
+  transition: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.sd-perf.sd-transition-fade .sd-widget-host,
+.sd-perf.sd-transition-slide .sd-widget-host,
+.sd-perf.sd-transition-zoom .sd-widget-host {
+  animation-duration: 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd-widget-host, .sd-orbit { animation: none !important; }
+}

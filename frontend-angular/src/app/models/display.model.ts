@@ -420,10 +420,50 @@ export interface TouchHubConfig {
   items?: TouchHubItem[];
 }
 
+export const WIDGET_TYPES = [
+  'clock',
+  'weather',
+  'calendar',
+  'photo',
+  'rss',
+  'todo',
+  'homeassistant',
+  'spotify',
+  'stock_crypto',
+  'sticky_note',
+  'countdown',
+  'meal_planner',
+  'radar',
+  'quote',
+  'ai_briefing',
+  'chores',
+  'camera_pip',
+  'commute',
+  'youtube',
+  'text',
+  'qrcode',
+  'world_clocks',
+  'shapes',
+  'scheduled_text',
+  'button',
+  'sun_moon',
+  'analog_clock',
+  'rest_fetch',
+  'gauge',
+  'google_maps',
+  'whiteboard',
+  'slack',
+  'gmail',
+  'tradingview',
+  'reddit',
+] as const;
+
+export type WidgetType = typeof WIDGET_TYPES[number];
+
 export interface Widget {
   id: number;
   page_id?: string;
-  type: 'clock' | 'weather' | 'calendar' | 'photo' | 'rss' | 'todo' | 'homeassistant' | 'spotify' | 'stock_crypto' | 'sticky_note' | 'countdown' | 'meal_planner' | 'radar' | 'quote' | 'ai_briefing' | 'chores' | 'camera_pip' | 'commute' | 'youtube' | 'text' | 'qrcode' | 'world_clocks' | 'shapes' | 'scheduled_text' | 'button' | 'sun_moon' | 'analog_clock' | 'rest_fetch' | 'gauge' | 'google_maps' | 'whiteboard' | 'slack' | 'gmail' | 'tradingview' | 'reddit';
+  type: WidgetType;
   position: WidgetPosition;
   style?: WidgetStyle;
   config: Record<string, any>;
@@ -487,6 +527,20 @@ export interface DisplayConfig {
   logo_url?: string;
   show_logo_kiosk?: boolean;
   font_family?: string;
+  /** Theme accent colour override (hex); empty uses the preset's accent */
+  accent_color?: string;
+  /** Custom design-canvas size, used when orientation is 'freeform' */
+  canvas_width?: number;
+  canvas_height?: number;
+  /** How the design canvas is scaled onto the physical screen */
+  scale_mode?: 'fit' | 'fill' | 'stretch' | 'none';
+  /** Overscan inset as a fraction of each screen edge (0 – 0.1) */
+  safe_area?: number;
+  page_transition?: 'none' | 'fade' | 'slide' | 'zoom';
+  /** 'auto' turns on for low-power devices such as Raspberry Pi */
+  performance_mode?: 'auto' | 'on' | 'off';
+  /** Slowly shifts the whole layout a few pixels to prevent OLED/plasma burn-in */
+  burn_in_shift?: boolean;
   weather_alerts_enabled?: boolean;
   weather_alert?: { title?: string; message: string; severity?: string } | string;
   custom_css?: string;

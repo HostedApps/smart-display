@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { Router } from '@angular/router';
+import { WIDGET_REGISTRY } from '../widgets/widget-registry';
 
 @Component({
   selector: 'app-help-docs-modal',
@@ -35,7 +36,7 @@ import { Router } from '@angular/router';
             🚀 Quick Start
           </button>
           <button [class.active]="activeTab === 'widgets'" (click)="activeTab = 'widgets'">
-            🧩 19-Widget Catalog
+            🧩 {{ widgetCatalog.length }}-Widget Catalog
           </button>
           <button [class.active]="activeTab === 'hardware'" (click)="activeTab = 'hardware'">
             🛠️ Hardware & Kiosks
@@ -752,27 +753,13 @@ export class HelpDocsModalComponent {
   activeTab: 'quickstart' | 'widgets' | 'hardware' | 'walldrop' | 'tips' = 'quickstart';
   widgetSearch: string = '';
 
-  widgetCatalog = [
-    { icon: '▶️', title: 'YouTube Video & Stream', tag: 'Media', description: 'Embeds ambient videos, live news, and music streams with autoplay and loop controls.', configTips: 'Accepts standard watch URLs, youtu.be, shorts, or raw Video IDs.' },
-    { icon: '🧠', title: 'AI Ambient Briefing', tag: 'AI Engine', description: 'Generates daily synthesized morning and evening executive updates using Google Gemini or built-in heuristics.', configTips: 'Customize tone (Warm, Executive, Motivational) or provide Gemini API Key.' },
-    { icon: '🏆', title: 'Chores & Habit Streaks', tag: 'Gamification', description: 'Interactive Hearth-style family chore charts with avatar emojis, flame streaks, and confetti rewards.', configTips: 'Add family members, allocate points per task, and tap to complete.' },
-    { icon: '📹', title: 'Live Camera PIP', tag: 'Security', description: 'Low-latency RTSP/MJPEG live doorbell and security camera PIP stream with snapshot refresh HUD.', configTips: 'Configure stream URL or image snapshot endpoint with refresh interval.' },
-    { icon: '🚗', title: 'Commute & Transit', tag: 'Transit', description: 'Real-time driving traffic ETA matrices and public transit live departure countdowns.', configTips: 'Add destinations (Office, Airport, School) with route badges.' },
-    { icon: '⏰', title: 'Digital Clock', tag: 'Core', description: 'Precision digital clock with 12h/24h formats, date display, and typography styling.', configTips: 'Supports multiple time formats (hh:mm:ss a, HH:mm).' },
-    { icon: '⛅', title: 'Weather Forecast', tag: 'Weather', description: 'Current temperature, weather condition icons, humidity, wind, and 5-day forecasts.', configTips: 'City Name, Imperial (°F) or Metric (°C), and OpenWeather API Key.' },
-    { icon: '📅', title: 'Family Calendar', tag: 'Scheduling', description: 'Monthly calendar grid and agenda list synchronized with Google Calendar, iCloud, and Outlook via iCal.', configTips: 'Paste public/secret iCal URLs from Google/Apple Calendar.' },
-    { icon: '🖼️', title: 'Photo Slideshow & Google Photos', tag: 'Media', description: 'Rotating family photo album slideshow and live streaming from Google Photos shared albums.', configTips: 'Paste any Google Photos shared link (e.g. photos.app.goo.gl) or custom image URLs.' },
-    { icon: '📰', title: 'RSS News Feed', tag: 'Information', description: 'Live headline ticker pulling from major news outlets, tech blogs, and custom RSS feeds.', configTips: 'Enter any valid RSS XML endpoint URL (e.g. BBC, NYT, Hacker News).' },
-    { icon: '📝', title: 'Tasks & To-Do', tag: 'Productivity', description: 'Shared family or office checklist with strike-through completion.', configTips: 'Add checklist items directly or sync with task managers.' },
-    { icon: '🏠', title: 'Smart Home & Home Assistant', tag: 'Smart Home', description: 'Displays live entity states, lights, sensors, thermostat gauges from Home Assistant, Google Home, Alexa, or custom virtual devices.', configTips: 'Home Assistant URL & token or custom smart entities.' },
-    { icon: '🎵', title: 'Spotify Now Playing', tag: 'Music', description: 'Shows active track artwork, artist name, progress bar, and playback status.', configTips: 'OAuth connection or simulated ambient music player mode.' },
-    { icon: '📈', title: 'Markets & Stocks Ticker', tag: 'Finance', description: 'Live ticker tracking for US & Global Stocks (AAPL, TSLA, NVDA, SPY, MSFT, GOOGL) and Cryptocurrencies (BTC, ETH, SOL) with sparklines and % change.', configTips: 'Enter comma-separated stock symbols (e.g. AAPL, NVDA, SPY) and crypto tokens.' },
-    { icon: '📌', title: 'Sticky Notes', tag: 'Family Board', description: 'Colored virtual post-it notes with handwriting typography.', configTips: 'Set author, message, and note paper color.' },
-    { icon: '⏳', title: 'Countdown Timer', tag: 'Events', description: 'Live countdown timer to vacations, weddings, birthdays, or product launches.', configTips: 'Pick target date & time and give the event a title.' },
-    { icon: '🍽️', title: 'Meal Planner', tag: 'Lifestyle', description: 'Weekly Monday-to-Sunday dinner and lunch meal schedule for the whole family.', configTips: 'Edit daily menu items directly in the inspector.' },
-    { icon: '🛰️', title: 'Weather Radar', tag: 'Weather', description: 'Live animated Doppler rain and cloud radar map. Powered by RainViewer — 100% Free & Zero API Key Required.', configTips: 'Pick a quick city preset or enter Lat/Lon coordinates. No API key needed!' },
-    { icon: '💬', title: 'Daily Quotes', tag: 'Inspiration', description: 'Daily motivational thoughts, stoic philosophy, or custom family mottos.', configTips: 'Select category or enter custom family quote.' }
-  ];
+  widgetCatalog = WIDGET_REGISTRY.map(d => ({
+    icon: d.icon,
+    title: d.name,
+    tag: d.tag,
+    description: d.description,
+    configTips: d.tips
+  }));
 
   get filteredWidgets() {
     if (!this.widgetSearch.trim()) return this.widgetCatalog;

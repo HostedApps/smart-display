@@ -1,13 +1,18 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Inject, Input, OnInit, OnDestroy, OnChanges, Optional, SimpleChanges } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { LIVE_DISPLAY } from './widget-context';
+import { DataCacheService } from '../../services/data-cache.service';
+
+const MINUTE = 60_000;
 
 @Component({
   selector: 'app-photo-widget',
   template: `
-    <div class="photo-card" [ngClass]="config.fitMode || 'cover'">
+    <div class="photo-card sd-card" [ngClass]="config.fitMode || 'cover'">
+      <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div 
         *ngIf="config.blurBackground && config.fitMode === 'contain' && currentImageUrl" 
         class="blur-backdrop" 
@@ -61,10 +66,7 @@ import { environment } from '../../../environments/environment';
       height: 100%;
       position: relative;
       overflow: hidden;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background-color: rgba(0, 0, 0, 0.6);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+      background: #000;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -108,11 +110,10 @@ import { environment } from '../../../environments/environment';
       left: 10px;
       background: rgba(15, 23, 42, 0.8);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(8px);
       padding: 3px 8px;
-      border-radius: 12px;
+      border-radius: var(--sd-radius-sm);
       color: #38bdf8;
-      font-size: 0.65rem;
+      font-size: var(--sd-fs-xs);
       font-weight: 700;
       letter-spacing: 0.3px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -123,11 +124,10 @@ import { environment } from '../../../environments/environment';
       left: 12px;
       background: rgba(15, 23, 42, 0.75);
       border: 1px solid rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(8px);
       padding: 4px 12px;
       border-radius: 20px;
       color: #ffffff;
-      font-size: 0.75rem;
+      font-size: var(--sd-fs-sm);
       font-weight: 600;
       letter-spacing: 0.2px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
@@ -138,26 +138,26 @@ import { environment } from '../../../environments/environment';
       align-items: center;
       justify-content: center;
       color: rgba(255, 255, 255, 0.5);
-      font-size: 0.85rem;
+      font-size: var(--sd-fs-body);
       gap: 8px;
     }
     .photo-icon {
       width: 32px;
       height: 32px;
-      color: var(--accent-blue, #0ea5e9);
+      color: var(--sd-accent);
     }
     .loading-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 8px;
-      color: #38bdf8;
+      color: var(--sd-accent);
     }
     .spinner-mini {
       width: 20px;
       height: 20px;
-      border: 2px solid rgba(56, 189, 248, 0.2);
-      border-top-color: #38bdf8;
+      border: 2px solid var(--sd-accent-soft);
+      border-top-color: var(--sd-accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -199,7 +199,11 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   private errorCount: number = 0;
   private lastErrorTime: number = 0;
 
-  constructor(private http: HttpClient) {}
+  readonly isLive: boolean;
+
+  constructor(private dataCache: DataCacheService, private http: HttpClient, @Optional() @Inject(LIVE_DISPLAY) live: boolean | null) {
+    this.isLive = !!live;
+  }
 
   private static getStorageKey(url: string): string {
     let hash = 0;
@@ -254,6 +258,11 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
       if (urls.length > 0) return urls.map((u: string) => this.normalizeImageUrl(u));
     }
     return this.defaultImages;
+  }
+
+  /** True when no album is configured and only the built-in example images are shown. */
+  get showingSample(): boolean {
+    return !this.getAlbumUrl() && this.effectiveImages.every(u => this.defaultImages.includes(u));
   }
 
   get currentImageUrl(): string {
@@ -373,7 +382,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     }
     const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_icloud_photos&album_url=${encodeURIComponent(url)}`;
     
-    this.http.get<any>(proxyUrl)
+    this.dataCache.get<any>(proxyUrl, 10 * MINUTE)
       .pipe(catchError(() => of(null)))
       .subscribe(res => {
         this.loadingAlbum = false;
@@ -406,7 +415,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     }
     const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_google_photos&album_url=${encodeURIComponent(url)}`;
     
-    this.http.get<any>(proxyUrl)
+    this.dataCache.get<any>(proxyUrl, 10 * MINUTE)
       .pipe(catchError(() => of(null)))
       .subscribe(res => {
         this.loadingAlbum = false;

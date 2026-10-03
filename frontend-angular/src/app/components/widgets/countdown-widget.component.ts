@@ -1,10 +1,11 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { interval, Subscription } from 'rxjs';
+import { Subscription } from 'rxjs';
+import { ClockService } from '../../services/clock.service';
 
 @Component({
   selector: 'app-countdown-widget',
   template: `
-    <div class="countdown-card">
+    <div class="countdown-card sd-card">
       <div class="emoji-badge">{{ config.emoji || '🌴' }}</div>
       
       <h3 class="event-title">{{ config.title || 'Hawaii Vacation' }}</h3>
@@ -46,12 +47,7 @@ import { interval, Subscription } from 'rxjs';
     .countdown-card {
       height: 100%;
       box-sizing: border-box;
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(168, 85, 247, 0.12));
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 16px;
       padding: 16px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -71,9 +67,9 @@ import { interval, Subscription } from 'rxjs';
       100% { transform: translateY(-4px); }
     }
     .event-title {
-      font-size: 1.15rem;
+      font-size: var(--sd-fs-title);
       font-weight: 700;
-      color: #ffffff;
+      color: var(--sd-text);
       margin: 0 0 10px 0;
       letter-spacing: -0.2px;
     }
@@ -87,55 +83,56 @@ import { interval, Subscription } from 'rxjs';
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+      background: var(--sd-surface-2);
+      border: var(--sd-border);
+      border-radius: var(--sd-radius-sm);
       padding: 6px 8px;
       min-width: 42px;
     }
     .num {
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-size: 1.35rem;
-      font-weight: 700;
-      color: #38bdf8;
+      font-size: var(--sd-fs-lg);
+      font-weight: var(--sd-weight-display);
+      color: var(--sd-accent);
       line-height: 1;
       font-variant-numeric: tabular-nums;
-      text-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
     }
     .label {
-      font-size: 0.6rem;
+      font-size: var(--sd-fs-xs);
       text-transform: uppercase;
-      color: #94a3b8;
+      color: var(--sd-text-muted);
       font-weight: 700;
       letter-spacing: 0.5px;
       margin-top: 2px;
     }
     .time-sep {
-      font-size: 1.2rem;
+      font-size: var(--sd-fs-lg);
       font-weight: 700;
-      color: rgba(255, 255, 255, 0.3);
+      color: var(--sd-text-subtle);
       margin-bottom: 12px;
     }
     .celebration-box {
-      background: rgba(16, 185, 129, 0.25);
-      border: 1px solid #10b981;
+      background: var(--sd-success-soft);
+      border: var(--sd-border-width) solid var(--sd-success);
       padding: 8px 16px;
-      border-radius: 10px;
+      border-radius: var(--sd-radius-sm);
       margin-bottom: 6px;
     }
     .celeb-text {
       font-weight: 700;
-      color: #34d399;
-      font-size: 1rem;
+      color: var(--sd-success);
+      font-size: var(--sd-fs-title);
     }
     .target-date-sub {
-      font-size: 0.7rem;
-      color: #94a3b8;
+      font-size: var(--sd-fs-sm);
+      color: var(--sd-text-muted);
       font-weight: 500;
     }
   `]
 })
 export class CountdownWidgetComponent implements OnInit, OnDestroy {
+  constructor(private clock: ClockService) {}
+
   @Input() config: any = {
     targetDate: '2026-12-25',
     title: 'Christmas Vacation',
@@ -153,7 +150,7 @@ export class CountdownWidgetComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.updateCountdown();
-    this.timerSub = interval(1000).subscribe(() => this.updateCountdown());
+    this.timerSub = this.clock.tick$.subscribe(() => this.updateCountdown());
   }
 
   private updateCountdown(): void {
