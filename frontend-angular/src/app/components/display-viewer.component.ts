@@ -1151,10 +1151,14 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
         if (err.status === 404) {
           this.offlineReason = 'Display Not Found (404)';
         } else if (err.status === 401 || err.status === 403) {
-          this.offlineReason = 'Unauthorized. Redirecting to pair...';
-          localStorage.removeItem('device_token');
-          this.router.navigate(['/pair']);
-          return;
+          const hasDeviceToken = !!localStorage.getItem('device_token');
+          if (!hasDeviceToken) {
+            this.offlineReason = 'Device Not Paired. Redirecting to pair...';
+            this.router.navigate(['/pair']);
+            return;
+          } else {
+            this.offlineReason = 'Authorization check failed. Retrying...';
+          }
         } else if (err.status === 0) {
           this.offlineReason = 'Network or DNS Unreachable';
         } else if (err.status >= 500) {
@@ -1162,7 +1166,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
         } else {
           this.offlineReason = err.statusText || 'Connection Error';
         }
-        // Fast retry after 8 seconds in case Raspberry Pi booted before WiFi connected
+        // Fast retry after 8 seconds in case Raspberry Pi booted before WiFi connected or temporary glitch
         setTimeout(() => this.loadConfiguration(), 8000);
       }
     });
