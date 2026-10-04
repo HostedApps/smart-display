@@ -111,15 +111,17 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     svgIcon: 'sparkles',
     category: 'info',
     tag: 'AI Engine',
-    description: 'Generates daily synthesized morning and evening executive updates using Google Gemini or built-in heuristics.',
-    tooltip: 'AI-synthesized daily morning and evening executive updates using Google Gemini or ambient engine',
-    tips: 'Customize tone (Warm, Executive, Motivational) or provide Gemini API Key.',
+    description: 'A short morning, afternoon or evening briefing about your weather and next event, written by Google Gemini or the built-in engine.',
+    tooltip: 'AI-written daily briefing using your local weather and calendar',
+    tips: 'Set a location (or add a Weather widget to the same screen) and a Calendar widget for the next event. A Gemini API key is optional.',
     component: AIBriefingWidgetComponent,
     defaultSize: { width: 460, height: 200 },
     defaultConfig: () => ({
       userName: '',
       tone: 'warm',
-      refreshHours: 1
+      refreshHours: 1,
+      city: '',
+      units: 'imperial'
     })
   },
   {

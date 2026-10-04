@@ -1,195 +1,282 @@
 <?php
+/**
+ * AI Ambient Briefing.
+ *
+ * The widget sends the real context it knows (location, weather, next event, the display's
+ * local hour and date). Nothing is invented here: facts the widget didn't send are left out.
+ *
+ * Gemini calls are cached per context, so carousel page changes, several kiosks and editor
+ * previews share one generation. If Gemini fails (rate limit, overload, timeout), the last good
+ * Gemini briefing for the same person, place and part of the day is served before falling back
+ * to the local template engine.
+ */
 require_once 'db.php';
 
-$input = json_decode(file_get_contents('php://input'), true) ?? $_GET;
-$apiKey = trim($input['apiKey'] ?? '');
+const BRIEFING_FRESH_SECONDS = 50 * 60;      // reuse a generated briefing for this long
+const BRIEFING_REFRESH_MIN_SECONDS = 120;    // the manual refresh button can't bypass the cache faster than this
+const GEMINI_TIMEOUT_SECONDS = 15;
 
-// Fallback to server-level GEMINI_API_KEY environment variable if not supplied in widget config
-if (empty($apiKey) && getenv('GEMINI_API_KEY')) {
+$input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) $input = $_GET;
+
+/** Trimmed, tag-free, length-capped text from the request (prompt input, never HTML output). */
+function briefingField(array $input, string $key, int $maxLen = 300): string {
+    $val = $input[$key] ?? '';
+    if (!is_string($val) && !is_numeric($val)) return '';
+    $val = trim(preg_replace('/\s+/u', ' ', strip_tags((string)$val)));
+    return mb_substr($val, 0, $maxLen);
+}
+
+$apiKey = briefingField($input, 'apiKey', 200);
+if ($apiKey === '' && getenv('GEMINI_API_KEY')) {
     $apiKey = getenv('GEMINI_API_KEY');
 }
-$userName = trim($input['userName'] ?? 'there');
-$weatherDesc = trim($input['weatherDesc'] ?? 'Sunny, 74°F');
-$calendarSummary = trim($input['calendarSummary'] ?? 'No urgent meetings');
-$tasksSummary = trim($input['tasksSummary'] ?? 'All clear');
-$tone = trim($input['tone'] ?? 'warm'); // 'warm' | 'executive' | 'motivational' | 'concise'
+$isTest = !empty($input['test']);
+$forceRefresh = !empty($input['refresh']);
 
-// Hour of day to tailor greeting
-$hour = (int)date('G');
-if ($hour < 12) {
-    $timeOfDay = 'morning';
-} else if ($hour < 17) {
-    $timeOfDay = 'afternoon';
-} else {
-    $timeOfDay = 'evening';
+$userName = briefingField($input, 'userName', 60);
+$tone = in_array($input['tone'] ?? '', ['warm', 'executive', 'motivational', 'concise'], true) ? $input['tone'] : 'warm';
+$location = briefingField($input, 'location', 120);
+$weather = briefingField($input, 'weather');
+$events = briefingField($input, 'events');
+$tasks = briefingField($input, 'tasks');
+$localDate = briefingField($input, 'localDate', 60);
+
+// Part of the day comes from the display's clock; the server may be in another time zone.
+$hour = isset($input['localHour']) && is_numeric($input['localHour']) ? (int)$input['localHour'] : (int)date('G');
+if ($hour < 0 || $hour > 23) $hour = (int)date('G');
+$timeOfDay = $hour < 12 ? 'morning' : ($hour < 17 ? 'afternoon' : 'evening');
+
+/**
+ * One generateContent call. Returns ['text' => string|null, 'status' => int, 'error' => string|null].
+ */
+function geminiGenerate(string $apiVersion, string $model, string $apiKey, array $payload): array {
+    $url = "https://generativelanguage.googleapis.com/{$apiVersion}/models/{$model}:generateContent?key=" . urlencode($apiKey);
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_TIMEOUT, GEMINI_TIMEOUT_SECONDS);
+    $res = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $data = is_string($res) ? json_decode($res, true) : null;
+    if ($status !== 200) {
+        return ['text' => null, 'status' => $status, 'error' => $data['error']['message'] ?? null];
+    }
+
+    $candidate = $data['candidates'][0] ?? [];
+    $text = '';
+    foreach ($candidate['content']['parts'] ?? [] as $part) {
+        if (!empty($part['thought'])) continue;
+        if (!empty($part['text'])) $text .= $part['text'];
+    }
+    $text = trim($text);
+    if ($text === '') {
+        $reason = $candidate['finishReason'] ?? ($data['promptFeedback']['blockReason'] ?? 'no text');
+        return ['text' => null, 'status' => 200, 'error' => "Gemini returned no briefing text ({$reason})"];
+    }
+    return ['text' => $text, 'status' => 200, 'error' => null];
 }
 
-$isTest = !empty($input['test']);
-$geminiError = null;
+/** A short, human explanation of a failed Gemini call for the widget's tooltip. */
+function geminiErrorMessage(array $result): string {
+    $status = $result['status'];
+    if ($status === 0) return 'Gemini did not respond in time.';
+    if ($status === 429) return 'Gemini rate limit reached (HTTP 429). Check your quota or use a longer refresh interval.';
+    if ($status >= 500) return "Gemini is temporarily unavailable (HTTP {$status}).";
+    return $result['error'] ?: "Gemini returned HTTP {$status}.";
+}
 
-// 1. If Gemini API Key provided, dynamically resolve and call supported model
-if (!empty($apiKey)) {
-    try {
-        $modelInfo = resolveGeminiModel($apiKey);
-        $apiVersion = $modelInfo['apiVersion'];
-        $modelName = $modelInfo['model'];
+/**
+ * Generate text with the key's best available model, retrying once on transient failures
+ * (timeout, 429, 5xx) and switching model if Google says the resolved one is gone.
+ */
+function geminiGenerateWithRetry(string $apiKey, array $payload): array {
+    $modelInfo = resolveGeminiModel($apiKey);
+    $apiVersion = $modelInfo['apiVersion'];
+    $model = $modelInfo['model'];
 
-        $prompt = $isTest 
-            ? "Respond with exactly: 'Gemini ($modelName) is connected and working perfectly!'"
-            : "You are an intelligent, articulate ambient smart wall display executive assistant. "
-            . "Generate a warm, inspiring, and complete 3-sentence $timeOfDay briefing for $userName. "
-            . "Tone: $tone. "
-            . "Current context: Weather: $weatherDesc. Schedule: $calendarSummary. Pending tasks: $tasksSummary. "
-            . "Provide a thoughtful, motivating overview of the $timeOfDay, reflecting on the current conditions, upcoming focus, and an uplifting thought. "
-            . "Requirements: Every sentence must be fully completed. Write approx. 50 to 80 words. Do not truncate mid-sentence. Do not use markdown, hashtags, or bullet points. Output ONLY the spoken briefing text.";
+    $started = microtime(true);
+    $result = geminiGenerate($apiVersion, $model, $apiKey, $payload);
 
-        $url = "https://generativelanguage.googleapis.com/{$apiVersion}/models/{$modelName}:generateContent?key=" . urlencode($apiKey);
-        $payload = [
-            "contents" => [
-                ["parts" => [["text" => $prompt]]]
-            ],
-            "generationConfig" => [
-                "temperature" => 0.7,
-                "maxOutputTokens" => 800
-            ]
-        ];
-
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 8);
-        $res = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode === 200 && $res) {
-            $data = json_decode($res, true);
-            $parts = $data['candidates'][0]['content']['parts'] ?? [];
-            $text = '';
-            foreach ($parts as $p) {
-                if (!empty($p['thought'])) continue;
-                if (!empty($p['text'])) $text .= $p['text'];
-            }
-            $text = trim($text);
-            if (!empty($text)) {
-                echo json_encode([
-                    "success" => true,
-                    "briefing" => $text,
-                    "timeOfDay" => $timeOfDay,
-                    "provider" => "gemini",
-                    "model" => $modelName,
-                    "message" => "Connected successfully! Using {$modelName} ({$apiVersion})"
-                ]);
-                exit();
-            }
-        } else {
-            $errData = json_decode($res, true);
-            $errMessage = $errData['error']['message'] ?? "Google API returned HTTP $httpCode";
-
-            // If Google says the model is no longer available or suggests a replacement model
-            if (stripos($errMessage, 'no longer available') !== false || stripos($errMessage, 'models/') !== false) {
-                // Extract suggested model or fall back to gemini-3.6-flash
-                $retryModel = 'gemini-3.6-flash';
-                if (preg_match('/models\/(gemini-[a-zA-Z0-9\.\-]+)/i', $errMessage, $suggMatch)) {
-                    if ($suggMatch[1] !== $modelName) {
-                        $retryModel = $suggMatch[1];
-                    }
-                }
-
-                $retryUrl = "https://generativelanguage.googleapis.com/{$apiVersion}/models/{$retryModel}:generateContent?key=" . urlencode($apiKey);
-                $ch2 = curl_init($retryUrl);
-                curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch2, CURLOPT_POST, true);
-                curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode($payload));
-                curl_setopt($ch2, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-                curl_setopt($ch2, CURLOPT_TIMEOUT, 8);
-                $res2 = curl_exec($ch2);
-                $httpCode2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-                curl_close($ch2);
-
-                if ($httpCode2 === 200 && $res2) {
-                    $data2 = json_decode($res2, true);
-                    $parts2 = $data2['candidates'][0]['content']['parts'] ?? [];
-                    $text2 = '';
-                    foreach ($parts2 as $p) {
-                        if (!empty($p['thought'])) continue;
-                        if (!empty($p['text'])) $text2 .= $p['text'];
-                    }
-                    $text2 = trim($text2);
-                    if (!empty($text2)) {
-                        // Update cache with the working model
-                        $cacheFile = sys_get_temp_dir() . '/gemini_model_' . md5($apiKey) . '.json';
-                        @file_put_contents($cacheFile, json_encode(['apiVersion' => $apiVersion, 'model' => $retryModel]));
-
-                        echo json_encode([
-                            "success" => true,
-                            "briefing" => $text2,
-                            "timeOfDay" => $timeOfDay,
-                            "provider" => "gemini",
-                            "model" => $retryModel,
-                            "message" => "Connected successfully! Using {$retryModel} ({$apiVersion})"
-                        ]);
-                        exit();
-                    }
-                } else {
-                    $errData2 = json_decode($res2, true);
-                    $geminiError = $errData2['error']['message'] ?? $errMessage;
-                }
-            } else {
-                $geminiError = $errMessage;
-            }
+    // Model retired or renamed: use the model Google suggests, else a current default
+    if ($result['text'] === null && in_array($result['status'], [400, 404], true)
+        && $result['error'] && (stripos($result['error'], 'no longer available') !== false || stripos($result['error'], 'not found') !== false)) {
+        $retryModel = 'gemini-3.6-flash';
+        if (preg_match('/models\/(gemini-[a-zA-Z0-9\.\-]+)/i', $result['error'], $m) && $m[1] !== $model) {
+            $retryModel = $m[1];
         }
+        $model = $retryModel;
+        $result = geminiGenerate($apiVersion, $model, $apiKey, $payload);
+        if ($result['text'] !== null) {
+            $cacheFile = sys_get_temp_dir() . '/gemini_model_' . md5($apiKey) . '.json';
+            @file_put_contents($cacheFile, json_encode(['apiVersion' => $apiVersion, 'model' => $model]));
+        }
+    }
+
+    // Thinking used up the output budget: try once more with room to spare
+    if ($result['text'] === null && $result['status'] === 200 && stripos((string)$result['error'], 'MAX_TOKENS') !== false) {
+        $payload['generationConfig']['maxOutputTokens'] = 4096;
+        $result = geminiGenerate($apiVersion, $model, $apiKey, $payload);
+    }
+
+    // Transient failure: one retry, if the first attempt left time for it
+    $transient = $result['status'] === 0 || $result['status'] === 429 || $result['status'] >= 500;
+    if ($result['text'] === null && $transient && (microtime(true) - $started) < 8) {
+        sleep(2);
+        $result = geminiGenerate($apiVersion, $model, $apiKey, $payload);
+    }
+
+    $result['model'] = $model;
+    $result['apiVersion'] = $apiVersion;
+    return $result;
+}
+
+// ---------------------------------------------------------------------------
+// "Test Key" button in the editor
+// ---------------------------------------------------------------------------
+if ($isTest) {
+    if ($apiKey === '') {
+        echo json_encode(["success" => false, "error" => "No API key provided to test. Please enter a key first."]);
+        exit();
+    }
+    try {
+        $result = geminiGenerateWithRetry($apiKey, [
+            "contents" => [["parts" => [["text" => "Respond with exactly: OK"]]]],
+            "generationConfig" => ["temperature" => 0, "maxOutputTokens" => 1024]
+        ]);
+        if ($result['text'] !== null) {
+            echo json_encode([
+                "success" => true,
+                "model" => $result['model'],
+                "message" => "Connected! Using {$result['model']} ({$result['apiVersion']})."
+            ]);
+        } else {
+            echo json_encode(["success" => false, "error" => geminiErrorMessage($result)]);
+        }
+    } catch (\Exception $e) {
+        echo json_encode(["success" => false, "error" => $e->getMessage()]);
+    }
+    exit();
+}
+
+// ---------------------------------------------------------------------------
+// Cache
+// ---------------------------------------------------------------------------
+$cacheDir = sys_get_temp_dir() . '/sd_briefings';
+if (!is_dir($cacheDir)) @mkdir($cacheDir, 0700, true);
+$keyId = $apiKey !== '' ? md5($apiKey) : 'nokey';
+// Exact context: same facts → same briefing
+$freshFile = $cacheDir . '/fresh_' . md5(json_encode([$keyId, $userName, $tone, $location, $weather, $events, $tasks, $timeOfDay, $localDate])) . '.json';
+// Last good Gemini briefing for this person, place and part of the day (used when Gemini fails)
+$lastGoodFile = $cacheDir . '/good_' . md5(json_encode([$keyId, $userName, $tone, $location, $timeOfDay, $localDate])) . '.json';
+
+function readBriefingCache(string $file): ?array {
+    if (!is_file($file)) return null;
+    $data = json_decode((string)@file_get_contents($file), true);
+    return is_array($data) && !empty($data['briefing']) ? $data : null;
+}
+
+function respondBriefing(array $entry, string $timeOfDay, bool $cached, bool $stale = false, ?string $geminiError = null): void {
+    echo json_encode([
+        "success" => true,
+        "briefing" => $entry['briefing'],
+        "provider" => $entry['provider'],
+        "model" => $entry['model'] ?? null,
+        "generatedAt" => gmdate('Y-m-d\TH:i:s\Z', (int)$entry['generatedAt']),
+        "timeOfDay" => $timeOfDay,
+        "cached" => $cached,
+        "stale" => $stale,
+        "geminiError" => $geminiError
+    ]);
+    exit();
+}
+
+$fresh = readBriefingCache($freshFile);
+if ($fresh && $fresh['provider'] === 'gemini') {
+    $age = time() - (int)$fresh['generatedAt'];
+    if ($age < BRIEFING_FRESH_SECONDS && (!$forceRefresh || $age < BRIEFING_REFRESH_MIN_SECONDS)) {
+        respondBriefing($fresh, $timeOfDay, true);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Gemini
+// ---------------------------------------------------------------------------
+$geminiError = null;
+if ($apiKey !== '') {
+    $facts = [];
+    if ($localDate !== '') $facts[] = "Today is {$localDate}.";
+    if ($location !== '') $facts[] = "Location: {$location}.";
+    if ($weather !== '') $facts[] = "Current weather there: {$weather}.";
+    if ($events !== '') $facts[] = "Calendar: {$events}.";
+    if ($tasks !== '') $facts[] = "Tasks: {$tasks}.";
+    $factsText = $facts ? implode(' ', $facts) : 'No calendar, weather or location details are available.';
+    $who = $userName !== '' ? "for {$userName}" : 'for the household';
+
+    $prompt = "You are the voice of a smart wall display. Write a {$timeOfDay} briefing {$who}. "
+        . "Tone: {$tone}. "
+        . "Facts you may use: {$factsText} "
+        . "Rules: use only the facts above. Never invent or guess weather, temperatures, places, events or tasks; if a fact is missing, don't mention that topic. "
+        . "Write 2 to 3 complete sentences, 40 to 80 words, ending with a short uplifting thought. "
+        . "Plain text only: no markdown, emoji, hashtags or bullet points. Output only the briefing.";
+
+    try {
+        $result = geminiGenerateWithRetry($apiKey, [
+            "contents" => [["parts" => [["text" => $prompt]]]],
+            "generationConfig" => ["temperature" => 0.7, "maxOutputTokens" => 2048]
+        ]);
+        if ($result['text'] !== null) {
+            $entry = [
+                'briefing' => $result['text'],
+                'provider' => 'gemini',
+                'model' => $result['model'],
+                'generatedAt' => time()
+            ];
+            @file_put_contents($freshFile, json_encode($entry), LOCK_EX);
+            @file_put_contents($lastGoodFile, json_encode($entry), LOCK_EX);
+            respondBriefing($entry, $timeOfDay, false);
+        }
+        $geminiError = geminiErrorMessage($result);
     } catch (\Exception $e) {
         $geminiError = $e->getMessage();
     }
-} elseif ($isTest) {
-    echo json_encode([
-        "success" => false,
-        "error" => "No API key provided to test. Please enter a key first."
-    ]);
-    exit();
+
+    // Gemini failed: an earlier Gemini briefing from this part of today beats the template engine
+    $lastGood = readBriefingCache($lastGoodFile);
+    if ($lastGood) {
+        respondBriefing($lastGood, $timeOfDay, true, true, $geminiError);
+    }
 }
 
-if ($isTest) {
-    echo json_encode([
-        "success" => false,
-        "error" => $geminiError ?: "Failed to connect to Google Gemini API."
-    ]);
-    exit();
-}
-
-// 2. Intelligent Contextual Local Briefing Engine (Zero-API Key Fallback)
-$greetings = [
-    'morning' => [
-        "Good morning, $userName! Today is looking great with $weatherDesc. Your schedule is ready: $calendarSummary.",
-        "Rise and shine, $userName! It's currently $weatherDesc. Here's your focus today: $calendarSummary.",
-        "Bright morning ahead! Expect $weatherDesc today. Key highlights on your radar: $calendarSummary."
-    ],
-    'afternoon' => [
-        "Good afternoon, $userName! Staying pleasant with $weatherDesc. Remaining on your agenda: $calendarSummary.",
-        "Midday update: Conditions are $weatherDesc. Keep up the momentum with $calendarSummary.",
-        "Afternoon check-in! $weatherDesc outside, with $calendarSummary coming up."
-    ],
-    'evening' => [
-        "Good evening, $userName! Wrapping up the day at $weatherDesc. Evening outlook: $calendarSummary.",
-        "Winding down: It's $weatherDesc tonight. Tomorrow's preparations: $calendarSummary.",
-        "Rest and recharge, $userName! Nighttime temperatures at $weatherDesc. Everything is in order for tomorrow."
-    ]
+// ---------------------------------------------------------------------------
+// Local template engine (no API key, or Gemini unavailable). Uses only the facts sent.
+// ---------------------------------------------------------------------------
+$name = $userName !== '' ? ", {$userName}" : '';
+$openers = [
+    'morning' => ["Good morning{$name}!", "Rise and shine{$name}!"],
+    'afternoon' => ["Good afternoon{$name}!", "Afternoon check-in{$name}."],
+    'evening' => ["Good evening{$name}!", "Time to wind down{$name}."],
 ];
-
-$pool = $greetings[$timeOfDay];
-$chosen = $pool[array_rand($pool)];
-
-if (!empty($tasksSummary) && $tasksSummary !== 'All clear') {
-    $chosen .= " Remember: $tasksSummary.";
+$closers = [
+    'morning' => ["Have a great day.", "Make it a good one."],
+    'afternoon' => ["Keep up the good work.", "You're doing great."],
+    'evening' => ["Rest well tonight.", "Enjoy your evening."],
+];
+$sentences = [$openers[$timeOfDay][array_rand($openers[$timeOfDay])]];
+if ($weather !== '') {
+    $sentences[] = $location !== '' ? "In {$location} it's {$weather}." : "Outside it's {$weather}.";
 }
+if ($events !== '') $sentences[] = "Coming up: {$events}.";
+if ($tasks !== '') $sentences[] = "On your list: {$tasks}.";
+$sentences[] = $closers[$timeOfDay][array_rand($closers[$timeOfDay])];
 
-echo json_encode([
-    "success" => true,
-    "briefing" => $chosen,
-    "timeOfDay" => $timeOfDay,
-    "provider" => "ambient_engine",
-    "geminiError" => !empty($apiKey) ? $geminiError : null
-]);
+respondBriefing([
+    'briefing' => implode(' ', $sentences),
+    'provider' => 'ambient_engine',
+    'generatedAt' => time()
+], $timeOfDay, false, false, $apiKey !== '' ? $geminiError : null);

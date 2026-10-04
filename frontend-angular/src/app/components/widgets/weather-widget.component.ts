@@ -21,13 +21,13 @@ interface HourlyItem {
   icon: string;
 }
 
-interface WeatherCodeInfo {
+export interface WeatherCodeInfo {
   desc: string;
   iconDay: string;
   iconNight: string;
 }
 
-const WMO_MAP: Record<number, WeatherCodeInfo> = {
+export const WMO_MAP: Record<number, WeatherCodeInfo> = {
   0: { desc: 'Clear Sky', iconDay: '01d', iconNight: '01n' },
   1: { desc: 'Mainly Clear', iconDay: '02d', iconNight: '02n' },
   2: { desc: 'Partly Cloudy', iconDay: '02d', iconNight: '02n' },

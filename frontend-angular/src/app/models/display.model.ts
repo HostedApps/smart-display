@@ -235,6 +235,9 @@ export interface AIBriefingConfig {
   userName?: string;
   tone?: 'warm' | 'executive' | 'motivational' | 'concise';
   refreshHours?: number;
+  /** City for the briefing's weather (e.g. "Austin, TX"). Empty: use a Weather widget on the same screen. */
+  city?: string;
+  units?: 'imperial' | 'metric';
 }
 
 export interface FamilyMember {

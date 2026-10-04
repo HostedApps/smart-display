@@ -1318,7 +1318,30 @@ import { NotificationService } from '../../services/notification.service';
                       <option value="warm">Warm & Encouraging (Family)</option>
                       <option value="executive">Executive & Concise (Office)</option>
                       <option value="motivational">High-Energy & Motivational</option>
+                      <option value="concise">Short & Concise</option>
                     </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" [(ngModel)]="selectedWidget.config.city" placeholder="e.g. Austin, TX — blank uses this screen's Weather widget" class="input-control" />
+                    <small style="font-size:0.65rem; color:#94a3b8; display: block; margin-top: 4px;">The briefing mentions weather only from this location or a Weather widget on the same screen, and the next event from a Calendar widget. Nothing is made up.</small>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Units</label>
+                      <select [(ngModel)]="selectedWidget.config.units" class="input-control">
+                        <option value="imperial">°F</option>
+                        <option value="metric">°C</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Refresh every</label>
+                      <select [(ngModel)]="selectedWidget.config.refreshHours" class="input-control">
+                        <option [ngValue]="1">1 hour</option>
+                        <option [ngValue]="2">2 hours</option>
+                        <option [ngValue]="4">4 hours</option>
+                      </select>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label>Google Gemini API Key (Optional)</label>
