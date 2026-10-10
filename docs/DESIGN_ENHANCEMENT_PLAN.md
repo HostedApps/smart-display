@@ -63,6 +63,7 @@ Smart Display already ships more widgets (35) than DAKboard's block catalog and 
 | Phase 3 — Editor UX (first pass) | ✅ Done — right-hand inspector with Content / Style / Behaviour tabs; pointer events (touch & pen) with smart alignment guides; change tracking with autosaved local drafts, restore banner, leave guard; version history (last 20 publishes, `migration_display_versions.sql`); publish checks; device preview (TV, 4K, portrait, iPad, Pi 7", laptop) using the kiosk's scaling; empty-page start screen; 14 starter templates with recommended themes; keyboard-focusable canvas widgets. Not done yet: schema-driven inspector forms, splitting the editor component, multi-select/grouping, regions/grid layout mode, onboarding wizard, light admin theme. |
 | Phase 4 — Fleet hub | ✅ Done — kiosk heartbeat every 60 s (online/stale/offline/never, last seen, resolution, app version, low-power flag, sleeping) and a screenshot thumbnail every 15 min (`html2canvas-pro`, loaded only on kiosks); remote reload, identify, sleep/wake, change page and refresh-screenshot delivered on the 5 s poll; bulk select with bulk commands; copy a layout to other displays; duplicate display; device table shows live status (`migration_fleet_telemetry.sql`). Not done: Raspberry Pi CPU temperature / reboot (needs an on-device agent outside the browser). |
 | Phase 5 — Feature depth (first pass) | ✅ Done — calendar week / 3-day / today+upcoming views with feed colour legend and weather on day headers; Greeting & Compliments widget (MagicMirror-style, weather- and event-aware); widget event bus (`WidgetBusService`: weather, next event); live `{{placeholders}}` in text widgets; custom widget SDK (sandboxed HTML/URL widgets, postMessage protocol, `docs/WIDGET_SDK.md`, 4 examples); MagicMirror-style "Snap to Region" placement. Not done: Dropbox/OneDrive/Immich photo sources, photo collage & captions, page-schedule timeline editor, offline PWA mode, family profiles, voice/presence. |
+| Phase 6 — Quality & security | 🔄 In progress — frontend specs runnable (`npm test`, Karma), GitHub Actions CI (specs + production build; PHP suite against MariaDB 11.4 / PHP 8.2), `deploy.sh` refuses to deploy commits without green CI, `scripts/setup-dev-db.sh` + `scripts/dev-api.sh` for local backends; AI briefing endpoint requires a signed-in user or paired device; TLS verification restored in `db.php`/`proxy.php`; `migration_v2.sql` no longer resets the seeded admin's password. Not done: Playwright visual snapshots per widget × theme; moving widget API keys (Gemini, Home Assistant, Slack) out of the kiosk-readable display config. |
 
 ## 2. Design principles
 
@@ -206,6 +207,21 @@ Palette, `addWidget`, labels, canvas render, viewer render and inspector all rea
 - Presence/motion wake (roadmap 2.4) wired into the event bus.
 
 ---
+
+### Phase 6 — Quality & security (≈ 1–2 weeks)
+
+Phases 0–5 shipped with verification done by hand; a production-only bug (Gemini rate limits, invented weather) showed the cost. This phase makes every change testable before it ships.
+
+| Item | Notes |
+|---|---|
+| Runnable frontend specs | Karma/Jasmine `test` target; `npm run test:ci` headless |
+| CI on every push and PR | GitHub Actions: specs + production build; PHP lint + backend suite against MariaDB with the same PHP/MariaDB versions as production |
+| Deploy gate | `deploy.sh` deploys only committed, pushed commits with green CI (`SKIP_CI_CHECK=1` for emergencies) |
+| Local backend | `scripts/setup-dev-db.sh` (schema + legacy upgrades + migrations), `scripts/dev-api.sh` (`/api/` on :8000) |
+| Endpoint hardening | AI briefing requires a user or paired device and is rate-limited per IP |
+| TLS | Remove `CURLOPT_SSL_VERIFYPEER=false` from server-side fetches |
+| Secrets in display config | Move widget API keys server-side so kiosks never receive them *(next)* |
+| Visual regression | Playwright snapshots per widget × theme before more theme work *(next)* |
 
 ## 4. Sequencing & milestones
 

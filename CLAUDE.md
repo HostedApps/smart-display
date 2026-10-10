@@ -63,21 +63,26 @@ cd frontend-angular && npm start
 # Production build (output: frontend-angular/dist/smart-display-frontend)
 cd frontend-angular && npm run build -- --configuration production
 
-# Local API: needs PHP 8 + MySQL/MariaDB and backend-api/.env. No router script is checked in;
-# the server must expose backend-api/*.php under /api/ on port 8000 (e.g. a docroot with an
-# `api` symlink to backend-api, served with `php -S localhost:8000 -t <docroot>`).
+# Frontend specs (Karma/Jasmine): watch mode, or once in headless Chrome as CI does
+cd frontend-angular && npm test
+cd frontend-angular && npm run test:ci
+
+# Local backend: PHP 8.2 + MariaDB. Build the DB, write backend-api/.env (see .env.example), serve /api on :8000
+DB_HOST=127.0.0.1 DB_USER=root DB_PASS=... scripts/setup-dev-db.sh
+scripts/dev-api.sh
 
 # Backend tests — hit the running dev API over HTTP (SD_API_BASE, default http://localhost:8000/api)
 # and the DB from backend-api/.env. NEVER run against production.
 php backend-api/tests/run_all_tests.php
 
-# Deploy to production (build → DB backup → backend rsync → migrations → frontend rsync → smoke test)
+# Deploy to production (CI check → build → DB backup → backend rsync → migrations → frontend rsync → smoke test)
 ./deploy.sh prod
 ```
 
-- There is **no `ng test` target** in `angular.json` and no Karma/Jasmine deps, so the `*.spec.ts` files (templates overlap/bounds, calendar, weather, todo, alert banner) are not runnable as-is. Verification has been done via the PHP suite plus headless-browser checks against PHP + MariaDB.
+- **CI** (`.github/workflows/ci.yml`) runs on every push to `main` and every PR: frontend specs + production build, PHP lint, and the backend suite against MariaDB 11.4 / PHP 8.2 (production's versions). `deploy.sh` refuses to deploy a commit that is uncommitted, unpushed or without green CI (`SKIP_CI_CHECK=1` overrides for emergencies). There's no PHP on the main dev Mac, so CI is where PHP actually runs — push a branch to test backend changes.
 - Production bundle budget: initial 1 MB warn / 2 MB error; component styles 35 KB warn / 50 KB error.
 - `deploy.sh` is outward-facing (touches the live site and DB) — only run it when the user asks.
+- Add specs next to the code (`*.spec.ts`) and backend tests in `backend-api/tests/` (register them in `run_all_tests.php`); widget logic that only fails in production (timers, retries, external APIs) is exactly what they're for.
 
 ## Docs to read before larger work
 
