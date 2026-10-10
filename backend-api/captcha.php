@@ -22,15 +22,16 @@ function verifyGoogleRecaptcha($recaptchaToken) {
         return false;
     }
 
-    // Support internal test token for offline CI/test runner
-    if ($recaptchaToken === 'test_recaptcha_bypass_token') {
+    // Test environments only (ALLOW_TEST_CAPTCHA=1 in .env, set by CI): accept the test runner's
+    // token and skip verification when no secret is configured. Production fails closed.
+    $allowTest = getEnvValue('ALLOW_TEST_CAPTCHA') === '1';
+    if ($allowTest && $recaptchaToken === 'test_recaptcha_bypass_token') {
         return true;
     }
 
-    // Default to production secret key if not explicitly set in .env
-    $secret = getEnvValue('RECAPTCHA_SECRET_KEY', 'REMOVED-RECAPTCHA-SECRET');
+    $secret = getEnvValue('RECAPTCHA_SECRET_KEY');
     if (empty($secret)) {
-        return true;
+        return $allowTest;
     }
 
     $url = 'https://www.google.com/recaptcha/api/siteverify';

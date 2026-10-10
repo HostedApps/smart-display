@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (specs + production build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-angular
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend-angular/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:ci
+      - run: npm run build -- --configuration production
+
+  backend:
+    name: Backend (PHP test suite against MariaDB)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        # Production runs PHP 8.2 with MariaDB 11.x
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_USER: root
+      DB_PASS: root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, mbstring, curl, gd
+          coverage: none
+      - name: Install MariaDB client
+        run: sudo apt-get update -q && sudo apt-get install -y -q mariadb-client
+      - name: Write backend-api/.env
+        run: |
+          cat > backend-api/.env <<EOF
+          DB_HOST=127.0.0.1
+          DB_NAME=smart_display_db
+          DB_USER=root
+          DB_PASS=root
+          MAX_SYSTEM_USERS=50
+          ALLOW_TEST_CAPTCHA=1
+          EOF
+      - name: Build the database
+        run: scripts/setup-dev-db.sh
+      - name: Lint PHP
+        run: find backend-api database -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+      - name: Start the API
+        run: |
+          scripts/dev-api.sh > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sS -o /dev/null http://localhost:8000/api/emergency.php?token=ci 2>/dev/null && break; sleep 1; done
+      - name: Run backend tests
+        run: php backend-api/tests/run_all_tests.php
+      - name: API server log
+        if: failure()
+        run: cat /tmp/api.log
