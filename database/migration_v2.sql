@@ -20,8 +20,5 @@ ALTER TABLE `widgets`
   ADD COLUMN IF NOT EXISTS `page_id` VARCHAR(50) DEFAULT 'default' AFTER `display_id`,
   ADD COLUMN IF NOT EXISTS `style_json` JSON NULL AFTER `position_json`;
 
--- 4. Seed the default admin on an empty database only (admin@smartdisplay.local / REMOVED-DEFAULT-PASSWORD).
--- Never overwrite an existing user: re-running this script used to reset user 1's password.
-INSERT INTO `users` (`id`, `name`, `email`, `password_hash`) 
-VALUES (1, 'Admin', 'admin@smartdisplay.local', 'REMOVED-PASSWORD-HASH')
-ON DUPLICATE KEY UPDATE `id` = `id`;
+-- (A default admin used to be seeded here. Users are now created through the app, or by
+-- scripts/setup-dev-db.sh for local development.)

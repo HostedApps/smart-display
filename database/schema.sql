@@ -40,8 +40,5 @@ CREATE TABLE IF NOT EXISTS `widgets` (
     FOREIGN KEY (`display_id`) REFERENCES `displays`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- Seed Default Admin User: admin@smartdisplay.local / password: REMOVED-DEFAULT-PASSWORD
--- (Password hash generated using PASSWORD_BCRYPT)
-INSERT INTO `users` (`id`, `name`, `email`, `password_hash`) 
-VALUES (1, 'Admin', 'admin@smartdisplay.local', 'REMOVED-PASSWORD-HASH')
-ON DUPLICATE KEY UPDATE `id`=`id`;
+-- No default user is seeded. For local development, scripts/setup-dev-db.sh creates an admin
+-- with a password you choose (DEV_ADMIN_PASSWORD) or a random one it prints.

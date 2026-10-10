@@ -62,6 +62,7 @@ jobs:
           DB_USER=root
           DB_PASS=root
           MAX_SYSTEM_USERS=50
+          ALLOW_TEST_CAPTCHA=1
           EOF
       - name: Build the database
         run: scripts/setup-dev-db.sh

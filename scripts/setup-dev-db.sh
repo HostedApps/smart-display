@@ -4,7 +4,8 @@
 #
 # Usage: DB_HOST=127.0.0.1 DB_USER=root DB_PASS=root scripts/setup-dev-db.sh
 # The database name is fixed by schema.sql (smart_display_db).
-# NEVER point this at production: it seeds a default admin with a published password.
+# Creates a local superadmin: DEV_ADMIN_EMAIL (default admin@localhost.test) with DEV_ADMIN_PASSWORD,
+# or a random password that is printed once. Refuses to run against non-local hosts.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -31,3 +32,18 @@ done
 
 echo "Running migrate.php..."
 php "$ROOT/database/migrate.php"
+
+# Local superadmin (skipped if that email already exists)
+ADMIN_EMAIL="${DEV_ADMIN_EMAIL:-admin@localhost.test}"
+ADMIN_PASSWORD="${DEV_ADMIN_PASSWORD:-$(php -r 'echo bin2hex(random_bytes(8));')}"
+ADMIN_HASH=$(ADMIN_PASSWORD="$ADMIN_PASSWORD" php -r 'echo password_hash(getenv("ADMIN_PASSWORD"), PASSWORD_BCRYPT);')
+CREATED=$("${MYSQL[@]}" -N "$DB_NAME" -e "
+  INSERT IGNORE INTO users (name, email, password_hash, role, is_active, email_verified)
+  VALUES ('Dev Admin', '$ADMIN_EMAIL', '$ADMIN_HASH', 'superadmin', 1, 1);
+  SELECT ROW_COUNT();")
+if [ "$CREATED" = "1" ]; then
+  echo "Created superadmin $ADMIN_EMAIL"
+  [ -z "${DEV_ADMIN_PASSWORD:-}" ] && echo "  password: $ADMIN_PASSWORD (shown once)"
+else
+  echo "Superadmin $ADMIN_EMAIL already exists; password unchanged."
+fi
