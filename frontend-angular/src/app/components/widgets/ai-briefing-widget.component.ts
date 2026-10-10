@@ -12,8 +12,11 @@ import { WMO_MAP } from './weather-widget.component';
 const MINUTE = 60_000;
 /** How long to wait for a Weather / Calendar widget on the same screen to publish before the first briefing */
 const CONTEXT_WAIT_MS = 6000;
-/** Retry delays after a failed briefing (live displays) */
-const RETRY_DELAYS_MS = [2 * MINUTE, 5 * MINUTE, 15 * MINUTE];
+/** Retry delays after a failed briefing; kept long so retries don't eat into a Gemini quota */
+const RETRY_DELAYS_MS = [10 * MINUTE, 30 * MINUTE, 60 * MINUTE];
+/** Briefings are refreshed every few hours at most; Gemini free-tier quotas are small */
+const DEFAULT_REFRESH_HOURS = 3;
+const MIN_REFRESH_HOURS = 2;
 
 /** Real facts sent to the server; anything unknown is left empty, never guessed */
 interface BriefingContext {
@@ -224,6 +227,7 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
   private retryTimer?: ReturnType<typeof setTimeout>;
   private debounceTimer?: ReturnType<typeof setTimeout>;
   private retryCount = 0;
+  private lastFetchAt = 0;
   private requestSub?: Subscription;
   private busSub = new Subscription();
 
@@ -261,7 +265,8 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
     }));
     this.busSub.add(this.bus.select('nextEvent').subscribe(e => {
       if (this.loading) return;
-      if ((e?.title || '') !== this.usedEventTitle) this.scheduleFetch(1000);
+      // A new "next event" every time one ends shouldn't cost a Gemini call each time
+      if ((e?.title || '') !== this.usedEventTitle && Date.now() - this.lastFetchAt > 30 * MINUTE) this.scheduleFetch(1000);
     }));
   }
 
@@ -298,6 +303,7 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
     this.requestSub?.unsubscribe();
     this.updateGreeting();
     this.loading = true;
+    this.lastFetchAt = Date.now();
 
     this.requestSub = this.buildContext().pipe(
       switchMap(ctx => {
@@ -307,6 +313,7 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
           apiKey: this.config?.apiKey || '',
           userName: this.config?.userName || '',
           tone: this.config?.tone || 'warm',
+          refreshHours: this.refreshHours,
           refresh: manual,
           ...ctx
         });
@@ -332,9 +339,10 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
     const generated = res.generatedAt ? new Date(res.generatedAt) : new Date();
     this.lastSync = 'Updated ' + generated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Gemini failed (template or earlier briefing shown): try again soon; otherwise refresh on schedule
+    // Gemini failed (template or earlier briefing shown): try again later; otherwise refresh on schedule.
+    // After a rate limit, wait as long as the server says (it pauses Gemini for every display on that key).
     if (this.geminiError) {
-      this.scheduleRetry();
+      this.scheduleRetry(Number(res.retryAfter) > 0 ? Number(res.retryAfter) * 1000 : undefined);
     } else {
       this.retryCount = 0;
       this.scheduleRefresh();
@@ -354,15 +362,18 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
     this.scheduleRetry();
   }
 
-  private scheduleRefresh(): void {
-    clearTimeout(this.refreshTimer);
-    const hours = Math.max(0.5, Number(this.config?.refreshHours) || 1);
-    this.refreshTimer = setTimeout(() => this.fetchBriefing(), hours * 60 * MINUTE);
+  private get refreshHours(): number {
+    return Math.max(MIN_REFRESH_HOURS, Number(this.config?.refreshHours) || DEFAULT_REFRESH_HOURS);
   }
 
-  private scheduleRetry(): void {
+  private scheduleRefresh(): void {
+    clearTimeout(this.refreshTimer);
+    this.refreshTimer = setTimeout(() => this.fetchBriefing(), this.refreshHours * 60 * MINUTE);
+  }
+
+  private scheduleRetry(minDelayMs = 0): void {
     clearTimeout(this.retryTimer);
-    const delay = RETRY_DELAYS_MS[Math.min(this.retryCount, RETRY_DELAYS_MS.length - 1)];
+    const delay = Math.max(minDelayMs, RETRY_DELAYS_MS[Math.min(this.retryCount, RETRY_DELAYS_MS.length - 1)]);
     this.retryCount++;
     this.retryTimer = setTimeout(() => this.fetchBriefing(), delay);
   }

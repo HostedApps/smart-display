@@ -1337,9 +1337,10 @@ import { NotificationService } from '../../services/notification.service';
                     <div class="form-group">
                       <label>Refresh every</label>
                       <select [(ngModel)]="selectedWidget.config.refreshHours" class="input-control">
-                        <option [ngValue]="1">1 hour</option>
                         <option [ngValue]="2">2 hours</option>
+                        <option [ngValue]="3">3 hours</option>
                         <option [ngValue]="4">4 hours</option>
+                        <option [ngValue]="6">6 hours</option>
                       </select>
                     </div>
                   </div>

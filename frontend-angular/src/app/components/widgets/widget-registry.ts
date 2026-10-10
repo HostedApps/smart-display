@@ -119,7 +119,7 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     defaultConfig: () => ({
       userName: '',
       tone: 'warm',
-      refreshHours: 1,
+      refreshHours: 3,
       city: '',
       units: 'imperial'
     })

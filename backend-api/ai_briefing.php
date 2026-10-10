@@ -12,9 +12,10 @@
  */
 require_once 'db.php';
 
-const BRIEFING_FRESH_SECONDS = 50 * 60;      // reuse a generated briefing for this long
-const BRIEFING_REFRESH_MIN_SECONDS = 120;    // the manual refresh button can't bypass the cache faster than this
+const BRIEFING_MIN_FRESH_SECONDS = 110 * 60;  // reuse a generated briefing at least this long (widget refresh is ≥ 2 h)
+const BRIEFING_REFRESH_MIN_SECONDS = 10 * 60;  // the manual refresh button can't bypass the cache faster than this
 const GEMINI_TIMEOUT_SECONDS = 15;
+const GEMINI_RATE_LIMIT_COOLDOWN = 30 * 60;    // after a 429, don't call Gemini with that key for this long (unless Google says sooner)
 
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) $input = $_GET;
@@ -41,6 +42,9 @@ $weather = briefingField($input, 'weather');
 $events = briefingField($input, 'events');
 $tasks = briefingField($input, 'tasks');
 $localDate = briefingField($input, 'localDate', 60);
+// Match the widget's refresh interval so each display generates at most one briefing per interval
+$refreshHours = is_numeric($input['refreshHours'] ?? null) ? (float)$input['refreshHours'] : 3;
+$freshSeconds = max(BRIEFING_MIN_FRESH_SECONDS, (int)($refreshHours * 3600) - 10 * 60);
 
 // Part of the day comes from the display's clock; the server may be in another time zone.
 $hour = isset($input['localHour']) && is_numeric($input['localHour']) ? (int)$input['localHour'] : (int)date('G');
@@ -65,7 +69,14 @@ function geminiGenerate(string $apiVersion, string $model, string $apiKey, array
 
     $data = is_string($res) ? json_decode($res, true) : null;
     if ($status !== 200) {
-        return ['text' => null, 'status' => $status, 'error' => $data['error']['message'] ?? null];
+        // 429s carry a RetryInfo detail such as {"retryDelay": "37s"}
+        $retryAfter = null;
+        foreach ($data['error']['details'] ?? [] as $detail) {
+            if (isset($detail['retryDelay']) && preg_match('/^(\d+(?:\.\d+)?)s$/', $detail['retryDelay'], $m)) {
+                $retryAfter = (int)ceil((float)$m[1]);
+            }
+        }
+        return ['text' => null, 'status' => $status, 'error' => $data['error']['message'] ?? null, 'retryAfter' => $retryAfter];
     }
 
     $candidate = $data['candidates'][0] ?? [];
@@ -86,7 +97,7 @@ function geminiGenerate(string $apiVersion, string $model, string $apiKey, array
 function geminiErrorMessage(array $result): string {
     $status = $result['status'];
     if ($status === 0) return 'Gemini did not respond in time.';
-    if ($status === 429) return 'Gemini rate limit reached (HTTP 429). Check your quota or use a longer refresh interval.';
+    if ($status === 429) return 'Gemini rate limit reached (HTTP 429). Pausing Gemini calls; the next try is automatic.';
     if ($status >= 500) return "Gemini is temporarily unavailable (HTTP {$status}).";
     return $result['error'] ?: "Gemini returned HTTP {$status}.";
 }
@@ -124,8 +135,9 @@ function geminiGenerateWithRetry(string $apiKey, array $payload): array {
         $result = geminiGenerate($apiVersion, $model, $apiKey, $payload);
     }
 
-    // Transient failure: one retry, if the first attempt left time for it
-    $transient = $result['status'] === 0 || $result['status'] === 429 || $result['status'] >= 500;
+    // Transient failure: one retry, if the first attempt left time for it. Never on 429: retrying
+    // straight away only spends more of the quota.
+    $transient = $result['status'] === 0 || $result['status'] >= 500;
     if ($result['text'] === null && $transient && (microtime(true) - $started) < 8) {
         sleep(2);
         $result = geminiGenerate($apiVersion, $model, $apiKey, $payload);
@@ -170,8 +182,8 @@ if ($isTest) {
 $cacheDir = sys_get_temp_dir() . '/sd_briefings';
 if (!is_dir($cacheDir)) @mkdir($cacheDir, 0700, true);
 $keyId = $apiKey !== '' ? md5($apiKey) : 'nokey';
-// Exact context: same facts → same briefing
-$freshFile = $cacheDir . '/fresh_' . md5(json_encode([$keyId, $userName, $tone, $location, $weather, $events, $tasks, $timeOfDay, $localDate])) . '.json';
+// Same facts → same briefing. Exact weather is left out: temperatures drift every few minutes and would force a new call each time
+$freshFile = $cacheDir . '/fresh_' . md5(json_encode([$keyId, $userName, $tone, $location, $events, $tasks, $timeOfDay, $localDate])) . '.json';
 // Last good Gemini briefing for this person, place and part of the day (used when Gemini fails)
 $lastGoodFile = $cacheDir . '/good_' . md5(json_encode([$keyId, $userName, $tone, $location, $timeOfDay, $localDate])) . '.json';
 
@@ -181,7 +193,7 @@ function readBriefingCache(string $file): ?array {
     return is_array($data) && !empty($data['briefing']) ? $data : null;
 }
 
-function respondBriefing(array $entry, string $timeOfDay, bool $cached, bool $stale = false, ?string $geminiError = null): void {
+function respondBriefing(array $entry, string $timeOfDay, bool $cached, bool $stale = false, ?string $geminiError = null, ?int $retryAfter = null): void {
     echo json_encode([
         "success" => true,
         "briefing" => $entry['briefing'],
@@ -191,7 +203,9 @@ function respondBriefing(array $entry, string $timeOfDay, bool $cached, bool $st
         "timeOfDay" => $timeOfDay,
         "cached" => $cached,
         "stale" => $stale,
-        "geminiError" => $geminiError
+        "geminiError" => $geminiError,
+        // Seconds the widget should wait before asking again (set after a Gemini rate limit)
+        "retryAfter" => $retryAfter
     ]);
     exit();
 }
@@ -199,16 +213,24 @@ function respondBriefing(array $entry, string $timeOfDay, bool $cached, bool $st
 $fresh = readBriefingCache($freshFile);
 if ($fresh && $fresh['provider'] === 'gemini') {
     $age = time() - (int)$fresh['generatedAt'];
-    if ($age < BRIEFING_FRESH_SECONDS && (!$forceRefresh || $age < BRIEFING_REFRESH_MIN_SECONDS)) {
+    if ($age < $freshSeconds && (!$forceRefresh || $age < BRIEFING_REFRESH_MIN_SECONDS)) {
         respondBriefing($fresh, $timeOfDay, true);
     }
 }
+
+// Rate-limit cooldown, shared by every display using this key
+$cooldownFile = $cacheDir . '/cooldown_' . $keyId;
+$cooldownUntil = is_file($cooldownFile) ? (int)@file_get_contents($cooldownFile) : 0;
+$retryAfterSeconds = null;
 
 // ---------------------------------------------------------------------------
 // Gemini
 // ---------------------------------------------------------------------------
 $geminiError = null;
-if ($apiKey !== '') {
+if ($apiKey !== '' && $cooldownUntil > time()) {
+    $retryAfterSeconds = $cooldownUntil - time();
+    $geminiError = 'Gemini rate limit reached (HTTP 429). Paused; next try in about ' . max(1, (int)ceil($retryAfterSeconds / 60)) . ' min.';
+} elseif ($apiKey !== '') {
     $facts = [];
     if ($localDate !== '') $facts[] = "Today is {$localDate}.";
     if ($location !== '') $facts[] = "Location: {$location}.";
@@ -242,14 +264,21 @@ if ($apiKey !== '') {
             respondBriefing($entry, $timeOfDay, false);
         }
         $geminiError = geminiErrorMessage($result);
+        if ($result['status'] === 429) {
+            $wait = max(GEMINI_RATE_LIMIT_COOLDOWN, (int)($result['retryAfter'] ?? 0));
+            @file_put_contents($cooldownFile, (string)(time() + $wait), LOCK_EX);
+            $retryAfterSeconds = $wait;
+        }
     } catch (\Exception $e) {
         $geminiError = $e->getMessage();
     }
+}
 
-    // Gemini failed: an earlier Gemini briefing from this part of today beats the template engine
+// Gemini failed or is cooling down: an earlier Gemini briefing from this part of today beats the template engine
+if ($apiKey !== '' && $geminiError !== null) {
     $lastGood = readBriefingCache($lastGoodFile);
     if ($lastGood) {
-        respondBriefing($lastGood, $timeOfDay, true, true, $geminiError);
+        respondBriefing($lastGood, $timeOfDay, true, true, $geminiError, $retryAfterSeconds);
     }
 }
 
@@ -279,4 +308,4 @@ respondBriefing([
     'briefing' => implode(' ', $sentences),
     'provider' => 'ambient_engine',
     'generatedAt' => time()
-], $timeOfDay, false, false, $apiKey !== '' ? $geminiError : null);
+], $timeOfDay, false, false, $apiKey !== '' ? $geminiError : null, $retryAfterSeconds);
