@@ -131,8 +131,7 @@ PREPARE alterIfNotExists FROM @preparedStatement;
 EXECUTE alterIfNotExists;
 DEALLOCATE PREPARE alterIfNotExists;
 
--- 2. Mark existing admin as Super Admin and Email Verified
-UPDATE `users` SET `role` = 'superadmin', `email_verified` = 1 WHERE `email` = 'admin@smartdisplay.local';
+-- 2. Mark existing users as email-verified (superadmins are assigned explicitly, never by a default email)
 UPDATE `users` SET `email_verified` = 1 WHERE `email_verified` = 0;
 
 -- 3. Create User Activity Logs Table

@@ -17,6 +17,26 @@ const BRIEFING_REFRESH_MIN_SECONDS = 10 * 60;  // the manual refresh button can'
 const GEMINI_TIMEOUT_SECONDS = 15;
 const GEMINI_RATE_LIMIT_COOLDOWN = 30 * 60;    // after a 429, don't call Gemini with that key for this long (unless Google says sooner)
 
+// Only signed-in users (editor previews, Test Key) and paired kiosks may call this endpoint:
+// it spends the server's Gemini quota and makes outbound requests.
+$caller = getAuthenticatedUser($pdo);
+if (!$caller) {
+    $headers = getallheaders();
+    $deviceToken = $headers['X-Device-Token'] ?? $headers['x-device-token'] ?? '';
+    if ($deviceToken !== '') {
+        $stmt = $pdo->prepare("SELECT id FROM devices WHERE device_token = ?");
+        $stmt->execute([$deviceToken]);
+        $caller = $stmt->fetch() ?: null;
+    }
+}
+if (!$caller) {
+    http_response_code(401);
+    echo json_encode(["success" => false, "error" => "Sign in or pair this display to use the AI briefing."]);
+    exit();
+}
+// Generous per-IP ceiling (several kiosks can share a home IP); the cache keeps normal use far below it
+checkRateLimit($pdo, 'ai_briefing', 120, 3600);
+
 $input = json_decode(file_get_contents('php://input'), true);
 if (!is_array($input)) $input = $_GET;
 

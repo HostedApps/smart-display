@@ -7,7 +7,7 @@ import { environment } from '../../../environments/environment';
 import { DataCacheService } from '../../services/data-cache.service';
 import { NextEventSnapshot, WeatherSnapshot, WidgetBusService } from '../../services/widget-bus.service';
 import { LIVE_DISPLAY } from './widget-context';
-import { WMO_MAP } from './weather-widget.component';
+import { US_STATES, WMO_MAP } from './weather-widget.component';
 
 const MINUTE = 60_000;
 /** How long to wait for a Weather / Calendar widget on the same screen to publish before the first briefing */
@@ -415,9 +415,10 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
       switchMap(geo => {
         const results: any[] = geo?.results || [];
         if (!results.length) return of({ location: city, weather: '' });
-        const hint = (region || '').toLowerCase();
-        const place = (hint && results.find(r =>
-          [r.admin1, r.country, r.country_code].some((v: string) => (v || '').toLowerCase() === hint)
+        // "Austin, TX" / "Austin, Texas" / "Paris, FR": match state (incl. US abbreviations) or country
+        const hints = [region, US_STATES[(region || '').toUpperCase()]].filter(Boolean).map(h => h.toLowerCase());
+        const place = (hints.length && results.find(r =>
+          [r.admin1, r.country, r.country_code].some((v: string) => hints.includes((v || '').toLowerCase()))
         )) || results[0];
         const location = [place.name, place.admin1 || place.country].filter(Boolean).join(', ');
         const metric = this.config?.units === 'metric';

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { RouterTestingModule } from '@angular/router/testing';
 import { CalendarWidgetComponent } from './calendar-widget.component';
 import { ICalParserService } from '../../services/ical-parser.service';
 
@@ -10,7 +11,7 @@ describe('CalendarWidgetComponent (Horizon 1: AI Flyer & Direct Sync)', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [CalendarWidgetComponent],
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, RouterTestingModule],
       providers: [ICalParserService]
     }).compileComponents();
 

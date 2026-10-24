@@ -21,6 +21,34 @@ SSH="ssh -p 65002 -o StrictHostKeyChecking=no"
 SITE_DIR="/home/u528878684/domains/smart-kiosk.online"
 WEB_ROOT="$SITE_DIR/public_html"
 
+# 0. Only deploy committed, pushed code that passed CI (.github/workflows/ci.yml).
+#    SKIP_CI_CHECK=1 overrides this for emergencies.
+if [ "${SKIP_CI_CHECK:-}" != "1" ]; then
+    if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+        echo "Refusing to deploy: uncommitted changes. Commit them (or SKIP_CI_CHECK=1)."
+        exit 1
+    fi
+    SHA=$(git rev-parse HEAD)
+    git fetch -q origin
+    if ! git branch -r --contains "$SHA" | grep -q .; then
+        echo "Refusing to deploy: $SHA is not pushed to origin, so CI hasn't run on it."
+        exit 1
+    fi
+    if ! command -v gh >/dev/null; then
+        echo "Refusing to deploy: the GitHub CLI (gh) is needed to check CI. Install it or set SKIP_CI_CHECK=1."
+        exit 1
+    fi
+    CI_RESULT=$(gh run list --commit "$SHA" --workflow ci.yml --json status,conclusion \
+        --jq 'map(select(.status == "completed")) | if length == 0 then "pending" elif any(.conclusion == "success") then "success" else .[0].conclusion end')
+    if [ "$CI_RESULT" != "success" ]; then
+        echo "Refusing to deploy: CI for $SHA is '${CI_RESULT:-not found}'. See: gh run list --commit $SHA"
+        exit 1
+    fi
+    echo "CI passed for $SHA."
+else
+    echo "WARNING: SKIP_CI_CHECK=1 — deploying without checking CI."
+fi
+
 echo "Starting deployment to Hostinger production environment..."
 
 # 1. Build Frontend (before touching the server, so a broken build changes nothing)
