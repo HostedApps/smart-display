@@ -258,9 +258,10 @@ function icloudAlbum(string $token, bool $forceRefresh = false): array {
     return [$album, 0, ''];
 }
 
-/** Parse the token from https://www.icloud.com/sharedalbum/#TOKEN (or a bare token). */
+/** Parse the token from https://www.icloud.com/sharedalbum/#TOKEN, …/sharedalbum/TOKEN or a bare token. */
 function icloudToken(string $input): string {
     if (preg_match('/#([A-Za-z0-9_\-]{10,})/', $input, $m)) return $m[1];
+    if (preg_match('/sharedalbum\/([A-Za-z0-9_\-]{10,})/', $input, $m)) return $m[1];
     if (preg_match('/^[A-Za-z0-9_\-]{10,}$/', $input)) return $input;
     return '';
 }

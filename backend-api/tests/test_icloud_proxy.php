@@ -46,6 +46,13 @@ $garbage = ic_get('action=fetch_icloud_photos&album_url=' . rawurlencode('https:
 assertTrue($garbage['code'] === 400 && stripos($garbage['json']['error'] ?? '', 'sharedalbum') !== false,
     "A link without a token explains the expected format");
 
+// Link forms with a token reach the album lookup (an unknown album → 404 from Apple, or 502 if
+// iCloud is unreachable from CI), never the "couldn't read the link" 400
+foreach (['https://www.icloud.com/sharedalbum/#B0zz9NotARealAlbum1', 'https://www.icloud.com/sharedalbum/B0zz9NotARealAlbum1', 'B0zz9NotARealAlbum1'] as $form) {
+    $r = ic_get('action=fetch_icloud_photos&album_url=' . rawurlencode($form));
+    assertTrue(in_array($r['code'], [404, 502], true), "Album link form accepted: $form");
+}
+
 $badImage = ic_get('action=icloud_image&album=x&photo=-1');
 assertTrue($badImage['code'] === 400, "icloud_image rejects a malformed album or photo index");
 
