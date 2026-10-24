@@ -46,7 +46,7 @@ const MINUTE = 60_000;
         <div class="empty-state">
           <div *ngIf="loadingAlbum" class="loading-wrap">
             <div class="spinner-mini"></div>
-            <p>Loading Google Photos Album...</p>
+            <p>Loading {{ isiCloudPhotos ? 'iCloud' : 'Google Photos' }} album...</p>
           </div>
           <div *ngIf="!loadingAlbum">
             <svg class="photo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -54,7 +54,7 @@ const MINUTE = 60_000;
               <circle cx="8.5" cy="8.5" r="1.5"></circle>
               <polyline points="21 15 16 10 5 21"></polyline>
             </svg>
-            <p>No photos configured</p>
+            <p>{{ albumError || 'No photos configured' }}</p>
           </div>
         </div>
       </ng-template>
@@ -187,6 +187,8 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   googlePhotosList: string[] = [];
   iCloudPhotosList: string[] = [];
   loadingAlbum: boolean = false;
+  /** Why the album couldn't be loaded (shown instead of "No photos configured") */
+  albumError: string = '';
   isGooglePhotos: boolean = false;
   isiCloudPhotos: boolean = false;
   currentIndex: number = 0;
@@ -383,9 +385,11 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     const proxyUrl = `${environment.apiUrl}/proxy.php?action=fetch_icloud_photos&album_url=${encodeURIComponent(url)}`;
     
     this.dataCache.get<any>(proxyUrl, 10 * MINUTE)
-      .pipe(catchError(() => of(null)))
+      // Keep the server's explanation (album not found, wrong link type…) to show on the widget
+      .pipe(catchError(err => of({ success: false, error: err?.error?.error || 'Couldn\'t reach the server to load the iCloud album.', status: err?.status })))
       .subscribe(res => {
         this.loadingAlbum = false;
+        this.albumError = res?.success ? '' : (res?.error || 'The iCloud album returned no photos.');
         if (res && res.success && Array.isArray(res.images) && res.images.length > 0) {
           PhotoWidgetComponent.albumCache.set(url, res.images);
           PhotoWidgetComponent.saveAlbumToStorage(url, res.images);
@@ -398,7 +402,9 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
           PhotoWidgetComponent.albumIndexMap.set(url, this.currentIndex);
           this.preloadNextImage();
         } else {
-          if (retryAttempt < 5) {
+          // A wrong link or private album won't fix itself; only retry server or network trouble
+          const linkProblem = [400, 404, 422].includes(res?.status);
+          if (!linkProblem && retryAttempt < 5) {
             const delay = Math.min(30000, 3000 * Math.pow(2, retryAttempt));
             if (this.retryTimeout) clearTimeout(this.retryTimeout);
             this.retryTimeout = setTimeout(() => {
