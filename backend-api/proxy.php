@@ -1,10 +1,15 @@
 <?php
 require_once 'db.php';
 
-// Rate limit: 60 proxy requests per minute per client IP
-checkRateLimit($pdo, 'proxy', 60, 60);
-
 $action = $_GET['action'] ?? '';
+
+// Rate limit per client IP. Photo redirects get their own budget: several slideshows on one
+// home network shouldn't starve the other proxy calls.
+if ($action === 'icloud_image') {
+    checkRateLimit($pdo, 'proxy_image', 300, 60);
+} else {
+    checkRateLimit($pdo, 'proxy', 60, 60);
+}
 $feedUrl = $_GET['url'] ?? '';
 
 // ACTION 1: FETCH GOOGLE PHOTOS SHARED ALBUM & GOOGLE DRIVE MEDIA
@@ -129,143 +134,224 @@ if ($action === 'fetch_google_photos') {
 }
 
 // ACTION 1B: FETCH APPLE ICLOUD SHARED ALBUM
-if ($action === 'fetch_icloud_photos') {
-    $albumUrl = trim($_GET['album_url'] ?? $_GET['url'] ?? $_GET['token'] ?? '');
-    if (empty($albumUrl)) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Invalid or missing album_url or token"]);
-        exit();
+/*
+ * iCloud shared albums (icloud.com/sharedalbum/#TOKEN, "Public Website" turned on).
+ *
+ * Apple's API has two quirks this code works around:
+ * - The album listing (webstream) is slow: ~30 s for a few hundred photos. It's cached here for
+ *   6 hours and fetched with a long timeout; a stale copy is used if a refresh fails.
+ * - Download links (webasseturls) expire after ~20 minutes. So the widget never gets Apple's links:
+ *   it gets stable links to `icloud_image` below, which resolves a fresh Apple link (25 photos per
+ *   call, cached until just before they expire) and redirects to it.
+ */
+const ICLOUD_ALBUM_TTL = 6 * 3600;
+const ICLOUD_ALBUM_TIMEOUT = 75;
+const ICLOUD_MAX_PHOTOS = 500;
+const ICLOUD_BATCH = 25;
+
+/** Partition host encoded in the token (base-62); a wrong guess is corrected by Apple's 330 redirect. */
+function icloudPartitionHost(string $token): string {
+    $chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $digits = $token[0] === 'A' ? substr($token, 1, 1) : substr($token, 1, 2);
+    $n = 0;
+    foreach (str_split($digits) as $c) {
+        $i = strpos($chars, $c);
+        if ($i === false) return 'p23-sharedstreams.icloud.com';
+        $n = $n * 62 + $i;
     }
+    return ($n >= 1 && $n <= 999) ? sprintf('p%02d-sharedstreams.icloud.com', $n) : 'p23-sharedstreams.icloud.com';
+}
 
-    $token = '';
-    if (preg_match('/#([a-zA-Z0-9_\-]+)/', $albumUrl, $matches)) {
-        $token = $matches[1];
-    } else if (preg_match('/sharedalbum\/([a-zA-Z0-9_\-]+)/', $albumUrl, $matches)) {
-        $token = $matches[1];
-    } else if (preg_match('/^[a-zA-Z0-9_\-]{8,40}$/', $albumUrl)) {
-        $token = $albumUrl;
-    }
-
-    if (empty($token)) {
-        http_response_code(400);
-        echo json_encode(["success" => false, "error" => "Unable to parse iCloud shared album token"]);
-        exit();
-    }
-
-    // Server-side transient caching (30-minute TTL)
-    $forceRefresh = !empty($_GET['force_refresh']) || !empty($_GET['refresh']);
-    $cacheFile = sys_get_temp_dir() . '/icloud_' . md5($token) . '.json';
-    if (!$forceRefresh && file_exists($cacheFile) && (time() - filemtime($cacheFile) < 1800)) {
-        $cachedData = @file_get_contents($cacheFile);
-        if (!empty($cachedData)) {
-            header("Content-Type: application/json; charset=UTF-8");
-            header("X-Cache: HIT");
-            echo $cachedData;
-            exit();
-        }
-    }
-
-    $streamUrl = "https://p23-sharedstreams.icloud.com/{$token}/sharedstreams/webstream";
-    $postData = '{"streamCtag":null}';
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $streamUrl);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HEADER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Origin: https://www.icloud.com',
-        'Content-Type: text/json',
-        'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+/** POST to an iCloud shared-streams endpoint. Returns [status, headersText, decodedBody|null]. */
+function icloudPost(string $url, array $payload, int $timeout = 20): array {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_CONNECTTIMEOUT => 8,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_ENCODING => '',   // accept gzip: the album listing is ~150 KB
+        CURLOPT_HTTPHEADER => [
+            'Origin: https://www.icloud.com',
+            'Content-Type: text/json',
+            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        ],
     ]);
     $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = (int)curl_getinfo($ch, CURLINFO_HEADER_SIZE);
     curl_close($ch);
+    if (!is_string($response)) return [0, '', null];
+    $body = json_decode(substr($response, $headerSize), true);
+    return [$status, substr($response, 0, $headerSize), is_array($body) ? $body : null];
+}
 
-    $headersText = substr($response, 0, $headerSize);
-    $body = substr($response, $headerSize);
+function icloudFail(int $httpStatus, string $message): void {
+    http_response_code($httpStatus);
+    echo json_encode(["success" => false, "error" => $message]);
+    exit();
+}
 
-    // If redirected or host specified in X-Apple-MMe-Host header
-    $host = 'p23-sharedstreams.icloud.com';
-    if (preg_match('/X-Apple-MMe-Host:\s*([^\r\n]+)/i', $headersText, $hMatch)) {
-        $host = trim($hMatch[1]);
-        $streamUrl = "https://{$host}/{$token}/sharedstreams/webstream";
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $streamUrl);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Origin: https://www.icloud.com',
-            'Content-Type: text/json',
-            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-        ]);
-        $body = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+function icloudCacheDir(): string {
+    $dir = sys_get_temp_dir() . '/sd_icloud';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    return $dir;
+}
+
+function icloudReadJson(string $file): ?array {
+    if (!is_file($file)) return null;
+    $data = json_decode((string)@file_get_contents($file), true);
+    return is_array($data) ? $data : null;
+}
+
+/**
+ * The album listing: [host, title, photos => [[guid, checksum], …]], from cache when fresh.
+ * Returns [album|null, errorStatus, errorMessage].
+ */
+function icloudAlbum(string $token, bool $forceRefresh = false): array {
+    $file = icloudCacheDir() . '/album_' . md5($token) . '.json';
+    $cached = icloudReadJson($file);
+    if ($cached && !$forceRefresh && time() - (int)($cached['fetchedAt'] ?? 0) < ICLOUD_ALBUM_TTL) {
+        return [$cached, 0, ''];
     }
 
-    $streamData = !empty($body) ? json_decode($body, true) : null;
-    $photos = $streamData['photos'] ?? [];
-
-    $guids = [];
-    foreach ($photos as $p) {
-        if (!empty($p['photoGuid'])) {
-            $guids[] = $p['photoGuid'];
+    @set_time_limit(ICLOUD_ALBUM_TIMEOUT * 2 + 30);
+    $host = icloudPartitionHost($token);
+    [$status, $headersText, $stream] = icloudPost("https://{$host}/{$token}/sharedstreams/webstream", ['streamCtag' => null], ICLOUD_ALBUM_TIMEOUT);
+    if ($status === 330) {
+        $redirectHost = $stream['X-Apple-MMe-Host'] ?? null;
+        if (!$redirectHost && preg_match('/X-Apple-MMe-Host:\s*([^\r\n]+)/i', $headersText, $hm)) {
+            $redirectHost = trim($hm[1]);
         }
+        if (!$redirectHost || !preg_match('/^p\d{1,3}-sharedstreams\.icloud\.com$/', $redirectHost)) {
+            return [$cached, 502, "iCloud redirected to an unexpected server."];
+        }
+        $host = $redirectHost;
+        [$status, , $stream] = icloudPost("https://{$host}/{$token}/sharedstreams/webstream", ['streamCtag' => null], ICLOUD_ALBUM_TIMEOUT);
+    }
+    if ($status === 404) {
+        return [null, 404, "Album not found. Check the link, and that Public Website is turned on in the Shared Album's settings."];
+    }
+    if ($status !== 200 || !$stream) {
+        $why = $status === 0 ? "didn't answer in time" : "returned HTTP {$status}";
+        return [$cached, 502, "iCloud {$why} while loading the album. Try again later."];
     }
 
-    $imageUrls = [];
-    if (!empty($guids)) {
-        $assetUrlEndpoint = "https://{$host}/{$token}/sharedstreams/webasseturls";
-        $assetPayload = json_encode(['photoGuids' => array_slice($guids, 0, 40)]);
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $assetUrlEndpoint);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $assetPayload);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Origin: https://www.icloud.com',
-            'Content-Type: text/json',
-            'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-        ]);
-        $assetResp = curl_exec($ch);
-        curl_close($ch);
+    // Largest rendition of each photo; videos are skipped (the widget shows images)
+    $photos = [];
+    foreach ($stream['photos'] ?? [] as $photo) {
+        if (($photo['mediaAssetType'] ?? '') === 'video' || empty($photo['photoGuid'])) continue;
+        $best = null;
+        foreach ($photo['derivatives'] ?? [] as $d) {
+            if (empty($d['checksum'])) continue;
+            if ($best === null || (int)($d['width'] ?? 0) > $best[1]) $best = [$d['checksum'], (int)($d['width'] ?? 0)];
+        }
+        if ($best) $photos[] = [$photo['photoGuid'], $best[0]];
+        if (count($photos) >= ICLOUD_MAX_PHOTOS) break;
+    }
 
-        $assetData = !empty($assetResp) ? json_decode($assetResp, true) : null;
-        $items = $assetData['items'] ?? [];
-        $locations = $assetData['locations'] ?? [];
+    $album = ['host' => $host, 'title' => $stream['streamName'] ?? null, 'photos' => $photos, 'fetchedAt' => time()];
+    @file_put_contents($file, json_encode($album), LOCK_EX);
+    return [$album, 0, ''];
+}
 
-        foreach ($items as $checksum => $item) {
-            $locKey = $item['url_location'] ?? '';
-            $loc = $locations[$locKey] ?? null;
-            if ($loc && !empty($loc['hosts']) && !empty($item['url_path'])) {
-                $scheme = $loc['scheme'] ?? 'https';
-                $cdnHost = $loc['hosts'][0];
-                $imageUrls[] = "{$scheme}://{$cdnHost}{$item['url_path']}";
+/** Parse the token from https://www.icloud.com/sharedalbum/#TOKEN, …/sharedalbum/TOKEN or a bare token. */
+function icloudToken(string $input): string {
+    if (preg_match('/#([A-Za-z0-9_\-]{10,})/', $input, $m)) return $m[1];
+    if (preg_match('/sharedalbum\/([A-Za-z0-9_\-]{10,})/', $input, $m)) return $m[1];
+    if (preg_match('/^[A-Za-z0-9_\-]{10,}$/', $input)) return $input;
+    return '';
+}
+
+if ($action === 'fetch_icloud_photos') {
+    $albumUrl = trim($_GET['album_url'] ?? $_GET['url'] ?? $_GET['token'] ?? '');
+    if ($albumUrl === '') {
+        icloudFail(400, "Missing iCloud shared album link.");
+    }
+    // "Copy iCloud Link" links (share.icloud.com/photos/…) point at individual photos, not a Shared Album
+    if (stripos($albumUrl, 'share.icloud.com') !== false) {
+        icloudFail(422, "This is an iCloud photo link, not a Shared Album. In Photos, open the Shared Album, turn on Public Website, and paste that link (icloud.com/sharedalbum/#…).");
+    }
+    $token = icloudToken($albumUrl);
+    if ($token === '') {
+        icloudFail(400, "Couldn't read the album link. It should look like https://www.icloud.com/sharedalbum/#B0aB1cD2eF3gH4.");
+    }
+
+    [$album, $errStatus, $errMessage] = icloudAlbum($token, !empty($_GET['force_refresh']) || !empty($_GET['refresh']));
+    if (!$album) {
+        icloudFail($errStatus ?: 502, $errMessage);
+    }
+    if (!$album['photos']) {
+        icloudFail(404, "The album has no photos yet.");
+    }
+
+    // Stable links to icloud_image (below); they never expire, unlike Apple's
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    $base = ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/api/proxy.php'), '/') . '/proxy.php';
+    $images = [];
+    foreach ($album['photos'] as $i => [$guid]) {
+        $images[] = $base . '?action=icloud_image&album=' . rawurlencode($token) . '&photo=' . $i;
+    }
+
+    if ($errMessage) header("X-iCloud-Warning: stale album listing");
+    echo json_encode([
+        "success" => true,
+        "count" => count($images),
+        "title" => $album['title'],
+        "images" => $images
+    ], JSON_UNESCAPED_SLASHES);
+    exit();
+}
+
+if ($action === 'icloud_image') {
+    $token = icloudToken(trim($_GET['album'] ?? ''));
+    $index = filter_var($_GET['photo'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+    if ($token === '' || $index === false) {
+        icloudFail(400, "Bad iCloud image link.");
+    }
+    [$album, , $errMessage] = icloudAlbum($token);
+    if (!$album || !isset($album['photos'][$index])) {
+        icloudFail(404, $errMessage ?: "Photo not found in the album.");
+    }
+
+    // Resolved Apple links for the batch this photo belongs to, cached until shortly before expiry
+    $batchNo = intdiv($index, ICLOUD_BATCH);
+    $linksFile = icloudCacheDir() . '/links_' . md5($token) . "_{$batchNo}.json";
+    $links = icloudReadJson($linksFile);
+    if (!$links || time() > (int)($links['validUntil'] ?? 0)) {
+        $batch = array_slice($album['photos'], $batchNo * ICLOUD_BATCH, ICLOUD_BATCH);
+        [$aStatus, , $assets] = icloudPost(
+            "https://{$album['host']}/{$token}/sharedstreams/webasseturls",
+            ['photoGuids' => array_column($batch, 0)]
+        );
+        if ($aStatus !== 200 || !$assets) {
+            icloudFail(502, "iCloud didn't return a download link (HTTP {$aStatus}).");
+        }
+        $urls = [];
+        $earliestExpiry = time() + 3600;
+        foreach ($batch as $offset => [$guid, $checksum]) {
+            $item = $assets['items'][$checksum] ?? null;
+            $loc = $item ? ($assets['locations'][$item['url_location'] ?? ''] ?? null) : null;
+            $cdnHost = $loc['hosts'][0] ?? '';
+            if ($item && !empty($item['url_path']) && preg_match('/(^|\.)icloud-content\.com$/', $cdnHost)) {
+                $urls[$batchNo * ICLOUD_BATCH + $offset] = ($loc['scheme'] ?? 'https') . '://' . $cdnHost . $item['url_path'];
+                if (!empty($item['url_expiry'])) $earliestExpiry = min($earliestExpiry, strtotime($item['url_expiry']) ?: $earliestExpiry);
             }
         }
+        $links = ['urls' => $urls, 'validUntil' => $earliestExpiry - 180];
+        @file_put_contents($linksFile, json_encode($links), LOCK_EX);
     }
 
-    $responsePayload = json_encode([
-        "success" => true,
-        "count" => count($imageUrls),
-        "images" => $imageUrls
-    ]);
-
-    if (!empty($imageUrls)) {
-        @file_put_contents($cacheFile, $responsePayload);
+    $target = $links['urls'][$index] ?? $links['urls'][(string)$index] ?? null;
+    if (!$target) {
+        icloudFail(404, "iCloud has no download link for this photo.");
     }
-
-    header("Content-Type: application/json; charset=UTF-8");
-    header("X-Cache: MISS");
-    echo $responsePayload;
+    // Browsers may cache the redirect briefly, never past Apple's expiry
+    header('Cache-Control: private, max-age=' . max(0, min(600, (int)$links['validUntil'] - time())));
+    header('Location: ' . $target, true, 302);
     exit();
 }
 
