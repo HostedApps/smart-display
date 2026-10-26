@@ -37,6 +37,8 @@ import { TradingviewWidgetComponent } from './tradingview-widget.component';
 import { RedditWidgetComponent } from './reddit-widget.component';
 import { GreetingWidgetComponent } from './greeting-widget.component';
 import { CustomWidgetComponent } from './custom-widget.component';
+import { ConfigField } from './widget-config-schema';
+import { WIDGET_CONFIG_FIELDS } from './widget-config-fields';
 
 export type WidgetCategory = 'time' | 'weather' | 'family' | 'media' | 'info' | 'data' | 'layout';
 
@@ -53,7 +55,8 @@ export const WIDGET_CATEGORIES: { id: WidgetCategory; label: string }[] = [
 /**
  * Single source of truth for every widget type. The editor palette, new-widget defaults,
  * layer labels, help catalog and both renderers (editor canvas + kiosk display) read from here.
- * Adding a widget = create its component, add one entry below, and (for now) its inspector form.
+ * Adding a widget = create its component, add one entry below, and list its settings fields in
+ * widget-config-fields.ts (or, for list editors and actions, add a form to admin/widget-forms).
  */
 export interface WidgetDefinition {
   type: WidgetType;
@@ -77,6 +80,11 @@ export interface WidgetDefinition {
   defaultSize: { width: number; height: number };
   /** Factory so every new widget gets its own config object */
   defaultConfig: () => Record<string, any>;
+  /**
+   * Settings form for the editor inspector, generated from this schema (widget-config-fields.ts).
+   * Absent when the widget has no settings or uses a custom form (admin/widget-forms).
+   */
+  fields?: readonly ConfigField[];
 }
 
 export const WIDGET_REGISTRY: WidgetDefinition[] = [
@@ -830,6 +838,10 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     })
   }
 ];
+
+for (const def of WIDGET_REGISTRY) {
+  def.fields = WIDGET_CONFIG_FIELDS[def.type];
+}
 
 const BY_TYPE = new Map<string, WidgetDefinition>(WIDGET_REGISTRY.map(d => [d.type, d]));
 
