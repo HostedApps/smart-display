@@ -29,3 +29,9 @@ export const CUSTOM_WIDGET_EXAMPLES: CustomWidgetExample[] = [
 export function findCustomWidgetExample(id: string): CustomWidgetExample | undefined {
   return CUSTOM_WIDGET_EXAMPLES.find(e => e.id === id);
 }
+
+/** Parse error for a custom widget's settings JSON, or '' when valid or empty. */
+export function jsonSettingsError(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw.trim()) return '';
+  try { JSON.parse(raw); return ''; } catch (e) { return e instanceof Error ? e.message : 'parse error'; }
+}
