@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once 'widget_secrets_lib.php';
 
 // Verify Authentication Token
 $headers = getallheaders();
@@ -143,6 +144,7 @@ try {
     $updateWidgetStmt = $pdo->prepare("UPDATE widgets SET page_id = ?, type = ?, position_json = ?, style_json = ?, config_json = ? WHERE id = ? AND display_id = ?");
 
     $idMap = [];      // client id => database id (only for ids that changed)
+    $sanitizedWidgets = []; // payload widgets without secrets, for version history
     $keptIds = [];
     $savedStyles = []; // database id => style array (for linked-widget remapping)
     foreach ($widgets as $w) {
@@ -158,19 +160,37 @@ try {
             $style['_meta'] = $meta;
         }
         // Empty arrays must stay JSON objects ({}), not lists ([])
-        $config = !empty($w['config']) && is_array($w['config']) ? $w['config'] : new stdClass();
-        $params = [$pageId, $w['type'], json_encode($w['position']), json_encode(empty($style) ? new stdClass() : $style), json_encode($config)];
+        $config = !empty($w['config']) && is_array($w['config']) ? $w['config'] : [];
+        $isUpdate = $clientId > 0 && isset($existingSet[$clientId]);
+        if ($isUpdate) {
+            // Secrets go to widget_secrets (encrypted), never into config_json
+            storeWidgetSecrets($pdo, $clientId, (string)$w['type'], $config);
+        }
+        $configJson = json_encode(empty($config) ? new stdClass() : $config);
+        $params = [$pageId, $w['type'], json_encode($w['position']), json_encode(empty($style) ? new stdClass() : $style), $configJson];
 
-        if ($clientId > 0 && isset($existingSet[$clientId])) {
+        if ($isUpdate) {
             $updateWidgetStmt->execute(array_merge($params, [$clientId, $displayId]));
             $dbId = $clientId;
         } else {
+            // New widget: insert without secrets first (the secret store needs the row's id)
+            $secretConfig = $config;
+            $plainConfig = $config;
+            foreach (array_keys(widgetSecretFields((string)$w['type'])) as $field) {
+                if (widgetSecretsAvailable($pdo)) unset($plainConfig[$field]);
+            }
+            unset($plainConfig['_clearSecrets'], $plainConfig['_secretsSet'], $plainConfig['_deviceSecrets'], $plainConfig['_widgetId']);
+            $params[4] = json_encode(empty($plainConfig) ? new stdClass() : $plainConfig);
             $insertStmt->execute(array_merge([$displayId], $params));
             $dbId = (int)$pdo->lastInsertId();
+            storeWidgetSecrets($pdo, $dbId, (string)$w['type'], $secretConfig);
+            $config = $plainConfig;
             if ($clientId !== 0) {
                 $idMap[(string)$clientId] = $dbId;
             }
         }
+        // Version history stores the payload: keep secrets out of it too
+        $sanitizedWidgets[] = array_merge($w, ['config' => empty($config) ? new stdClass() : $config]);
         $keptIds[] = $dbId;
         $savedStyles[$dbId] = $style;
     }
@@ -197,9 +217,16 @@ try {
 
     $pdo->commit();
 
-    $versionId = recordDisplayVersion($pdo, $displayId, $userId, $input, count($keptIds), $idMap);
+    $versionId = recordDisplayVersion($pdo, $displayId, $userId, array_merge($input, ['widgets' => $sanitizedWidgets]), count($keptIds), $idMap);
 
-    echo json_encode(["success" => true, "message" => "Display settings & layout saved securely", "id_map" => (object)$idMap, "version_id" => $versionId]);
+    echo json_encode([
+        "success" => true,
+        "message" => "Display settings & layout saved securely",
+        "id_map" => (object)$idMap,
+        "version_id" => $versionId,
+        // The editor drops typed secrets only when they were stored (migration_widget_secrets.sql applied)
+        "secrets_stored" => widgetSecretsAvailable($pdo)
+    ]);
 } catch (\Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();

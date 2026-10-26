@@ -310,7 +310,10 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
         this.usedWeatherCity = this.bus.snapshot('weather')?.city || '';
         this.usedEventTitle = this.bus.snapshot('nextEvent')?.title || '';
         return this.http.post<any>(`${environment.apiUrl}/ai_briefing.php`, {
+          // A key typed in the editor (not saved yet) is sent as-is; a saved key stays on the
+          // server, which looks it up by widget id
           apiKey: this.config?.apiKey || '',
+          widgetId: this.config?._widgetId || 0,
           userName: this.config?.userName || '',
           tone: this.config?.tone || 'warm',
           refreshHours: this.refreshHours,

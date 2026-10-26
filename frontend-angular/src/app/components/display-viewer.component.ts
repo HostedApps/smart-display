@@ -1173,7 +1173,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   }
 
   private fetchDisplayData() {
-    return this.http.get<DisplayResponse>(`${environment.apiUrl}/get_display.php?token=${this.token}`);
+    // for=kiosk: the server includes secrets this screen must use itself (e.g. a Home Assistant token)
+    return this.http.get<DisplayResponse>(`${environment.apiUrl}/get_display.php?token=${this.token}&for=kiosk`);
   }
 
   trackWidgetById(index: number, widget: Widget): any {

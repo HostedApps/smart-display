@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once 'widget_secrets_lib.php';
 
 $action = $_GET['action'] ?? '';
 
@@ -352,6 +353,47 @@ if ($action === 'icloud_image') {
     // Browsers may cache the redirect briefly, never past Apple's expiry
     header('Cache-Control: private, max-age=' . max(0, min(600, (int)$links['validUntil'] - time())));
     header('Location: ' . $target, true, 302);
+    exit();
+}
+
+// OpenWeather forecast for a weather widget whose API key is stored server-side (widget_secrets).
+// The browser sends the widget id; the key never leaves the server.
+if ($action === 'openweather_forecast') {
+    $widgetId = (int)($_GET['widget'] ?? 0);
+    $city = trim((string)($_GET['city'] ?? ''));
+    $units = in_array($_GET['units'] ?? '', ['metric', 'imperial'], true) ? $_GET['units'] : 'imperial';
+    $widget = $widgetId > 0 ? authorizeWidgetCaller($pdo, $widgetId) : null;
+    if (!$widget || $widget['type'] !== 'weather') {
+        http_response_code(403);
+        echo json_encode(["success" => false, "error" => "Not allowed to use this widget's OpenWeather key."]);
+        exit();
+    }
+    $key = getWidgetSecret($pdo, $widgetId, 'apiKey');
+    if (!$key || $city === '' || mb_strlen($city) > 100) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "error" => $key ? "Missing city." : "No OpenWeather key saved for this widget."]);
+        exit();
+    }
+
+    $cacheFile = sys_get_temp_dir() . '/owm_' . md5($widgetId . '|' . $city . '|' . $units) . '.json';
+    if (is_file($cacheFile) && time() - filemtime($cacheFile) < 300) {
+        echo file_get_contents($cacheFile);
+        exit();
+    }
+    $ch = curl_init('https://api.openweathermap.org/data/2.5/forecast?q=' . rawurlencode($city) . '&units=' . $units . '&appid=' . rawurlencode($key));
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 10]);
+    $body = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($status !== 200 || !is_string($body) || !is_array(json_decode($body, true))) {
+        // Pass OpenWeather's status on (401 = bad key, 404 = unknown city) without its body,
+        // which can echo the request URL including the key
+        http_response_code($status >= 400 && $status < 500 ? $status : 502);
+        echo json_encode(["success" => false, "error" => "OpenWeather returned HTTP $status."]);
+        exit();
+    }
+    @file_put_contents($cacheFile, $body);
+    echo $body;
     exit();
 }
 

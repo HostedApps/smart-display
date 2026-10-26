@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once 'widget_secrets_lib.php';
 
 
 
@@ -254,6 +255,7 @@ function copyWidgetsTo(PDO $pdo, array $sourceWidgets, int $targetId): int {
         $idMap[(int)$w['id']] = $newId;
         $styles[$newId] = $w['style_json'];
     }
+    copyWidgetSecrets($pdo, $idMap);
     $restyle = $pdo->prepare("UPDATE widgets SET style_json = ? WHERE id = ?");
     foreach ($styles as $newId => $styleJson) {
         if (empty($styleJson)) continue;

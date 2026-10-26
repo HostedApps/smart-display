@@ -1,3 +1,4 @@
+import { environment } from '../../../environments/environment';
 import { Component, Input, OnInit, OnDestroy, OnChanges, DoCheck, SimpleChanges, Optional, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { interval, Subscription, of } from 'rxjs';
@@ -644,9 +645,15 @@ export class WeatherWidgetComponent implements OnInit, OnDestroy, OnChanges, DoC
     if (!city) return;
 
     // If an explicit OpenWeatherMap API key is provided, try it first
-    if (this.config?.apiKey && this.config.apiKey.trim()) {
+    // A key typed in the editor (not saved yet) is used directly; a saved key stays on the server,
+    // which calls OpenWeather for this widget
+    const typedKey = this.config?.apiKey?.trim();
+    const savedKey = !typedKey && this.config?._secretsSet?.includes('apiKey') && this.config?._widgetId;
+    if (typedKey || savedKey) {
       const units = this.config.units || 'imperial';
-      const owmUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=${units}&appid=${this.config.apiKey.trim()}`;
+      const owmUrl = typedKey
+        ? `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=${units}&appid=${typedKey}`
+        : `${environment.apiUrl}/proxy.php?action=openweather_forecast&widget=${this.config._widgetId}&city=${encodeURIComponent(city)}&units=${units}`;
       
       this.loading = true;
       this.errorMessage = null;

@@ -1,3 +1,4 @@
+import { settleSecretsAfterSave, withoutSecretValues } from '../../utils/widget-secrets.util';
 import { Component, OnInit, AfterViewInit, OnDestroy, HostListener, Type, NgZone, Injector } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -915,7 +916,7 @@ import { NotificationService } from '../../services/notification.service';
                     <summary style="outline: none;">Advanced: Custom OpenWeather API Key</summary>
                     <div class="form-group" style="margin-top: 8px;">
                       <label style="font-size: 0.68rem;">OpenWeather API Key (Optional)</label>
-                      <input type="text" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use zero-config Open-Meteo" class="input-control" />
+                      <app-secret-input [config]="selectedWidget.config" field="apiKey" placeholder="Leave blank to use zero-config Open-Meteo"></app-secret-input>
                     </div>
                   </details>
                 </ng-container>
@@ -1062,7 +1063,7 @@ import { NotificationService } from '../../services/notification.service';
                   </div>
                   <div class="form-group">
                     <label>Long-Lived Access Token (Optional)</label>
-                    <input type="password" [(ngModel)]="selectedWidget.config.token" placeholder="Bearer Token" class="input-control" />
+                    <app-secret-input [config]="selectedWidget.config" field="token" placeholder="Long-lived access token"></app-secret-input>
                     <small style="font-size:0.65rem; color:#94a3b8;">Leave blank to use interactive simulated smart tiles.</small>
                   </div>
 
@@ -1347,7 +1348,7 @@ import { NotificationService } from '../../services/notification.service';
                   <div class="form-group">
                     <label>Google Gemini API Key (Optional)</label>
                     <div style="display: flex; gap: 8px;">
-                      <input type="password" [(ngModel)]="selectedWidget.config.apiKey" placeholder="Leave blank to use built-in ambient engine" class="input-control" style="flex: 1;" />
+                      <app-secret-input [config]="selectedWidget.config" field="apiKey" placeholder="Leave blank to use built-in ambient engine" style="flex: 1;"></app-secret-input>
                       <button type="button" (click)="testGeminiKey()" [disabled]="testingGemini" class="btn btn-secondary" style="white-space: nowrap; padding: 0 12px; font-size: 0.8rem;">
                         {{ testingGemini ? 'Testing...' : 'Test Key' }}
                       </button>
@@ -1607,7 +1608,7 @@ import { NotificationService } from '../../services/notification.service';
 
                   <div class="form-group">
                     <label>Authorization Header (Optional)</label>
-                    <input type="text" [(ngModel)]="selectedWidget.config.authHeader" placeholder="Bearer YOUR_TOKEN" class="input-control" />
+                    <app-secret-input [config]="selectedWidget.config" field="authHeader" placeholder="Bearer YOUR_TOKEN"></app-secret-input>
                   </div>
 
                   <div class="form-group">
@@ -4869,7 +4870,8 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
         const dirty = json !== this.lastSavedJson;
         if (dirty) {
           try {
-            localStorage.setItem(this.draftKey, JSON.stringify({ savedAt: new Date().toISOString(), payload: JSON.parse(json) }));
+            // Typed API keys and tokens are never written to browser storage
+            localStorage.setItem(this.draftKey, JSON.stringify({ savedAt: new Date().toISOString(), payload: withoutSecretValues(JSON.parse(json)) }));
           } catch { /* storage full or unavailable */ }
         }
         if (dirty !== this.isDirty || dirty) {
@@ -6299,11 +6301,14 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
     this.saving = true;
     const payload = this.buildSavePayload();
 
-    this.http.post<{ success: boolean; id_map?: Record<string, number> }>(`${environment.apiUrl}/save_display.php`, payload)
+    this.http.post<{ success: boolean; id_map?: Record<string, number>; secrets_stored?: boolean }>(`${environment.apiUrl}/save_display.php`, payload)
       .subscribe({
         next: (res) => {
           this.saving = false;
           this.applySavedWidgetIds(res?.id_map);
+          // Only once the server confirms it stored them: older servers keep secrets in config,
+          // and clearing them here would erase them on the next save
+          if (res?.secrets_stored) settleSecretsAfterSave(this.widgets);
           this.markSaved();
           this.notifications.success('Layout and settings published to the display.');
         },
@@ -6327,14 +6332,19 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   testGeminiKey(): void {
-    if (!this.selectedWidget || !this.selectedWidget.config.apiKey) {
+    const config = this.selectedWidget?.config;
+    const typedKey = (config?.apiKey || '').trim();
+    const savedKey = !typedKey && config?._secretsSet?.includes('apiKey') && config?._widgetId;
+    if (!typedKey && !savedKey) {
       this.geminiTestResult = { success: false, message: 'Please enter a Gemini API key first.' };
       return;
     }
     this.testingGemini = true;
     this.geminiTestResult = null;
     this.http.post<any>(`${environment.apiUrl}/ai_briefing.php`, {
-      apiKey: this.selectedWidget.config.apiKey.trim(),
+      // A saved key is tested on the server by widget id; it's never sent back to the editor
+      apiKey: typedKey,
+      widgetId: savedKey ? config._widgetId : 0,
       test: true
     }).subscribe({
       next: (res) => {

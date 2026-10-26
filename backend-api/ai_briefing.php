@@ -11,6 +11,7 @@
  * to the local template engine.
  */
 require_once 'db.php';
+require_once 'widget_secrets_lib.php';
 
 const BRIEFING_MIN_FRESH_SECONDS = 110 * 60;  // reuse a generated briefing at least this long (widget refresh is ≥ 2 h)
 const BRIEFING_REFRESH_MIN_SECONDS = 10 * 60;  // the manual refresh button can't bypass the cache faster than this
@@ -49,6 +50,14 @@ function briefingField(array $input, string $key, int $maxLen = 300): string {
 }
 
 $apiKey = briefingField($input, 'apiKey', 200);
+// Saved widgets don't send their key: it's stored server-side (widget_secrets) and looked up by widget id
+$widgetId = (int)($input['widgetId'] ?? 0);
+if ($apiKey === '' && $widgetId > 0) {
+    $widget = authorizeWidgetCaller($pdo, $widgetId);
+    if ($widget && $widget['type'] === 'ai_briefing') {
+        $apiKey = getWidgetSecret($pdo, $widgetId, 'apiKey') ?? '';
+    }
+}
 if ($apiKey === '' && getenv('GEMINI_API_KEY')) {
     $apiKey = getenv('GEMINI_API_KEY');
 }
