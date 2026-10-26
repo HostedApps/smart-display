@@ -16,10 +16,28 @@ export class OfflineCacheService {
 
   saveDisplay(token: string, data: DisplayResponse): void {
     try {
-      localStorage.setItem(this.CACHE_KEY_PREFIX + token, JSON.stringify(data));
+      localStorage.setItem(this.CACHE_KEY_PREFIX + token, JSON.stringify(OfflineCacheService.withoutSecrets(data)));
     } catch (e) {
       console.warn('LocalStorage cache write error:', e);
     }
+  }
+
+  /**
+   * Copy of the display without the secrets the server sent for this screen (listed per widget in
+   * config._deviceSecrets). They're fetched fresh on every load and never written to storage.
+   */
+  static withoutSecrets(data: DisplayResponse): DisplayResponse {
+    return {
+      ...data,
+      widgets: (data.widgets || []).map(w => {
+        const secrets: string[] = Array.isArray(w.config?.['_deviceSecrets']) ? w.config['_deviceSecrets'] : [];
+        if (!secrets.length) return w;
+        const config = { ...w.config };
+        for (const field of secrets) delete config[field];
+        delete config['_deviceSecrets'];
+        return { ...w, config };
+      })
+    };
   }
 
   getDisplay(token: string): DisplayResponse | null {

@@ -29,6 +29,14 @@ mysqldump -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" | gzip > "$BACKUP_
 
 echo "Backup successful: $BACKUP_DIR/$FILENAME"
 
+# The widget secrets key (backend-api/widget_secrets_lib.php): without it, the encrypted API keys
+# and tokens in a restored database can't be read. Unless SECRETS_KEY is set in .env.
+KEY_FILE="/home/u528878684/domains/smart-kiosk.online/.sd_secrets_key"
+if [ -f "$KEY_FILE" ] && [ ! -f "$BACKUP_DIR/sd_secrets_key" ]; then
+    install -m 600 "$KEY_FILE" "$BACKUP_DIR/sd_secrets_key"
+    echo "Secrets key copied to $BACKUP_DIR/sd_secrets_key (keep it with the backups)."
+fi
+
 # Optional: keep only last 30 backups
 find "$BACKUP_DIR" -type f -name "*.sql.gz" -mtime +30 -exec rm {} \;
 echo "Old backups cleaned up."
