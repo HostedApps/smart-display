@@ -1,4 +1,5 @@
 import { isWidgetOnPage, MIN_PAGE_SECONDS, DEFAULT_PAGE_SECONDS } from '../utils/pages.util';
+import { backgroundCss, backgroundImageUrl, cssUrl } from '../utils/background.util';
 import { isNewBuild, mainBundleIn, runningMainBundle } from '../utils/build-update.util';
 import { Component, OnInit, OnDestroy, HostListener, Type } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -36,7 +37,7 @@ import { KioskCommand } from '../services/emergency.service';
       <div 
         *ngIf="backgroundImageUrl" 
         class="bg-image-layer" 
-        [style.backgroundImage]="'url(' + backgroundImageUrl + ')'"
+        [style.backgroundImage]="backgroundImageCss"
         [style.filter]="'blur(' + (displayConfig?.background?.blur || 0) + 'px)'"
         [style.opacity]="(displayConfig?.background?.opacity !== undefined ? displayConfig?.background?.opacity : 1)"
       ></div>
@@ -961,19 +962,16 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   }
 
   get backgroundImageUrl(): string | null {
-    const bg = this.displayConfig?.background;
-    if (bg && (bg.type === 'image' || bg.type === 'unsplash') && bg.value) {
-      return bg.value;
-    }
-    return null;
+    return backgroundImageUrl(this.displayConfig?.background);
+  }
+
+  get backgroundImageCss(): string | null {
+    const url = this.backgroundImageUrl;
+    return url ? cssUrl(url) : null;
   }
 
   get canvasBackgroundStyle(): string | null {
-    const bg = this.displayConfig?.background;
-    if (bg && (bg.type === 'color' || bg.type === 'gradient')) {
-      return bg.value;
-    }
-    return null;
+    return backgroundCss(this.displayConfig?.background);
   }
 
   ngOnInit(): void {

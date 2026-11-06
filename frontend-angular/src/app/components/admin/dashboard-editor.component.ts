@@ -29,6 +29,7 @@ import { AVAILABLE_FONTS, loadGoogleFont, getFontFamilyString, FontOption } from
 import { DASHBOARD_TEMPLATES, DashboardTemplate } from '../../utils/dashboard-templates.util';
 import { SevereWeatherAlertData } from '../widgets/severe-weather-alert-banner.component';
 import { NotificationService } from '../../services/notification.service';
+import { backgroundCss, backgroundImageUrl, cssUrl } from '../../utils/background.util';
 
 @Component({
   selector: 'app-dashboard-editor',
@@ -744,7 +745,7 @@ import { NotificationService } from '../../services/notification.service';
             <div 
               *ngIf="getCanvasBackgroundImage()" 
               class="editor-bg-image" 
-              [style.backgroundImage]="'url(' + getCanvasBackgroundImage() + ')'"
+              [style.backgroundImage]="getCanvasBackgroundImageCss()"
               [style.filter]="'blur(' + (backgroundConfig.blur || 0) + 'px)'"
             ></div>
 
@@ -2312,21 +2313,18 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   getCanvasBackgroundImage(): string | null {
-    if (this.backgroundConfig.type === 'image' && this.backgroundConfig.value) {
-      return this.backgroundConfig.value;
-    }
-    if (this.backgroundConfig.type === 'unsplash') {
-      return 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1920&q=80';
-    }
-    return null;
+    return backgroundImageUrl(this.backgroundConfig);
+  }
+
+  getCanvasBackgroundImageCss(): string | null {
+    const url = this.getCanvasBackgroundImage();
+    return url ? cssUrl(url) : null;
   }
 
   getCanvasBackgroundStyle(): string | null {
-    if (this.backgroundConfig.type === 'color' || this.backgroundConfig.type === 'gradient') {
-      return this.backgroundConfig.value;
-    }
-    return null;
+    return backgroundCss(this.backgroundConfig);
   }
+
 
   private snap(val: number): number {
     if (this.gridSnapSize <= 0) return Math.round(val);
