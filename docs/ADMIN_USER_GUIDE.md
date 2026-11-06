@@ -35,15 +35,22 @@ Remote commands (reload, identify, sleep / wake, change page, screenshot) reach 
 * **Version history** keeps the last 20 publishes. Restoring loads a version into the editor without publishing it.
 * **Preview** shows the layout full-screen in device frames: TV 1080p, TV 4K, portrait, iPad, Raspberry Pi 7" and laptop, using the same scaling as the real screen.
 
-### 2.3 Canvas size
+### 2.3 Pages and rotation
+A display can have several pages (**Pages** tab). Each page has its **own widgets**: a widget added to a page appears only there.
+* **Same widget on several pages:** select it, open **Behaviour → Copy to page** for an independent copy (its own tasks, events, drawings and settings), or tick **Show on every page** to show the one widget everywhere (e.g. a clock).
+* **Move a widget** to another page with **Behaviour → Page**.
+* **Rotation:** pages rotate on their own timers (minimum 5 s each). Turn **Rotate pages automatically** off to stay on one page. **Pause after a touch** keeps the page someone touched, swiped or changed with a TV remote for that many seconds (0 = never pause). **Set every page to** sets all timers at once, and the tab shows how long a full rotation takes.
+* **Page schedules** (⏰) limit a page to certain hours and days; a scheduled page joins the rotation only while its schedule is active.
+
+### 2.4 Canvas size
 Pick a design canvas under **Settings → Orientation & Resolution**: landscape or portrait 720p, 1080p, 1440p (2K) and 4K; 16:10 tablet; 4:3 iPad; ultrawide 21:9; or **Freeform** with a custom width and height.
 
 The layout is scaled to whatever screen shows it, so one design works at any resolution. See **Fit Layout to Screen** below.
 
-### 2.4 Editor zoom
+### 2.5 Editor zoom
 On a laptop, the canvas fits the window automatically. The bottom toolbar has **Fit**, **50% / 75% / 100%** and **+ / −**.
 
-### 2.5 Templates
+### 2.6 Templates
 Start from one of 14 templates (for example Family, MagicMirror-style, Kitchen Hub, Office Lobby, Photo Frame, Fitness, Classroom, Night Stand, DevOps Wall). Each has landscape and portrait layouts and may apply a recommended theme. An empty page also offers templates.
 
 ---

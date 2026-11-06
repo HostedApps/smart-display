@@ -100,7 +100,7 @@ function decryptWidgetSecret(string $stored): ?string {
 function storeWidgetSecrets(PDO $pdo, int $widgetId, string $type, array &$config): void {
     $fields = widgetSecretFields($type);
     $clear = isset($config['_clearSecrets']) && is_array($config['_clearSecrets']) ? $config['_clearSecrets'] : [];
-    unset($config['_clearSecrets'], $config['_secretsSet'], $config['_deviceSecrets'], $config['_widgetId']);
+    unset($config['_clearSecrets'], $config['_secretsSet'], $config['_deviceSecrets'], $config['_widgetId'], $config['_copySecretsFrom']);
     if (!$fields || !widgetSecretsAvailable($pdo)) return;
 
     $upsert = $pdo->prepare("INSERT INTO widget_secrets (widget_id, field, ciphertext) VALUES (?, ?, ?)

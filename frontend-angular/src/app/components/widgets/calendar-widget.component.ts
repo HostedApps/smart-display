@@ -999,6 +999,8 @@ export class CalendarWidgetComponent implements OnInit, OnDestroy, OnChanges {
       this.http.post(`${environment.apiUrl}/calendar_sync.php`, {
         action: 'add',
         token: this.displayToken,
+        // This calendar, not the first one on the display
+        widget_id: this.config?.['_widgetId'] || 0,
         title,
         startDate: start.toISOString(),
         endDate: end.toISOString(),

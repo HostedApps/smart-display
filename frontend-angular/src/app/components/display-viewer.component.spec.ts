@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { DisplayViewerComponent } from './display-viewer.component';
@@ -126,5 +126,73 @@ describe('DisplayViewerComponent (Scheduling Engine & Block Layers)', () => {
       const atNoon = new Date(2026, 8, 26, 12, 0);
       expect(component.isPageScheduledActive(p, atNoon)).toBeFalse();
     });
+  });
+
+  describe('pages and rotation', () => {
+    const pages: DisplayPage[] = [
+      { id: 'default', name: 'Main', duration_seconds: 10 },
+      { id: 'page_2', name: 'Second', duration_seconds: 20 },
+    ];
+    const widget = (id: number, page_id: string, extra: Partial<Widget> = {}): Widget =>
+      ({ id, type: 'clock', page_id, position: { x: 0, y: 0, width: 10, height: 10 }, config: {}, ...extra } as Widget);
+
+    beforeEach(() => {
+      component.pages = pages;
+      component.widgets = [widget(1, 'default'), widget(2, 'page_2'), widget(3, 'page_2', { type: 'clock' }), widget(4, 'default', { allPages: true })];
+      (component as any).displayConfig = { page_rotation: { enabled: true, pause_on_touch_seconds: 60 } };
+    });
+
+    it('each page shows only its own widgets (plus ones set to show on every page)', () => {
+      component.activePageIndex = 0;
+      expect(component.activeWidgets.map(w => w.id)).toEqual([1, 4]);
+      component.goToPage(1);
+      expect(component.activeWidgets.map(w => w.id)).toEqual([2, 3, 4]);
+      (component as any).carouselTimerSub?.unsubscribe();
+    });
+
+    it('rotates on each page\'s own timer', fakeAsync(() => {
+      component.activePageIndex = 0;
+      (component as any).startCarousel();
+      tick(10_000);
+      expect(component.activePageIndex).toBe(1);
+      tick(19_000);
+      expect(component.activePageIndex).toBe(1);
+      tick(1_000);
+      expect(component.activePageIndex).toBe(0);
+      (component as any).carouselTimerSub?.unsubscribe();
+      discardPeriodicTasks();
+    }));
+
+    it('does not rotate when rotation is off', fakeAsync(() => {
+      (component as any).displayConfig = { page_rotation: { enabled: false } };
+      component.activePageIndex = 0;
+      (component as any).startCarousel();
+      tick(60_000);
+      expect(component.activePageIndex).toBe(0);
+    }));
+
+    it('a touch holds the page, then rotation resumes', fakeAsync(() => {
+      component.activePageIndex = 0;
+      (component as any).startCarousel();
+      tick(5_000);
+      component.handleTouchStart({ touches: [] } as unknown as TouchEvent);
+      tick(59_000);
+      expect(component.activePageIndex).toBe(0);
+      tick(1_000 + 10_000);
+      expect(component.activePageIndex).toBe(1);
+      (component as any).carouselTimerSub?.unsubscribe();
+      discardPeriodicTasks();
+    }));
+
+    it('reloading an unchanged config does not restart the page timer', fakeAsync(() => {
+      component.activePageIndex = 0;
+      (component as any).refreshCarousel();
+      tick(8_000);
+      (component as any).refreshCarousel();
+      tick(2_000);
+      expect(component.activePageIndex).toBe(1);
+      (component as any).carouselTimerSub?.unsubscribe();
+      discardPeriodicTasks();
+    }));
   });
 });

@@ -1,3 +1,4 @@
+import { isWidgetOnPage, MIN_PAGE_SECONDS, DEFAULT_PAGE_SECONDS } from '../utils/pages.util';
 import { Component, OnInit, OnDestroy, HostListener, Type } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -729,6 +730,9 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   isSevereAlertDismissed: boolean = false;
   private pollSub?: Subscription;
   private carouselTimerSub?: Subscription;
+  private carouselSignature = '';
+  private rotationPausedUntil = 0;
+  private rotationResumeTimer?: ReturnType<typeof setTimeout>;
   private clockTimerSub?: Subscription;
   /** Last layout version seen on the emergency poll; null until the server supports it */
   private lastConfigVersion: string | null = null;
@@ -890,7 +894,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     if (this.pages.length > 1) {
       const curPage = this.pages[this.activePageIndex];
       if (curPage) {
-        list = this.widgets.filter(w => !w.page_id || w.page_id === curPage.id || w.page_id === 'default');
+        list = this.widgets.filter(w => isWidgetOnPage(w, curPage.id, this.pages));
       }
     }
     return list.filter(w => this.isWidgetScheduledActive(w));
@@ -1088,6 +1092,9 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   @HostListener('window:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent) {
     if (this.pages.length > 1) {
+      if (['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', ' ', 'Enter', 'MediaTrackNext', 'MediaTrackPrevious'].includes(event.key)) {
+        this.noteInteraction();
+      }
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || event.key === ' ' || event.key === 'MediaTrackNext') {
         this.goToNextPage();
       } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || event.key === 'MediaTrackPrevious') {
@@ -1101,10 +1108,17 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   // iPad / Touchscreen Swipe Gestures
   @HostListener('touchstart', ['$event'])
   handleTouchStart(event: TouchEvent) {
+    this.noteInteraction();
     if (event.touches.length > 0) {
       this.touchStartX = event.touches[0].clientX;
       this.touchStartY = event.touches[0].clientY;
     }
+  }
+
+  // Mouse or pen on a kiosk (touch is handled above)
+  @HostListener('pointerdown', ['$event'])
+  handlePointerDown(event: PointerEvent) {
+    if (event.pointerType !== 'touch') this.noteInteraction();
   }
 
   @HostListener('touchend', ['$event'])
@@ -1207,7 +1221,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       this.detectSevereWeatherAlerts();
       this.applyCustomCss(this.displayConfig?.custom_css);
 
-      this.startCarousel();
+      this.refreshCarousel();
       this.checkSleepSchedule();
       this.updateStageTransform();
     }
@@ -1221,8 +1235,32 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     return eligible.length > 0 ? eligible : this.pages.map((_, i) => i);
   }
 
+  /** Page rotation settings, with defaults for displays saved before they existed */
+  private get rotation(): { enabled: boolean; pauseSeconds: number } {
+    const r = this.displayConfig?.page_rotation;
+    return { enabled: r?.enabled !== false, pauseSeconds: Math.max(0, Number(r?.pause_on_touch_seconds ?? 60) || 0) };
+  }
+
+  /** Someone touched, swiped or used a remote: stay on this page for a while before rotating again */
+  private noteInteraction(): void {
+    if (this.pages.length <= 1 || this.rotation.pauseSeconds <= 0) return;
+    this.rotationPausedUntil = Date.now() + this.rotation.pauseSeconds * 1000;
+    this.startCarousel();
+  }
+
+  /** Restart rotation only when pages or rotation settings change, not on every config reload */
+  private refreshCarousel(): void {
+    const signature = JSON.stringify([this.pages, this.displayConfig?.page_rotation ?? null]);
+    if (signature !== this.carouselSignature || !this.carouselTimerSub) {
+      this.carouselSignature = signature;
+      this.startCarousel();
+    }
+  }
+
   private startCarousel(): void {
     this.carouselTimerSub?.unsubscribe();
+    this.carouselTimerSub = undefined;
+    clearTimeout(this.rotationResumeTimer);
     if (this.pages.length <= 1) return;
 
     const available = this.getEligiblePageIndices();
@@ -1230,10 +1268,16 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
       this.activePageIndex = available[0] ?? 0;
     }
 
-    if (available.length <= 1) return;
+    if (available.length <= 1 || !this.rotation.enabled) return;
+
+    const pausedFor = this.rotationPausedUntil - Date.now();
+    if (pausedFor > 0) {
+      this.rotationResumeTimer = setTimeout(() => this.startCarousel(), pausedFor);
+      return;
+    }
 
     const curPage = this.pages[this.activePageIndex] || this.pages[0];
-    const duration = Math.max(5, curPage.duration_seconds || 30);
+    const duration = Math.max(MIN_PAGE_SECONDS, curPage.duration_seconds || DEFAULT_PAGE_SECONDS);
 
     this.carouselTimerSub = interval(duration * 1000).subscribe(() => {
       const currentPos = available.indexOf(this.activePageIndex);
@@ -1446,6 +1490,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.rotationResumeTimer);
     this.wakeLock.releaseWakeLock();
     this.pollSub?.unsubscribe();
     this.carouselTimerSub?.unsubscribe();

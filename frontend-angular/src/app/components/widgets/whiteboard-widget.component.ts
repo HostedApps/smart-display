@@ -426,7 +426,9 @@ export class WhiteboardWidgetComponent implements OnInit, AfterViewInit, OnDestr
     if (this.displayToken) {
       this.http.post(`${environment.apiUrl}/whiteboard_sync.php`, {
         action: 'clear',
-        token: this.displayToken
+        token: this.displayToken,
+        // This whiteboard, not the first one on the display
+        widgetId: this.config?._widgetId || 0
       }).subscribe({
         next: () => {},
         error: () => {}
@@ -443,6 +445,7 @@ export class WhiteboardWidgetComponent implements OnInit, AfterViewInit, OnDestr
         this.http.post(`${environment.apiUrl}/whiteboard_sync.php`, {
           action: 'save',
           token: this.displayToken,
+          widgetId: this.config?._widgetId || 0,
           strokes: this.strokes,
           canvasBackground: this.currentBg
         }).subscribe({

@@ -40,8 +40,16 @@ try {
     $displayId = (int)$display['id'];
 
     // 2. Fetch the calendar widget for this display
-    $wStmt = $pdo->prepare("SELECT id, config_json FROM widgets WHERE display_id = ? AND type = 'calendar' LIMIT 1");
-    $wStmt->execute([$displayId]);
+    // A specific widget when the screen says which (a display can have several); older screens
+    // don't send one and get the first, as before
+    $targetWidgetId = (int)($input['widget_id'] ?? 0);
+    if ($targetWidgetId > 0) {
+        $wStmt = $pdo->prepare("SELECT id, config_json FROM widgets WHERE id = ? AND display_id = ? AND type = 'calendar' LIMIT 1");
+        $wStmt->execute([$targetWidgetId, $displayId]);
+    } else {
+        $wStmt = $pdo->prepare("SELECT id, config_json FROM widgets WHERE display_id = ? AND type = 'calendar' LIMIT 1");
+        $wStmt->execute([$displayId]);
+    }
     $calWidget = $wStmt->fetch();
 
     if (!$calWidget) {

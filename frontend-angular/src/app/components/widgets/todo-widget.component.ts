@@ -426,6 +426,7 @@ export class TodoWidgetComponent implements OnInit {
       this.http.post(`${environment.apiUrl}/tasks_sync.php`, {
         action: 'add',
         token: this.displayToken,
+        widget_id: this.config?.['_widgetId'] || 0,
         text,
         priority: this.newTaskPriority
       }).subscribe({
@@ -450,6 +451,7 @@ export class TodoWidgetComponent implements OnInit {
       this.http.post(`${environment.apiUrl}/tasks_sync.php`, {
         action: 'delete',
         token: this.displayToken,
+        widget_id: this.config?.['_widgetId'] || 0,
         taskId: item.id
       }).subscribe({
         next: () => {},
@@ -466,6 +468,7 @@ export class TodoWidgetComponent implements OnInit {
       if (this.displayToken) {
         this.http.post(`${environment.apiUrl}/tasks_sync.php`, {
           token: this.displayToken,
+        widget_id: this.config?.['_widgetId'] || 0,
           taskId: item.id,
           completed: item.completed,
           text: item.text,
