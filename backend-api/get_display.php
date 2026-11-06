@@ -69,6 +69,7 @@ try {
         'scale_mode' => $bgData['scale_mode'] ?? 'fit',
         'safe_area' => isset($bgData['safe_area']) ? (float)$bgData['safe_area'] : 0,
         'page_transition' => $bgData['page_transition'] ?? 'fade',
+        'page_rotation' => $bgData['page_rotation'] ?? ['enabled' => true, 'pause_on_touch_seconds' => 60],
         'performance_mode' => $bgData['performance_mode'] ?? 'auto',
         'burn_in_shift' => (bool)($bgData['burn_in_shift'] ?? true),
         'weather_alerts_enabled' => $bgData['weather_alerts_enabled'] ?? true,
@@ -91,7 +92,7 @@ try {
 
     $widgets = array_map(function($w) use ($pdo, $secretRows, $forKiosk) {
         $style = !empty($w['style_json']) ? json_decode($w['style_json'], true) : ['opacity' => 1, 'borderRadius' => 12, 'backdropBlur' => true];
-        // Editor fields (schedule, rules, links, lock/hide, nickname) are stored under style._meta
+        // Editor fields (schedule, rules, links, lock/hide, nickname, show on every page) are stored under style._meta
         $meta = (is_array($style) && isset($style['_meta']) && is_array($style['_meta'])) ? $style['_meta'] : [];
         unset($style['_meta']);
         return array_merge([
@@ -100,8 +101,11 @@ try {
             'type' => $w['type'],
             'position' => !empty($w['position_json']) ? json_decode($w['position_json'], true) : ['x' => 0, 'y' => 0, 'width' => 320, 'height' => 200],
             'style' => !empty($style) ? $style : new stdClass(),
-            'config' => ($cfg = prepareWidgetConfig($pdo, $w, $secretRows, $forKiosk)) ? $cfg : new stdClass()
-        ], array_intersect_key($meta, array_flip(['schedule', 'rules', 'linkedWidgetId', 'locked', 'hidden', 'customName'])));
+            // _widgetId: widgets only receive their config, and need their id to sync their own data
+            // (tasks, calendar events, whiteboard) when a display has several of the same type.
+            // save_display.php strips it again.
+            'config' => array_merge(prepareWidgetConfig($pdo, $w, $secretRows, $forKiosk), ['_widgetId' => (int)$w['id']])
+        ], array_intersect_key($meta, array_flip(['schedule', 'rules', 'linkedWidgetId', 'locked', 'hidden', 'customName', 'allPages'])));
     }, $rawWidgets);
 
     echo json_encode([

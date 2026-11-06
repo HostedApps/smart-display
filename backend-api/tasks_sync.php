@@ -14,6 +14,7 @@ require_once 'db.php';
 // Rate limit: 60 task toggles per minute per IP
 checkRateLimit($pdo, 'tasks_sync', 60, 60);
 
+$input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
 $action = trim((string)($input['action'] ?? 'toggle'));
 $token = trim($input['token'] ?? $_GET['token'] ?? '');
 $taskId = trim((string)($input['taskId'] ?? $input['id'] ?? ''));
@@ -54,8 +55,16 @@ try {
     $displayId = (int)$display['id'];
 
     // 2. Fetch the todo widget for this display
-    $wStmt = $pdo->prepare("SELECT id, config_json FROM widgets WHERE display_id = ? AND type = 'todo' LIMIT 1");
-    $wStmt->execute([$displayId]);
+    // A specific widget when the screen says which (a display can have several); older screens
+    // don't send one and get the first, as before
+    $targetWidgetId = (int)($input['widget_id'] ?? 0);
+    if ($targetWidgetId > 0) {
+        $wStmt = $pdo->prepare("SELECT id, config_json FROM widgets WHERE id = ? AND display_id = ? AND type = 'todo' LIMIT 1");
+        $wStmt->execute([$targetWidgetId, $displayId]);
+    } else {
+        $wStmt = $pdo->prepare("SELECT id, config_json FROM widgets WHERE display_id = ? AND type = 'todo' LIMIT 1");
+        $wStmt->execute([$displayId]);
+    }
     $todoWidget = $wStmt->fetch();
 
     if (!$todoWidget) {

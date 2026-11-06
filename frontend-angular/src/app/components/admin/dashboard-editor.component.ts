@@ -1,3 +1,4 @@
+import { homePageId, isWidgetOnPage, rotationCycleSeconds } from '../../utils/pages.util';
 import { jsonSettingsError } from '../../utils/custom-widget-examples';
 import { hasWidgetContentSettings } from './widget-forms/widget-content-form.component';
 import { settleSecretsAfterSave, withoutSecretValues } from '../../utils/widget-secrets.util';
@@ -232,7 +233,32 @@ import { NotificationService } from '../../services/notification.service';
         <!-- TAB 2: PAGES MANAGER -->
         <div *ngIf="activeTab === 'pages'" class="tab-content">
           <h3>Multi-Screen Pages</h3>
-          <p class="tab-desc">Auto-rotate between different dashboard layouts on a timed carousel or active time-of-day schedules.</p>
+          <p class="tab-desc">Each page has its own widgets. The screen rotates through pages on their timers, or shows them by time-of-day schedule.</p>
+
+          <div class="rotation-box" *ngIf="pages.length > 1; else onePage">
+            <div class="form-group checkbox-group">
+              <label><input type="checkbox" [ngModel]="rotationEnabled" (ngModelChange)="setRotation({ enabled: $event })" /> Rotate pages automatically</label>
+            </div>
+            <div class="form-row" *ngIf="rotationEnabled">
+              <div class="form-group">
+                <label for="rotation-pause">Pause after a touch (sec)</label>
+                <input id="rotation-pause" type="number" min="0" max="3600" class="input-control"
+                       [ngModel]="rotationPauseSeconds" (ngModelChange)="setRotation({ pause_on_touch_seconds: +$event })" />
+              </div>
+              <div class="form-group">
+                <label for="all-durations">Set every page to (sec)</label>
+                <div style="display: flex; gap: 6px;">
+                  <input id="all-durations" #allDurations type="number" min="5" value="30" class="input-control" />
+                  <button type="button" class="btn-xs-action" (click)="setAllPageDurations(+allDurations.value)">Apply</button>
+                </div>
+              </div>
+            </div>
+            <span class="rotation-summary" *ngIf="rotationEnabled">One full rotation takes {{ rotationCycleLabel }} across {{ pages.length }} pages. Scheduled pages join the rotation only while their schedule is active. 0 = never pause after a touch.</span>
+            <span class="rotation-summary" *ngIf="!rotationEnabled">Rotation is off: the screen stays on the current page until someone swipes, taps the page dots, or a "Change page" command is sent from the Fleet Hub.</span>
+          </div>
+          <ng-template #onePage>
+            <p class="field-hint">Add a second page to rotate between layouts.</p>
+          </ng-template>
 
           <div class="pages-list">
             <div *ngFor="let page of pages; let i = index" class="page-item" [class.selected]="page.id === activePageId">
@@ -242,7 +268,7 @@ import { NotificationService } from '../../services/notification.service';
               </div>
               <div class="page-bottom">
                 <label>Duration:</label>
-                <input type="number" [(ngModel)]="page.duration_seconds" min="5" class="input-control duration-input" />
+                <input type="number" [(ngModel)]="page.duration_seconds" min="5" class="input-control duration-input" [attr.aria-label]="page.name + ' duration in seconds'" />
                 <span>sec</span>
                 <button *ngIf="pages.length > 1" (click)="deletePage(i)" class="btn-icon-danger">✕</button>
               </div>
@@ -933,6 +959,28 @@ import { NotificationService } from '../../services/notification.service';
 
             <!-- BEHAVIOUR: layer, schedule, links and rules -->
             <ng-container *ngIf="inspectorTab === 'behaviour'">
+                <!-- Pages: each widget belongs to one page unless shown on every page -->
+                <div class="page-membership" *ngIf="pages.length > 1">
+                  <div class="form-group">
+                    <label for="widget-page">Page</label>
+                    <select id="widget-page" class="input-control" [disabled]="!!selectedWidget.allPages"
+                            [ngModel]="widgetHomePage(selectedWidget)" (ngModelChange)="moveSelectedWidgetToPage($event)">
+                      <option *ngFor="let p of pages" [ngValue]="p.id">{{ p.name }}</option>
+                    </select>
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label><input type="checkbox" [(ngModel)]="selectedWidget.allPages" (ngModelChange)="pushHistory()" /> Show on every page</label>
+                    <span class="field-hint">Off: the widget appears only on its own page. Use "Copy to page" for an independent copy instead.</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="copy-to-page">Copy to page</label>
+                    <select id="copy-to-page" class="input-control" (change)="copySelectedWidgetToPage($any($event.target).value); $any($event.target).value = ''">
+                      <option value="">Make an independent copy on…</option>
+                      <option *ngFor="let p of pages" [value]="p.id">{{ p.name }}</option>
+                    </select>
+                  </div>
+                </div>
+
                 <!-- Layer Properties (Rename, Lock, Hide) -->
                 <div class="form-group">
                   <label>Layer Nickname</label>
@@ -1482,6 +1530,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
       if (p[key] !== undefined) (d as any)[key] = p[key];
     }
     d.accent_color = p['accent_color'] || undefined;
+    if (p['page_rotation']) d.page_rotation = { ...p['page_rotation'] };
     if (p['background']) this.backgroundConfig = p['background'];
     if (p['sleep_schedule']) this.sleepSchedule = p['sleep_schedule'];
     if (Array.isArray(p['pages']) && p['pages'].length) this.pages = p['pages'];
@@ -2097,7 +2146,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   get pageWidgets(): Widget[] {
-    return this.widgets.filter(w => !w.page_id || w.page_id === this.activePageId || w.page_id === 'default');
+    return this.widgets.filter(w => isWidgetOnPage(w, this.activePageId, this.pages));
   }
 
   updateOrientation(): void {
@@ -2148,6 +2197,33 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
     this.selectedWidget = null;
   }
 
+  get rotationEnabled(): boolean {
+    return this.displayConfig.page_rotation?.enabled !== false;
+  }
+
+  get rotationPauseSeconds(): number {
+    return this.displayConfig.page_rotation?.pause_on_touch_seconds ?? 60;
+  }
+
+  setRotation(change: { enabled?: boolean; pause_on_touch_seconds?: number }): void {
+    const current = { enabled: this.rotationEnabled, pause_on_touch_seconds: this.rotationPauseSeconds };
+    const next = { ...current, ...change };
+    next.pause_on_touch_seconds = Math.max(0, Math.min(3600, Math.round(Number(next.pause_on_touch_seconds) || 0)));
+    this.displayConfig.page_rotation = next;
+  }
+
+  setAllPageDurations(seconds: number): void {
+    const s = Math.max(5, Math.round(Number(seconds) || 30));
+    for (const page of this.pages) page.duration_seconds = s;
+    this.pushHistory();
+  }
+
+  get rotationCycleLabel(): string {
+    const total = rotationCycleSeconds(this.pages);
+    const min = Math.floor(total / 60), sec = total % 60;
+    return min ? `${min} min${sec ? ' ' + sec + ' s' : ''}` : `${sec} s`;
+  }
+
   addPage(): void {
     const newPage: DisplayPage = {
       id: 'page_' + Date.now(),
@@ -2161,8 +2237,13 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
   deletePage(index: number): void {
     if (this.pages.length <= 1) return;
     const removedId = this.pages[index].id;
-    this.widgets = this.widgets.filter(w => w.page_id !== removedId);
+    const before = [...this.pages];
+    // The page's own widgets go with it; widgets shown on every page stay, re-homed to the new first page
+    this.widgets = this.widgets.filter(w => w.allPages || homePageId(w, before) !== removedId);
     this.pages.splice(index, 1);
+    for (const w of this.widgets) {
+      if (homePageId(w, before) === removedId) w.page_id = this.pages[0].id;
+    }
     this.activePageId = this.pages[0].id;
     this.selectedWidget = null;
   }
@@ -2341,8 +2422,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   isWidgetOnActivePage(widget: Widget): boolean {
-    if (this.pages.length <= 1) return true;
-    return !widget.page_id || widget.page_id === this.activePageId || widget.page_id === 'default';
+    return isWidgetOnPage(widget, this.activePageId, this.pages);
   }
 
   // --- Scheduling Helpers ---
@@ -2620,13 +2700,55 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
 
   duplicateSelectedWidget(): void {
     if (!this.selectedWidget) return;
-    const cloned: Widget = JSON.parse(JSON.stringify(this.selectedWidget));
-    cloned.id = Date.now();
+    const cloned = this.cloneWidget(this.selectedWidget);
     cloned.position.x = Math.min(this.canvasWidth - cloned.position.width, cloned.position.x + 24);
     cloned.position.y = Math.min(this.canvasHeight - cloned.position.height, cloned.position.y + 24);
     this.widgets.push(cloned);
     this.selectedWidget = cloned;
     this.pushHistory();
+  }
+
+  /**
+   * An independent copy of a widget: a new id (saved as a new widget), and none of the original's
+   * server identity, so its tasks, events and strokes are its own. Saved secrets (API keys) are
+   * copied on the server when the copy is first saved.
+   */
+  private cloneWidget(source: Widget): Widget {
+    const cloned: Widget = JSON.parse(JSON.stringify(source));
+    cloned.id = Date.now() + Math.floor(Math.random() * 1000);
+    const config = cloned.config || {};
+    const sourceDbId = config['_widgetId'] || config['_copySecretsFrom'];
+    delete config['_widgetId'];
+    delete config['_deviceSecrets'];
+    if (sourceDbId && Array.isArray(config['_secretsSet']) && config['_secretsSet'].length) {
+      config['_copySecretsFrom'] = sourceDbId;
+    }
+    cloned.config = config;
+    return cloned;
+  }
+
+  widgetHomePage(widget: Widget): string {
+    return homePageId(widget, this.pages);
+  }
+
+  moveSelectedWidgetToPage(pageId: string): void {
+    const widget = this.selectedWidget;
+    if (!widget || pageId === this.widgetHomePage(widget)) return;
+    widget.page_id = pageId;
+    this.pushHistory();
+    // Follow the widget, so it stays visible and selected
+    this.activePageId = pageId;
+  }
+
+  copySelectedWidgetToPage(pageId: string): void {
+    const page = this.pages.find(p => p.id === pageId);
+    if (!this.selectedWidget || !page) return;
+    const copy = this.cloneWidget(this.selectedWidget);
+    copy.page_id = pageId;
+    copy.allPages = false;
+    this.widgets.push(copy);
+    this.pushHistory();
+    this.notifications.success(`Copied to "${page.name}". The copy is independent: edit it on that page.`);
   }
 
   alignSelectedWidget(mode: 'left' | 'center_h' | 'right' | 'top' | 'center_v' | 'bottom'): void {
@@ -2728,6 +2850,7 @@ export class DashboardEditorComponent implements OnInit, AfterViewInit, OnDestro
       scale_mode: this.displayConfig.scale_mode || 'fit',
       safe_area: this.displayConfig.safe_area || 0,
       page_transition: this.displayConfig.page_transition || 'fade',
+      page_rotation: { enabled: this.rotationEnabled, pause_on_touch_seconds: this.rotationPauseSeconds },
       performance_mode: this.displayConfig.performance_mode || 'auto',
       burn_in_shift: this.displayConfig.burn_in_shift !== false,
       weather_alerts_enabled: this.weatherAlertsEnabled,

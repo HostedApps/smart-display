@@ -90,15 +90,19 @@ export interface ClockConfig {
   showDate?: boolean;
 }
 
+/** Set by get_display.php on every widget's config (stripped again on save) */
+export interface WidgetRuntimeMeta {
+  /** Database id, so the widget can sync its own data or ask an endpoint to use its stored secret */
+  _widgetId?: number;
+}
+
 /**
  * Markers for widgets with secret fields (API keys, tokens). Secrets are stored encrypted on the
  * server (backend-api/widget_secrets_lib.php), never in the config itself.
  */
-export interface WidgetSecretMeta {
+export interface WidgetSecretMeta extends WidgetRuntimeMeta {
   /** Secret fields saved on the server for this widget (set by get_display.php) */
   _secretsSet?: string[];
-  /** Database id, so the widget can ask an endpoint to use its stored secret */
-  _widgetId?: number;
   /** Editor → save: delete these stored secrets */
   _clearSecrets?: string[];
   /** Screen only: secret fields the server filled in; never written to the offline cache */
@@ -119,7 +123,7 @@ export interface CalendarFeed {
   color: string;
 }
 
-export interface CalendarConfig {
+export interface CalendarConfig extends WidgetRuntimeMeta {
   feeds?: CalendarFeed[];
   icalUrl?: string;
   title?: string;
@@ -152,7 +156,7 @@ export interface TodoItem {
   dueDate?: string;
 }
 
-export interface TodoConfig {
+export interface TodoConfig extends WidgetRuntimeMeta {
   title?: string;
   items?: TodoItem[];
   maxItems?: number;
@@ -367,7 +371,7 @@ export interface WhiteboardStroke {
   points: { x: number; y: number }[];
 }
 
-export interface WhiteboardConfig {
+export interface WhiteboardConfig extends WidgetRuntimeMeta {
   title?: string;
   canvasBackground?: 'chalkboard' | 'whiteboard' | 'grid';
   strokes?: WhiteboardStroke[];
@@ -505,6 +509,8 @@ export interface Widget {
   locked?: boolean;
   hidden?: boolean;
   customName?: string;
+  /** Show on every page; otherwise only on its own page (page_id) */
+  allPages?: boolean;
 }
 
 export interface DisplayPage {
@@ -512,6 +518,13 @@ export interface DisplayPage {
   name: string;
   duration_seconds: number;
   schedule?: WidgetSchedule;
+}
+
+export interface PageRotationConfig {
+  /** Rotate automatically (default on); off keeps the screen on the current page until touched or commanded */
+  enabled?: boolean;
+  /** After someone touches or swipes the screen, stay on that page this long before rotating again (0 = don't pause) */
+  pause_on_touch_seconds?: number;
 }
 
 export interface SleepScheduleConfig {
@@ -569,6 +582,8 @@ export interface DisplayConfig {
   /** Overscan inset as a fraction of each screen edge (0 – 0.1) */
   safe_area?: number;
   page_transition?: 'none' | 'fade' | 'slide' | 'zoom';
+  /** Rotating through pages on their timers (multi-page displays) */
+  page_rotation?: PageRotationConfig;
   /** 'auto' turns on for low-power devices such as Raspberry Pi */
   performance_mode?: 'auto' | 'on' | 'off';
   /** Slowly shifts the whole layout a few pixels to prevent OLED/plasma burn-in */

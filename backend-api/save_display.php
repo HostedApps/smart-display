@@ -68,6 +68,13 @@ try {
     if (isset($input['safe_area'])) {
         $backgroundArr['safe_area'] = round(max(0, min(0.1, (float)$input['safe_area'])), 3);
     }
+    if (isset($input['page_rotation']) && is_array($input['page_rotation'])) {
+        $rot = $input['page_rotation'];
+        $backgroundArr['page_rotation'] = [
+            'enabled' => !array_key_exists('enabled', $rot) || (bool)$rot['enabled'],
+            'pause_on_touch_seconds' => max(0, min(3600, (int)($rot['pause_on_touch_seconds'] ?? 60))),
+        ];
+    }
     if (isset($input['page_transition'])) {
         $backgroundArr['page_transition'] = in_array($input['page_transition'], ['none', 'fade', 'slide', 'zoom'], true) ? $input['page_transition'] : 'fade';
     }
@@ -179,10 +186,21 @@ try {
             foreach (array_keys(widgetSecretFields((string)$w['type'])) as $field) {
                 if (widgetSecretsAvailable($pdo)) unset($plainConfig[$field]);
             }
-            unset($plainConfig['_clearSecrets'], $plainConfig['_secretsSet'], $plainConfig['_deviceSecrets'], $plainConfig['_widgetId']);
+            unset($plainConfig['_clearSecrets'], $plainConfig['_secretsSet'], $plainConfig['_deviceSecrets'], $plainConfig['_widgetId'], $plainConfig['_copySecretsFrom']);
             $params[4] = json_encode(empty($plainConfig) ? new stdClass() : $plainConfig);
             $insertStmt->execute(array_merge([$displayId], $params));
             $dbId = (int)$pdo->lastInsertId();
+            // A copy made in the editor (duplicate, copy to page) keeps the original's saved secrets,
+            // if the original is on this display or another display of the same user
+            $copyFrom = (int)($secretConfig['_copySecretsFrom'] ?? 0);
+            if ($copyFrom > 0) {
+                $src = $pdo->prepare("SELECT w.id FROM widgets w JOIN displays d ON d.id = w.display_id
+                                      WHERE w.id = ? AND w.type = ? AND (d.id = ? OR d.user_id = ?)");
+                $src->execute([$copyFrom, (string)$w['type'], $displayId, $userId]);
+                if ($src->fetch()) {
+                    copyWidgetSecrets($pdo, [$copyFrom => $dbId]);
+                }
+            }
             storeWidgetSecrets($pdo, $dbId, (string)$w['type'], $secretConfig);
             $config = $plainConfig;
             if ($clientId !== 0) {
@@ -311,6 +329,10 @@ function extractWidgetMeta(array $w): array {
     }
     if (!empty($w['hidden'])) {
         $meta['hidden'] = true;
+    }
+    if (!empty($w['allPages'])) {
+        // Shown on every page; otherwise a widget belongs to its page_id only
+        $meta['allPages'] = true;
     }
     if (isset($w['customName']) && trim((string)$w['customName']) !== '') {
         // Plain text (the frontend escapes on render); strip markup and cap the length

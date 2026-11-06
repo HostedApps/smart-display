@@ -167,6 +167,8 @@ const MINUTE = 60_000;
 export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   // Global Static In-Memory Cache for Album URLs & Current Playback Indices across page rotations & re-renders
   private static albumCache = new Map<string, string[]>();
+  /** Slideshow position per widget and album, so it survives page rotation (the widget is re-created)
+   *  while two widgets showing the same album still move independently */
   private static albumIndexMap = new Map<string, number>();
 
   @Input() config: any = {
@@ -303,6 +305,10 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     }
   }
 
+  private indexKey(albumUrl: string): string {
+    return `${this.config?.['_widgetId'] ?? ''}|${albumUrl}`;
+  }
+
   private getAlbumUrl(): string {
     return this.config.albumUrl || (typeof this.config.images === 'string' && (this.config.images.includes('photos.') || this.config.images.includes('drive.google.com') || this.config.images.includes('goo.gl') || this.config.images.includes('icloud.com')) ? this.config.images.trim() : '');
   }
@@ -315,8 +321,8 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
       this.isiCloudPhotos = true;
       this.isGooglePhotos = false;
 
-      if (PhotoWidgetComponent.albumIndexMap.has(albumUrl)) {
-        this.currentIndex = PhotoWidgetComponent.albumIndexMap.get(albumUrl) || 0;
+      if (PhotoWidgetComponent.albumIndexMap.has(this.indexKey(albumUrl))) {
+        this.currentIndex = PhotoWidgetComponent.albumIndexMap.get(this.indexKey(albumUrl)) || 0;
       }
       if (PhotoWidgetComponent.albumCache.has(albumUrl)) {
         this.iCloudPhotosList = PhotoWidgetComponent.albumCache.get(albumUrl)!;
@@ -346,8 +352,8 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
       this.isGooglePhotos = true;
 
       // Restore saved progression index for this album
-      if (PhotoWidgetComponent.albumIndexMap.has(albumUrl)) {
-        this.currentIndex = PhotoWidgetComponent.albumIndexMap.get(albumUrl) || 0;
+      if (PhotoWidgetComponent.albumIndexMap.has(this.indexKey(albumUrl))) {
+        this.currentIndex = PhotoWidgetComponent.albumIndexMap.get(this.indexKey(albumUrl)) || 0;
       }
 
       // Step 1: Check In-Memory Cache
@@ -399,7 +405,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
           if (this.currentIndex >= this.iCloudPhotosList.length) {
             this.currentIndex = this.currentIndex % this.iCloudPhotosList.length;
           }
-          PhotoWidgetComponent.albumIndexMap.set(url, this.currentIndex);
+          PhotoWidgetComponent.albumIndexMap.set(this.indexKey(url), this.currentIndex);
           this.preloadNextImage();
         } else {
           // A wrong link or private album won't fix itself; only retry server or network trouble
@@ -435,7 +441,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
           if (this.currentIndex >= this.googlePhotosList.length) {
             this.currentIndex = this.currentIndex % this.googlePhotosList.length;
           }
-          PhotoWidgetComponent.albumIndexMap.set(url, this.currentIndex);
+          PhotoWidgetComponent.albumIndexMap.set(this.indexKey(url), this.currentIndex);
           this.preloadNextImage();
         } else {
           // If fetch failed (e.g. Pi booted before Wi-Fi connected), retry with exponential backoff
@@ -453,7 +459,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
   private saveCurrentIndex(): void {
     const albumUrl = this.getAlbumUrl();
     if (albumUrl) {
-      PhotoWidgetComponent.albumIndexMap.set(albumUrl, this.currentIndex);
+      PhotoWidgetComponent.albumIndexMap.set(this.indexKey(albumUrl), this.currentIndex);
     }
     this.preloadNextImage();
   }
