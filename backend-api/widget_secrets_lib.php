@@ -24,7 +24,8 @@
  */
 
 const WIDGET_SECRET_FIELDS = [
-    'ai_briefing'   => ['apiKey' => 'server'],
+    // apiKey is the Gemini key (named before other providers existed); see LLM_PROVIDERS
+    'ai_briefing'   => ['apiKey' => 'server', 'anthropicKey' => 'server', 'openaiKey' => 'server', 'vllmKey' => 'server'],
     'weather'       => ['apiKey' => 'server'],
     'homeassistant' => ['token' => 'device'],
     'rest_fetch'    => ['authHeader' => 'device'],

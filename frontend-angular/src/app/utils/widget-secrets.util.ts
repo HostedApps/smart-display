@@ -5,7 +5,7 @@ import { Widget } from '../models/display.model';
  * backend-api/widget_secrets_lib.php, which stores them encrypted outside the config.
  */
 export const WIDGET_SECRET_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  ai_briefing: ['apiKey'],
+  ai_briefing: ['apiKey', 'anthropicKey', 'openaiKey', 'vllmKey'],
   weather: ['apiKey'],
   homeassistant: ['token'],
   rest_fetch: ['authHeader'],

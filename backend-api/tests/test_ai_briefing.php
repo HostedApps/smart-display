@@ -98,7 +98,8 @@ try {
 
     // ---- Rate-limit cooldown: no call to Google, last good Gemini briefing served ----
     $fakeKey = 'abtest-not-a-real-key-' . $sfx;
-    $keyId = md5($fakeKey);
+    // Must match ai_briefing.php: md5 of [provider, key, model, server URL]
+    $keyId = md5(json_encode(['gemini', $fakeKey, '', '']));
     $cacheDir = sys_get_temp_dir() . '/sd_briefings';
     @mkdir($cacheDir, 0700, true);
     $cooldownFile = $cacheDir . '/cooldown_' . $keyId;

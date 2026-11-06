@@ -119,7 +119,7 @@ describe('AIBriefingWidgetComponent (honest context, Gemini back-off)', () => {
 
     http.expectOne(briefingUrl).flush({
       success: true, briefing: 'Earlier briefing', provider: 'gemini', stale: true,
-      geminiError: 'Gemini rate limit reached (HTTP 429).', retryAfter: 45 * 60
+      aiError: 'Google Gemini rate limit reached (HTTP 429).', retryAfter: 45 * 60
     });
     expect(component.displayedText).toBe('Earlier briefing');
     expect(component.stale).toBeTrue();
@@ -149,6 +149,37 @@ describe('AIBriefingWidgetComponent (honest context, Gemini back-off)', () => {
     const req = http.expectOne(briefingUrl);
     expect(req.request.body.userName).toBe('Sam');
     req.flush({ success: true, briefing: 'ok', provider: 'gemini' });
+    component.ngOnDestroy();
+  }));
+
+  it('sends the chosen provider with only that provider\'s typed key', fakeAsync(() => {
+    bus.publish('weather', { city: 'X', temp: 1, units: 'metric', condition: 'Clear Sky', kind: 'clear', updatedAt: Date.now() });
+    component.config = { provider: 'anthropic', model: 'claude-haiku-5-5', apiKey: 'old-gemini-key', anthropicKey: ' sk-ant-typed ' };
+    component.ngOnInit();
+    tick(0);
+
+    const req = http.expectOne(briefingUrl);
+    expect(req.request.body.provider).toBe('anthropic');
+    expect(req.request.body.model).toBe('claude-haiku-5-5');
+    expect(req.request.body.apiKey).toBe('sk-ant-typed');
+    req.flush({ success: true, briefing: 'Hello', provider: 'anthropic', providerName: 'Anthropic Claude', model: 'claude-haiku-5-5' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Powered by Anthropic Claude');
+    component.ngOnDestroy();
+  }));
+
+  it('treats widgets saved before providers existed as Gemini', fakeAsync(() => {
+    bus.publish('weather', { city: 'X', temp: 1, units: 'metric', condition: 'Clear Sky', kind: 'clear', updatedAt: Date.now() });
+    component.config = { apiKey: 'gemini-key' };
+    component.ngOnInit();
+    tick(0);
+
+    const req = http.expectOne(briefingUrl);
+    expect(req.request.body.provider).toBe('gemini');
+    expect(req.request.body.apiKey).toBe('gemini-key');
+    req.flush({ success: true, briefing: 'ok', provider: 'ambient_engine', aiError: 'Google Gemini rejected the API key (HTTP 400).' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Google Gemini Error');
     component.ngOnDestroy();
   }));
 });

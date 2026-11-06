@@ -2,7 +2,7 @@ import { Component, Input, OnInit, OnDestroy, DoCheck, Optional, Inject } from '
 import { HttpClient } from '@angular/common/http';
 import { Observable, Subscription, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
-import { AIBriefingConfig } from '../../models/display.model';
+import { AIBriefingConfig, AIProvider } from '../../models/display.model';
 import { environment } from '../../../environments/environment';
 import { DataCacheService } from '../../services/data-cache.service';
 import { NextEventSnapshot, WeatherSnapshot, WidgetBusService } from '../../services/widget-bus.service';
@@ -10,11 +10,26 @@ import { LIVE_DISPLAY } from './widget-context';
 import { US_STATES, WMO_MAP } from './weather-widget.component';
 
 const MINUTE = 60_000;
+
+export const AI_PROVIDER_NAMES: Record<AIProvider, string> = {
+  gemini: 'Google Gemini',
+  anthropic: 'Anthropic Claude',
+  openai: 'OpenAI',
+  vllm: 'Self-hosted (vLLM)',
+};
+
+/** Config field holding each provider's API key (apiKey predates the other providers) */
+export const AI_PROVIDER_KEY_FIELDS: Record<AIProvider, 'apiKey' | 'anthropicKey' | 'openaiKey' | 'vllmKey'> = {
+  gemini: 'apiKey',
+  anthropic: 'anthropicKey',
+  openai: 'openaiKey',
+  vllm: 'vllmKey',
+};
 /** How long to wait for a Weather / Calendar widget on the same screen to publish before the first briefing */
 const CONTEXT_WAIT_MS = 6000;
-/** Retry delays after a failed briefing; kept long so retries don't eat into a Gemini quota */
+/** Retry delays after a failed briefing; kept long so retries don't eat into the provider's quota */
 const RETRY_DELAYS_MS = [10 * MINUTE, 30 * MINUTE, 60 * MINUTE];
-/** Briefings are refreshed every few hours at most; Gemini free-tier quotas are small */
+/** Briefings are refreshed every few hours at most; free-tier AI quotas are small */
 const DEFAULT_REFRESH_HOURS = 3;
 const MIN_REFRESH_HOURS = 2;
 
@@ -62,10 +77,10 @@ interface BriefingContext {
       </ng-template>
 
       <div class="ai-footer" *ngIf="!(briefingFailed && !loading)">
-        <span class="provider-pill" [class.is-gemini]="provider === 'gemini'" [class.has-error]="!!geminiError" [title]="providerTitle">
-          <ng-container *ngIf="provider === 'gemini'">✨ Powered by Google Gemini</ng-container>
-          <ng-container *ngIf="provider !== 'gemini' && geminiError">⚠️ Gemini Error (Fallback Active)</ng-container>
-          <ng-container *ngIf="provider !== 'gemini' && !geminiError">⚡ Ambient Offline Engine</ng-container>
+        <span class="provider-pill" [class.is-ai]="isAi" [class.has-error]="!!aiError" [title]="providerTitle">
+          <ng-container *ngIf="isAi">✨ Powered by {{ providerName }}</ng-container>
+          <ng-container *ngIf="!isAi && aiError">⚠️ {{ configuredProviderName }} Error (Fallback Active)</ng-container>
+          <ng-container *ngIf="!isAi && !aiError">⚡ Ambient Offline Engine</ng-container>
         </span>
         <span class="synced-time">{{ lastSync }}</span>
       </div>
@@ -193,7 +208,7 @@ interface BriefingContext {
       font-weight: 600;
       transition: all 0.2s;
     }
-    .provider-pill.is-gemini {
+    .provider-pill.is-ai {
       color: var(--sd-accent);
       text-shadow: 0 0 10px var(--sd-accent-soft);
     }
@@ -210,9 +225,11 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
   displayedText: string = '';
   loading: boolean = true;
   isSpeaking: boolean = false;
+  /** 'ambient_engine' (built-in templates) or the AI provider that wrote the briefing */
   provider: string = 'ambient_engine';
-  geminiError: string = '';
-  /** True when Gemini failed and the server served an earlier Gemini briefing instead */
+  providerName: string = '';
+  aiError: string = '';
+  /** True when the provider failed and the server served an earlier AI briefing instead */
   stale: boolean = false;
   model: string = '';
   lastSync: string = '';
@@ -240,12 +257,27 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
     this.isLive = !!live;
   }
 
+  get isAi(): boolean {
+    return this.provider !== 'ambient_engine';
+  }
+
+  /** Name of the provider chosen in the widget's settings (for errors before any AI briefing exists) */
+  get configuredProviderName(): string {
+    return AI_PROVIDER_NAMES[this.config?.provider || 'gemini'];
+  }
+
+  /** A key typed in the editor for the chosen provider (saved keys stay on the server) */
+  private get typedKey(): string {
+    return String(this.config?.[AI_PROVIDER_KEY_FIELDS[this.config?.provider || 'gemini']] || '').trim();
+  }
+
   get providerTitle(): string {
-    if (this.provider === 'gemini') {
-      const via = this.model ? `Written by Google Gemini (${this.model})` : 'Written by Google Gemini';
-      return this.stale ? `${via} earlier today. Latest attempt failed: ${this.geminiError}` : via;
+    if (this.isAi) {
+      const name = this.providerName || AI_PROVIDER_NAMES[this.provider as AIProvider] || 'AI';
+      const via = this.model ? `Written by ${name} (${this.model})` : `Written by ${name}`;
+      return this.stale ? `${via} earlier today. Latest attempt failed: ${this.aiError}` : via;
     }
-    return this.geminiError || 'Written by the built-in briefing engine (add a Gemini API key for AI briefings)';
+    return this.aiError || 'Written by the built-in briefing engine (add an AI provider in the widget settings for AI briefings)';
   }
 
   ngOnInit(): void {
@@ -265,13 +297,13 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
     }));
     this.busSub.add(this.bus.select('nextEvent').subscribe(e => {
       if (this.loading) return;
-      // A new "next event" every time one ends shouldn't cost a Gemini call each time
+      // A new "next event" every time one ends shouldn't cost an AI call each time
       if ((e?.title || '') !== this.usedEventTitle && Date.now() - this.lastFetchAt > 30 * MINUTE) this.scheduleFetch(1000);
     }));
   }
 
   ngDoCheck(): void {
-    // Editor edits: wait until typing stops instead of calling Gemini on every keystroke
+    // Editor edits: wait until typing stops instead of calling the AI provider on every keystroke
     const key = this.currentConfigKey();
     if (key !== this.configKey) {
       this.configKey = key;
@@ -281,7 +313,7 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
 
   private currentConfigKey(): string {
     const c = this.config || {};
-    return [c.apiKey, c.userName, c.tone, c.city, c.units].map(v => (v ?? '').toString().trim()).join('|');
+    return [c.provider, c.model, c.vllmUrl, this.typedKey, c.userName, c.tone, c.city, c.units].map(v => (v ?? '').toString().trim()).join('|');
   }
 
   private scheduleFetch(delayMs: number): void {
@@ -312,7 +344,10 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
         return this.http.post<any>(`${environment.apiUrl}/ai_briefing.php`, {
           // A key typed in the editor (not saved yet) is sent as-is; a saved key stays on the
           // server, which looks it up by widget id
-          apiKey: this.config?.apiKey || '',
+          provider: this.config?.provider || 'gemini',
+          model: this.config?.model || '',
+          vllmUrl: this.config?.vllmUrl || '',
+          apiKey: this.typedKey,
           widgetId: this.config?._widgetId || 0,
           userName: this.config?.userName || '',
           tone: this.config?.tone || 'warm',
@@ -330,21 +365,22 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
   private handleResponse(res: any): void {
     this.loading = false;
     if (!res?.success || !res.briefing) {
-      this.handleFailure(res?.geminiError || res?.error || 'No briefing returned');
+      this.handleFailure(res?.aiError || res?.geminiError || res?.error || 'No briefing returned');
       return;
     }
     this.briefingFailed = false;
     this.displayedText = res.briefing;
     this.provider = res.provider || 'ambient_engine';
+    this.providerName = res.providerName || '';
     this.model = res.model || '';
     this.stale = !!res.stale;
-    this.geminiError = res.geminiError || '';
+    this.aiError = res.aiError || res.geminiError || '';
     const generated = res.generatedAt ? new Date(res.generatedAt) : new Date();
     this.lastSync = 'Updated ' + generated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Gemini failed (template or earlier briefing shown): try again later; otherwise refresh on schedule.
-    // After a rate limit, wait as long as the server says (it pauses Gemini for every display on that key).
-    if (this.geminiError) {
+    // The provider failed (template or earlier briefing shown): try again later; otherwise refresh on
+    // schedule. After a rate limit, wait as long as the server says (it pauses that key for every display).
+    if (this.aiError) {
       this.scheduleRetry(Number(res.retryAfter) > 0 ? Number(res.retryAfter) * 1000 : undefined);
     } else {
       this.retryCount = 0;
@@ -354,7 +390,7 @@ export class AIBriefingWidgetComponent implements OnInit, OnDestroy, DoCheck {
 
   private handleFailure(message: string): void {
     this.loading = false;
-    this.geminiError = message;
+    this.aiError = message;
     if (this.isLive) {
       this.briefingFailed = true;
       this.displayedText = '';
