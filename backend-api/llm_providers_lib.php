@@ -23,7 +23,8 @@ const LLM_PROVIDERS = [
 ];
 
 const LLM_TIMEOUT_SECONDS = 20;
-const ANTHROPIC_DEFAULT_MODEL = 'claude-opus-5-5';
+// Fast and inexpensive; a briefing is a few sentences. Override per widget (e.g. claude-opus-5-5).
+const ANTHROPIC_DEFAULT_MODEL = 'claude-haiku-5-5';
 const ANTHROPIC_API_VERSION = '2026-10-21';
 const OPENAI_DEFAULT_MODEL = 'gpt-5-mini';
 
@@ -154,7 +155,7 @@ function anthropicSupportsEffort(string $model): bool {
     return (bool)preg_match('/^claude-(opus|sonnet|haiku|fable|mythos)-5|^claude-opus-4-[678]|^claude-sonnet-4-6/', $model);
 }
 
-/** Models with server-side refusal fallback (fallbacks: "default") */
+/** Models with server-side refusal fallback (fallbacks: "default"); Claude Haiku 5.5 has none */
 function anthropicSupportsFallbacks(string $model): bool {
     return (bool)preg_match('/^claude-(fable-5-1|opus-5-5|opus-5|sonnet-5-5)$/', $model);
 }
@@ -164,7 +165,7 @@ function anthropicComplete(string $apiKey, string $model, string $system, string
     $headers = ['x-api-key: ' . $apiKey, 'anthropic-version: ' . ANTHROPIC_API_VERSION];
     $body = [
         'model' => $model,
-        // Headroom for thinking (Claude Opus 5.5 always thinks); the briefing itself is ~100 tokens
+        // Headroom for thinking (on by default on current models); the briefing itself is ~100 tokens
         'max_tokens' => 16000,
         'system' => $system,
         'messages' => [['role' => 'user', 'content' => $user]],

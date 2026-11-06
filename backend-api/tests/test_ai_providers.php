@@ -82,11 +82,15 @@ try {
     assertTrue(($r['json']['provider'] ?? '') === 'anthropic' && ($r['json']['providerName'] ?? '') === 'Anthropic Claude'
         && str_contains($r['json']['briefing'] ?? '', 'Claude mock briefing') && str_contains($r['json']['briefing'] ?? '', "Paris $sfx"),
         "Anthropic writes the briefing from the facts sent");
-    assertTrue(($last['body']['model'] ?? '') === 'claude-opus-5-5' && ($last['headers']['anthropic-version'] ?? '') === '2026-10-21'
+    assertTrue(($last['body']['model'] ?? '') === 'claude-haiku-5-5' && ($last['headers']['anthropic-version'] ?? '') === '2026-10-21'
         && ($last['headers']['x-api-key'] ?? '') === 'sk-ant-mock', "Anthropic: default model, API version and key header");
-    assertTrue(($last['body']['output_config']['effort'] ?? '') === 'low' && ($last['body']['fallbacks'] ?? '') === 'default'
-        && str_contains($last['headers']['anthropic-beta'] ?? '', 'server-side-fallback-2026-07-01')
-        && !isset($last['body']['temperature']) && !empty($last['body']['system']), "Anthropic: low effort, refusal fallback, system prompt, no temperature");
+    assertTrue(($last['body']['output_config']['effort'] ?? '') === 'low' && !isset($last['body']['fallbacks']) && !isset($last['headers']['anthropic-beta'])
+        && !isset($last['body']['temperature']) && !empty($last['body']['system']), "Anthropic (Haiku 5.5): low effort, system prompt, no temperature, no fallback (Haiku has none)");
+
+    $ask(['provider' => 'anthropic', 'apiKey' => 'sk-ant-mock', 'model' => 'claude-opus-5-5']);
+    $last = ap_last();
+    assertTrue(($last['body']['fallbacks'] ?? '') === 'default' && str_contains($last['headers']['anthropic-beta'] ?? '', 'server-side-fallback-2026-07-01')
+        && ($last['body']['output_config']['effort'] ?? '') === 'low', "Anthropic: Opus 5.5 override gets server-side refusal fallback");
 
     $ask(['provider' => 'anthropic', 'apiKey' => 'sk-ant-mock', 'model' => 'claude-haiku-4-5']);
     $last = ap_last();

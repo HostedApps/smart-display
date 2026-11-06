@@ -46,7 +46,7 @@ const PROVIDER_FIELDS: readonly ConfigField[] = [
 
 const MODEL_PLACEHOLDERS: Record<AIProvider, string> = {
   gemini: 'Detected automatically for your key',
-  anthropic: 'claude-opus-5-5 (default)',
+  anthropic: 'claude-haiku-5-5 (default)',
   openai: 'gpt-5-mini (default)',
   vllm: 'Detected from the server (first served model)',
 };
