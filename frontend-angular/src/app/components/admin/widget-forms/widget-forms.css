@@ -1,0 +1,266 @@
+/* Inspector form styles, shared by the editor and its widget settings forms
+   (components/admin/widget-forms). Each component scopes its own copy. */
+.tab-desc {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-top: -6px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #f1f5f9;
+  text-transform: none;
+}
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+.form-row .form-group {
+  flex: 1;
+}
+.placeholder-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.placeholder-chip {
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.08);
+  color: #7dd3fc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+.placeholder-chip:hover { background: rgba(56, 189, 248, 0.18); }
+.field-hint {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+.input-control {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+.input-control:focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25);
+}
+
+.section-subhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0 4px 0;
+}
+.btn-xs-action {
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.btn-xs-action:hover { background: #0284c7; }
+
+.smart-home-guide-box {
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px dashed rgba(14, 165, 233, 0.3);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 0.72rem;
+}
+.smart-home-guide-box strong {
+  color: #38bdf8;
+  display: block;
+  margin-bottom: 2px;
+}
+.smart-home-guide-box p {
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.quick-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.quick-tag-label {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 600;
+}
+.tag-pill {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #38bdf8;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tag-pill:hover {
+  background: #0ea5e9;
+  color: #ffffff;
+  border-color: #0ea5e9;
+}
+
+.radar-notice-banner {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #a7f3d0;
+  line-height: 1.35;
+}
+.radar-notice-icon {
+  font-size: 1rem;
+}
+
+.weather-notice-banner, .form-notice {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: #7dd3fc;
+  line-height: 1.35;
+}
+.weather-notice-icon, .form-notice-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.feeds-manager, .meal-days-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.feed-config-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.color-picker-mini {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+.feed-name-input { width: 80px; }
+.feed-url-input { flex: 1; }
+
+.note-config-item {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.note-config-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.note-author-input { flex: 1; }
+
+.meal-day-config {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.day-label {
+  width: 70px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.btn-icon-danger {
+  background: none;
+  border: none;
+  color: #f87171;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* Forms always sit in the inspector column: fill it, never overflow it */
+.widget-form .form-group {
+  min-width: 0;
+}
+.widget-form .input-control {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Generated forms (widget-config-form) */
+.form-section { margin-top: 8px; font-size: 0.72rem; color: #94a3b8; }
+.form-section summary { cursor: pointer; outline: none; }
+.form-section > .form-group { margin-top: 8px; }
+.input-prefix { display: flex; gap: 8px; align-items: center; }
+.input-prefix > span { color: #94a3b8; font-weight: 600; }
+.input-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem; white-space: pre; tab-size: 2; }
+.input-color { height: 38px; padding: 2px; }
+.form-notice-text { font-size: 0.72rem; line-height: 1.4; }
+.webhook-snippet { display: block; font-size: 0.7rem; word-break: break-all; }
+.form-action-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.form-action-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); color: #e2e8f0; }
+.form-action-btn:disabled { opacity: 0.6; cursor: wait; }

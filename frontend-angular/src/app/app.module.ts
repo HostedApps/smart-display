@@ -59,6 +59,17 @@ import { GreetingWidgetComponent } from './components/widgets/greeting-widget.co
 import { CustomWidgetComponent } from './components/widgets/custom-widget.component';
 import { IconComponent } from './components/shared/icon.component';
 import { SecretInputComponent } from './components/shared/secret-input.component';
+import { WidgetConfigFormComponent } from './components/admin/widget-forms/widget-config-form.component';
+import { WidgetContentFormComponent } from './components/admin/widget-forms/widget-content-form.component';
+import { AiBriefingFormComponent } from './components/admin/widget-forms/ai-briefing-form.component';
+import { CalendarFormComponent } from './components/admin/widget-forms/calendar-form.component';
+import { CustomWidgetFormComponent } from './components/admin/widget-forms/custom-widget-form.component';
+import { HomeAssistantFormComponent } from './components/admin/widget-forms/homeassistant-form.component';
+import { MealPlannerFormComponent } from './components/admin/widget-forms/meal-planner-form.component';
+import { PhotoFormComponent } from './components/admin/widget-forms/photo-form.component';
+import { StickyNotesFormComponent } from './components/admin/widget-forms/sticky-notes-form.component';
+import { StocksFormComponent } from './components/admin/widget-forms/stocks-form.component';
+import { TextFormComponent } from './components/admin/widget-forms/text-form.component';
 import { NotificationHostComponent } from './components/shared/notification-host.component';
 
 @NgModule({
@@ -69,6 +80,17 @@ import { NotificationHostComponent } from './components/shared/notification-host
     SampleBadgeComponent,
     IconComponent,
     SecretInputComponent,
+    WidgetConfigFormComponent,
+    WidgetContentFormComponent,
+    AiBriefingFormComponent,
+    CalendarFormComponent,
+    CustomWidgetFormComponent,
+    HomeAssistantFormComponent,
+    MealPlannerFormComponent,
+    PhotoFormComponent,
+    StickyNotesFormComponent,
+    StocksFormComponent,
+    TextFormComponent,
     CustomWidgetComponent,
     GreetingWidgetComponent,
     DisplayViewerComponent,
