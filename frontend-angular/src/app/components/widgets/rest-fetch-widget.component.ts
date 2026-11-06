@@ -1,9 +1,10 @@
+import { WidgetSecretMeta } from '../../models/display.model';
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subject, interval, of } from 'rxjs';
 import { takeUntil, switchMap, catchError } from 'rxjs/operators';
 
-export interface RestFetchConfig {
+export interface RestFetchConfig extends WidgetSecretMeta {
   url?: string;
   authHeader?: string;
   jsonPath?: string;

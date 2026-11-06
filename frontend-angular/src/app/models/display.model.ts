@@ -90,7 +90,22 @@ export interface ClockConfig {
   showDate?: boolean;
 }
 
-export interface WeatherConfig {
+/**
+ * Markers for widgets with secret fields (API keys, tokens). Secrets are stored encrypted on the
+ * server (backend-api/widget_secrets_lib.php), never in the config itself.
+ */
+export interface WidgetSecretMeta {
+  /** Secret fields saved on the server for this widget (set by get_display.php) */
+  _secretsSet?: string[];
+  /** Database id, so the widget can ask an endpoint to use its stored secret */
+  _widgetId?: number;
+  /** Editor → save: delete these stored secrets */
+  _clearSecrets?: string[];
+  /** Screen only: secret fields the server filled in; never written to the offline cache */
+  _deviceSecrets?: string[];
+}
+
+export interface WeatherConfig extends WidgetSecretMeta {
   apiKey?: string;
   city?: string;
   units?: 'metric' | 'imperial';
@@ -153,7 +168,7 @@ export interface HomeAssistantEntity {
   unit?: string;
 }
 
-export interface HomeAssistantConfig {
+export interface HomeAssistantConfig extends WidgetSecretMeta {
   title?: string;
   haUrl?: string;
   token?: string;
@@ -230,7 +245,7 @@ export interface QuoteConfig {
   refreshHours?: number;
 }
 
-export interface AIBriefingConfig {
+export interface AIBriefingConfig extends WidgetSecretMeta {
   apiKey?: string;
   userName?: string;
   tone?: 'warm' | 'executive' | 'motivational' | 'concise';

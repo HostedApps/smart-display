@@ -58,6 +58,7 @@ import { WidgetStateComponent, SampleBadgeComponent } from './components/shared/
 import { GreetingWidgetComponent } from './components/widgets/greeting-widget.component';
 import { CustomWidgetComponent } from './components/widgets/custom-widget.component';
 import { IconComponent } from './components/shared/icon.component';
+import { SecretInputComponent } from './components/shared/secret-input.component';
 import { NotificationHostComponent } from './components/shared/notification-host.component';
 
 @NgModule({
@@ -67,6 +68,7 @@ import { NotificationHostComponent } from './components/shared/notification-host
     WidgetStateComponent,
     SampleBadgeComponent,
     IconComponent,
+    SecretInputComponent,
     CustomWidgetComponent,
     GreetingWidgetComponent,
     DisplayViewerComponent,
