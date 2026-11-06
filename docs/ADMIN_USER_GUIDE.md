@@ -97,7 +97,7 @@ Start from one of 14 templates (for example Family, MagicMirror-style, Kitchen H
 | **News & Info** | | |
 | RSS News Feed | `rss` | RSS / Atom feed URL |
 | Daily Quotes | `quote` | Category or custom quote |
-| AI Ambient Briefing | `ai_briefing` | Name, tone, location (blank uses the Weather widget on the same screen), units, refresh interval, optional Gemini API key. Mentions only real weather and the next event from a Calendar widget |
+| AI Ambient Briefing | `ai_briefing` | Name, tone, location (blank uses the Weather widget on the same screen), units, refresh interval. **AI provider:** Google Gemini, Anthropic Claude, OpenAI, or a self-hosted OpenAI-compatible server (vLLM), each with its own API key and an optional model name; **Test connection** checks it. Mentions only real weather and the next event from a Calendar widget; without a provider the built-in engine writes it |
 | Greeting & Compliments | `greeting` | Names to rotate, custom lines; reacts to weather and the next calendar event |
 | Commute & Transit | `commute` | Destinations, route badges |
 | Google Maps | `google_maps` | Location, zoom, map type |

@@ -63,6 +63,9 @@ jobs:
           DB_PASS=root
           MAX_SYSTEM_USERS=50
           ALLOW_TEST_CAPTCHA=1
+          ALLOW_PRIVATE_LLM_URLS=1
+          ANTHROPIC_BASE_URL=http://localhost:8000/api/tests/mock_llm.php/anthropic
+          OPENAI_BASE_URL=http://localhost:8000/api/tests/mock_llm.php/openai/v1
           EOF
       - name: Build the database
         run: scripts/setup-dev-db.sh

@@ -245,8 +245,20 @@ export interface QuoteConfig {
   refreshHours?: number;
 }
 
+export type AIProvider = 'gemini' | 'anthropic' | 'openai' | 'vllm';
+
 export interface AIBriefingConfig extends WidgetSecretMeta {
+  /** Who writes the briefing; unset means Gemini (widgets saved before providers existed) */
+  provider?: AIProvider;
+  /** Model name; empty uses the provider's default (Gemini and self-hosted: detected automatically) */
+  model?: string;
+  /** Self-hosted OpenAI-compatible server (vLLM), e.g. https://llm.example.com/v1 */
+  vllmUrl?: string;
+  /** API keys, one per provider (secrets: stored on the server, never in the config) */
   apiKey?: string;
+  anthropicKey?: string;
+  openaiKey?: string;
+  vllmKey?: string;
   userName?: string;
   tone?: 'warm' | 'executive' | 'motivational' | 'concise';
   refreshHours?: number;

@@ -11,4 +11,6 @@ PORT="${PORT:-8000}"
 mkdir -p "$DOCROOT"
 ln -sfn "$ROOT/backend-api" "$DOCROOT/api"
 echo "Serving $ROOT/backend-api at http://localhost:$PORT/api/"
+# Several workers, so an endpoint can call another one on this server (the test suite's mock LLM)
+export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-4}"
 exec php -S "localhost:$PORT" -t "$DOCROOT"
