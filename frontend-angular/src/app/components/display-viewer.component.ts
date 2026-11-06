@@ -1,4 +1,5 @@
 import { isWidgetOnPage, MIN_PAGE_SECONDS, DEFAULT_PAGE_SECONDS } from '../utils/pages.util';
+import { isNewBuild, mainBundleIn, runningMainBundle } from '../utils/build-update.util';
 import { Component, OnInit, OnDestroy, HostListener, Type } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -734,6 +735,7 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
   private rotationPausedUntil = 0;
   private rotationResumeTimer?: ReturnType<typeof setTimeout>;
   private clockTimerSub?: Subscription;
+  private buildCheckSub?: Subscription;
   /** Last layout version seen on the emergency poll; null until the server supports it */
   private lastConfigVersion: string | null = null;
   /** Highest remote command id already executed (persisted so a reload doesn't repeat it) */
@@ -1026,6 +1028,9 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
         () => ({ pageIndex: this.activePageIndex, sleeping: this.isSleeping, perfMode: this.performanceMode }),
         () => document.querySelector('.display-canvas') as HTMLElement | null
       );
+
+      // Pick up new deploys: screens otherwise keep running the old build until someone reloads them
+      this.buildCheckSub = interval(5 * 60000).subscribe(() => this.checkForNewBuild());
     }
 
     // 1-second clock for time, sleep check & audio chimes
@@ -1497,6 +1502,31 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     this.clockTimerSub?.unsubscribe();
     this.telemetry.stop();
     this.emergencyPollSub?.unsubscribe();
+    this.buildCheckSub?.unsubscribe();
     this.applyCustomCss();
+  }
+
+  /** Reload once when the server has a newer build than the one this screen is running */
+  private async checkForNewBuild(): Promise<void> {
+    const running = runningMainBundle();
+    if (!running || !this.isOnline || this.activeEmergency) return;
+    let served: string | null = null;
+    try {
+      const res = await fetch(new URL('index.html', document.baseURI).href + '?build=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) return;
+      served = mainBundleIn(await res.text());
+    } catch {
+      return; // offline or server down: keep running what we have
+    }
+    if (!isNewBuild(running, served)) return;
+    // Never loop: one reload per new build (in case a proxy still hands out the old bundle)
+    const key = 'sd_build_reload';
+    try {
+      if (localStorage.getItem(key) === served) return;
+      localStorage.setItem(key, served!);
+    } catch {
+      return;
+    }
+    window.location.reload();
   }
 }

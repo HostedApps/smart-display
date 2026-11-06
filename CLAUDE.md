@@ -43,6 +43,7 @@ Admin (AuthGuard): `/#/admin/displays` (fleet hub), `/#/admin/editor/:token` (ed
 - `emergency.php` is polled every **5 s**: returns emergency takeover state, a **layout version stamp** (kiosk reloads config when it changes → "instant publish"), and queued **remote commands** (`reload`, `identify`, `sleep`, `wake`, `goto_page`, `screenshot`; 2-min expiry, never replayed after restart). Full config resync is a 5-min safety net.
 - Heartbeat every 60 s (`display_heartbeat.php`) and an `html2canvas-pro` screenshot thumbnail (kiosk-only lazy chunk) every 15 min feed the fleet hub's online/stale/offline status. Heartbeats must not bump the layout version.
 - Offline cache (`offline-cache.service.ts`) serves the last config when the network is down; retry fast (~8 s) on errors. `index.html` body has an inline dark background to avoid a white flash on boot.
+- Kiosks pick up new deploys by themselves: every 5 min the viewer re-reads `index.html` and reloads once when it names a different `main.<hash>.js` (`utils/build-update.util.ts`; skipped while offline or during an emergency). Screens on builds older than 2.1.7 still need one reload from the fleet hub.
 - Bump `APP_VERSION` in `src/app/app-version.ts` for kiosk-visible releases (shown in the fleet hub).
 
 ### Backend
