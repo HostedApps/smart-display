@@ -1,4 +1,4 @@
-import { isWidgetOnPage, MIN_PAGE_SECONDS, DEFAULT_PAGE_SECONDS } from '../utils/pages.util';
+import { MIN_PAGE_SECONDS, DEFAULT_PAGE_SECONDS, PAGE_PRELOAD_SECONDS, widgetsToRender } from '../utils/pages.util';
 import { backgroundCss, backgroundImageUrl, cssUrl } from '../utils/background.util';
 import { isNewBuild, mainBundleIn, runningMainBundle } from '../utils/build-update.util';
 import { Component, OnInit, OnDestroy, HostListener, Type } from '@angular/core';
@@ -114,6 +114,8 @@ import { KioskCommand } from '../services/emergency.service';
         <div 
           *ngFor="let widget of activeWidgets; trackBy: trackWidgetById" 
           class="widget-wrapper sd-widget-box"
+          [class.sd-offstage]="offstageWidgetIds.has(widget.id)"
+          [attr.aria-hidden]="offstageWidgetIds.has(widget.id) ? 'true' : null"
           [ngClass]="getWidgetRuleClasses(widget)"
           [style.--sd-radius]="widget.style?.borderRadius != null ? widget.style!.borderRadius + 'px' : null"
           [style.left.px]="widget.position.x"
@@ -298,6 +300,14 @@ import { KioskCommand } from '../services/emergency.service';
       padding: 6px;
       transition: opacity 0.3s ease, box-shadow 0.3s ease;
     }
+    /* Next page built and painted in the background (or the page fading out): mounted but invisible.
+       will-change keeps it on its own layer so it's rasterised before it's revealed */
+    .widget-wrapper.sd-offstage {
+      opacity: 0 !important;
+      pointer-events: none;
+      will-change: opacity;
+    }
+    .sd-transition-none .widget-wrapper { transition: none; }
     .offline-pill {
       position: absolute;
       top: 16px;
@@ -876,31 +886,35 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     }
   }
 
-  private activeWidgetsCache: { key: string; widgets: Widget[]; pages: DisplayPage[]; result: Widget[] } | null = null;
+  private activeWidgetsCache: { key: string; widgets: Widget[]; pages: DisplayPage[]; result: Widget[]; offstage: Set<number> } | null = null;
+  /** Page being built in the background ahead of a page change, and the page fading out after one */
+  stagedPageIndex: number | null = null;
+  leavingPageIndex: number | null = null;
+  private stageTimer?: ReturnType<typeof setTimeout>;
+  private leaveTimer?: ReturnType<typeof setTimeout>;
 
-  /** Widgets on the current page whose schedule is active. Cached per page and minute, so it is not
-   *  recomputed on every change-detection pass and ngFor sees a stable array. */
+  /** Widgets to mount: the current page's (visible) plus the staged / leaving page's (invisible).
+   *  Cached per page state and minute, so it is not recomputed on every change-detection pass and
+   *  ngFor sees a stable array. */
   get activeWidgets(): Widget[] {
-    const t = this.currentTime;
-    const key = `${this.activePageIndex}|${t.getDay()}|${t.getHours()}|${t.getMinutes()}`;
-    const c = this.activeWidgetsCache;
-    if (c && c.key === key && c.widgets === this.widgets && c.pages === this.pages) {
-      return c.result;
-    }
-    const result = this.computeActiveWidgets();
-    this.activeWidgetsCache = { key, widgets: this.widgets, pages: this.pages, result };
-    return result;
+    return this.renderState().result;
   }
 
-  private computeActiveWidgets(): Widget[] {
-    let list = this.widgets;
-    if (this.pages.length > 1) {
-      const curPage = this.pages[this.activePageIndex];
-      if (curPage) {
-        list = this.widgets.filter(w => isWidgetOnPage(w, curPage.id, this.pages));
-      }
+  get offstageWidgetIds(): Set<number> {
+    return this.renderState().offstage;
+  }
+
+  private renderState() {
+    const t = this.currentTime;
+    const key = `${this.activePageIndex}|${this.stagedPageIndex}|${this.leavingPageIndex}|${t.getDay()}|${t.getHours()}|${t.getMinutes()}`;
+    const c = this.activeWidgetsCache;
+    if (c && c.key === key && c.widgets === this.widgets && c.pages === this.pages) {
+      return c;
     }
-    return list.filter(w => this.isWidgetScheduledActive(w));
+    const plan = widgetsToRender(this.widgets, this.pages, this.activePageIndex, this.stagedPageIndex, this.leavingPageIndex);
+    const result = plan.widgets.filter(w => this.isWidgetScheduledActive(w));
+    this.activeWidgetsCache = { key, widgets: this.widgets, pages: this.pages, result, offstage: plan.offstage };
+    return this.activeWidgetsCache;
   }
 
   isWidgetScheduledActive(w: Widget, now: Date = this.currentTime): boolean {
@@ -1264,6 +1278,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     this.carouselTimerSub?.unsubscribe();
     this.carouselTimerSub = undefined;
     clearTimeout(this.rotationResumeTimer);
+    clearTimeout(this.stageTimer);
+    this.stagedPageIndex = null;
     if (this.pages.length <= 1) return;
 
     const available = this.getEligiblePageIndices();
@@ -1282,17 +1298,37 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
     const curPage = this.pages[this.activePageIndex] || this.pages[0];
     const duration = Math.max(MIN_PAGE_SECONDS, curPage.duration_seconds || DEFAULT_PAGE_SECONDS);
 
+    const nextIndex = available[(available.indexOf(this.activePageIndex) + 1) % available.length];
+
+    // Build and paint the next page in the background a few seconds early, so the change itself
+    // is only a fade (no widget start-up or first paint at that moment — that's what stutters on a Pi)
+    const lead = Math.min(PAGE_PRELOAD_SECONDS, duration / 2);
+    this.stageTimer = setTimeout(() => {
+      if (!this.isSleeping) this.stagedPageIndex = nextIndex;
+    }, (duration - lead) * 1000);
+
     this.carouselTimerSub = interval(duration * 1000).subscribe(() => {
-      const currentPos = available.indexOf(this.activePageIndex);
-      const nextPos = (currentPos + 1) % available.length;
-      this.activePageIndex = available[nextPos];
+      this.showPage(nextIndex);
       this.startCarousel();
     });
   }
 
   goToPage(idx: number): void {
-    this.activePageIndex = idx;
+    this.showPage(idx);
     this.startCarousel();
+  }
+
+  /** Switch pages: the old page stays mounted (fading out) for a moment instead of vanishing mid-frame */
+  private showPage(idx: number): void {
+    if (idx === this.activePageIndex || !this.pages[idx]) return;
+    const prev = this.activePageIndex;
+    this.activePageIndex = idx;
+    this.stagedPageIndex = null;
+    this.leavingPageIndex = prev;
+    clearTimeout(this.leaveTimer);
+    this.leaveTimer = setTimeout(() => {
+      this.leavingPageIndex = null;
+    }, 800);
   }
 
   get activePageId(): string {
@@ -1494,6 +1530,8 @@ export class DisplayViewerComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     clearTimeout(this.rotationResumeTimer);
+    clearTimeout(this.stageTimer);
+    clearTimeout(this.leaveTimer);
     this.wakeLock.releaseWakeLock();
     this.pollSub?.unsubscribe();
     this.carouselTimerSub?.unsubscribe();

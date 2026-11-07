@@ -28,6 +28,7 @@ describe('AIBriefingWidgetComponent (honest context, Gemini back-off)', () => {
   afterEach(() => http.verify());
 
   it('sends no weather or location when none is known (never "Sunny, 74°F")', fakeAsync(() => {
+    const hourBefore = new Date().getHours();
     component.config = { userName: 'Sam', tone: 'warm' };
     component.ngOnInit();
     tick(10_000); // waits for a weather widget that never publishes
@@ -35,7 +36,7 @@ describe('AIBriefingWidgetComponent (honest context, Gemini back-off)', () => {
     const req = http.expectOne(briefingUrl);
     expect(req.request.body.weather).toBe('');
     expect(req.request.body.location).toBe('');
-    expect(req.request.body.localHour).toBe(new Date().getHours());
+    expect([hourBefore, new Date().getHours()]).toContain(req.request.body.localHour); // the 10 s wait may cross an hour
     expect(req.request.body.refreshHours).toBeGreaterThanOrEqual(2);
     req.flush({ success: true, briefing: 'Good evening, Sam!', provider: 'ambient_engine' });
     expect(component.displayedText).toBe('Good evening, Sam!');

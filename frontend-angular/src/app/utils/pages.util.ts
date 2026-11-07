@@ -23,3 +23,34 @@ export function rotationCycleSeconds(pages: readonly DisplayPage[]): number {
 
 export const MIN_PAGE_SECONDS = 5;
 export const DEFAULT_PAGE_SECONDS = 30;
+
+/** How long before a page change the next page is mounted (hidden) so it's built and painted in advance */
+export const PAGE_PRELOAD_SECONDS = 4;
+
+/**
+ * The widgets the screen keeps mounted: the current page, plus the page being prepared in the
+ * background (`staged`) and the page fading out (`leaving`). Widgets on those two are mounted but
+ * invisible (`offstage`). Keeps the layout's stacking order; shared widgets appear once.
+ */
+export function widgetsToRender<W extends Pick<Widget, 'id' | 'page_id' | 'allPages'>>(
+  widgets: readonly W[],
+  pages: readonly DisplayPage[],
+  activeIndex: number,
+  stagedIndex: number | null = null,
+  leavingIndex: number | null = null
+): { widgets: W[]; offstage: Set<W['id']> } {
+  if (pages.length <= 1) return { widgets: [...widgets], offstage: new Set() };
+  const active = pages[activeIndex]?.id ?? pages[0].id;
+  const extra = new Set([stagedIndex, leavingIndex].filter((i): i is number => i !== null && i !== activeIndex && !!pages[i]).map(i => pages[i].id));
+  const list: W[] = [];
+  const offstage = new Set<W['id']>();
+  for (const w of widgets) {
+    if (isWidgetOnPage(w, active, pages)) {
+      list.push(w);
+    } else if (extra.has(homePageId(w, pages))) {
+      list.push(w);
+      offstage.add(w.id);
+    }
+  }
+  return { widgets: list, offstage };
+}
