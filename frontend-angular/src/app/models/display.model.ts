@@ -139,6 +139,8 @@ export interface PhotoConfig {
   blurBackground?: boolean;
   showCaptions?: boolean;
   kenBurns?: boolean;
+  /** Festive frame id from photo-frames.ts ('none' or unset = no frame) */
+  frameTheme?: string;
 }
 
 export interface RssConfig {

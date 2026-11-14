@@ -11,7 +11,8 @@ const MINUTE = 60_000;
 @Component({
   selector: 'app-photo-widget',
   template: `
-    <div class="photo-card sd-card" [ngClass]="config.fitMode || 'cover'">
+    <div class="photo-card sd-card" [ngClass]="config.fitMode || 'cover'" [class.framed]="!!config.frameTheme && config.frameTheme !== 'none'">
+      <app-photo-frame *ngIf="config.frameTheme && config.frameTheme !== 'none'" [theme]="config.frameTheme"></app-photo-frame>
       <app-sample-badge *ngIf="isLive && showingSample"></app-sample-badge>
       <div 
         *ngIf="config.blurBackground && config.fitMode === 'contain' && currentImageUrl" 
@@ -132,6 +133,10 @@ const MINUTE = 60_000;
       letter-spacing: 0.2px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
+    /* Festive frame (app-photo-frame): band width scales with the widget; keep badges inside it */
+    .photo-card.framed { --pf-w: clamp(10px, 6cqmin, 44px); }
+    .photo-card.framed .album-badge { top: calc(var(--pf-w) * 2.3); left: calc(var(--pf-w) + 8px); }
+    .photo-card.framed .caption-pill { bottom: calc(var(--pf-w) + 10px); left: 50%; transform: translateX(-50%); }
     .empty-state {
       display: flex;
       flex-direction: column;

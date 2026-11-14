@@ -96,7 +96,7 @@ Start from one of 14 templates (for example Family, MagicMirror-style, Kitchen H
 | Sticky Notes | `sticky_note` | Message, author, note colour |
 | Whiteboard | `whiteboard` | Background, default pen colour |
 | **Photos & Media** | | |
-| Photo Slideshow | `photo` | Google Photos shared link, iCloud shared album, image URLs, interval |
+| Photo Slideshow | `photo` | Google Photos shared link, iCloud shared album, image URLs, interval, festive frame theme (Diwali, Christmas, Classic gold) |
 | Reddit Media | `reddit` | Subreddits, time range |
 | YouTube Video & Stream | `youtube` | Watch URL, youtu.be, shorts or video ID; autoplay, mute, loop |
 | Live Camera PiP | `camera_pip` | Stream URL or snapshot URL, refresh interval |

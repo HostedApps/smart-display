@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { ConfigField } from '../../widgets/widget-config-schema';
 import { WidgetFormBase } from './widget-form-base';
+import { PHOTO_FRAME_OPTIONS } from '../../widgets/photo-frames';
 
 const DISPLAY_FIELDS: readonly ConfigField[] = [
   { type: 'number', key: 'intervalSeconds', label: 'Slide Interval (s)', min: 3, row: 'slides' },
@@ -8,6 +9,8 @@ const DISPLAY_FIELDS: readonly ConfigField[] = [
     { value: 'cover', label: 'Cover (Fill Frame)' },
     { value: 'contain', label: 'Contain (Fit Whole Photo)' },
   ] },
+  { type: 'select', key: 'frameTheme', label: 'Frame Theme', options: PHOTO_FRAME_OPTIONS,
+    hint: 'A festive frame around the slideshow, e.g. Diwali diyas and marigolds.' },
   { type: 'toggle', key: 'blurBackground', label: 'Blur Backdrop when Contained' },
   { type: 'toggle', key: 'kenBurns', label: 'Cinematic Ken Burns Pan & Zoom' },
 ];

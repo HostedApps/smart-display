@@ -15,6 +15,7 @@ import { ClockWidgetComponent } from './components/widgets/clock-widget.componen
 import { WeatherWidgetComponent } from './components/widgets/weather-widget.component';
 import { CalendarWidgetComponent } from './components/widgets/calendar-widget.component';
 import { PhotoWidgetComponent } from './components/widgets/photo-widget.component';
+import { PhotoFrameComponent } from './components/widgets/photo-frame.component';
 import { RssWidgetComponent } from './components/widgets/rss-widget.component';
 import { TodoWidgetComponent } from './components/widgets/todo-widget.component';
 import { HomeAssistantWidgetComponent } from './components/widgets/homeassistant-widget.component';
@@ -145,7 +146,8 @@ import { NotificationHostComponent } from './components/shared/notification-host
     CommonModule,
     FormsModule,
     HttpClientModule,
-    AppRoutingModule
+    AppRoutingModule,
+    PhotoFrameComponent
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true }
