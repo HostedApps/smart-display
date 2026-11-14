@@ -30,7 +30,14 @@ TARGET_URL="https://smart-kiosk.online/#/display/YOUR_TOKEN"
 ```
 It ships with a placeholder token. To use PIN pairing, set it to `https://smart-kiosk.online/#/pair` for the first boot only: once paired, the screen loads its display automatically and stores its device token. Then change `TARGET_URL` to the display link, because the pairing page requests a new code every time it opens.
 
-The script also waits up to 45 s for the network on boot, clears Chromium's crash-restore state, and relaunches Chromium if it exits.
+The script also waits up to 45 s for the network before each launch, clears Chromium's crash-restore state, and relaunches Chromium if it exits. A watchdog checks the screen every 15 s: if Chromium is stuck on an error page (for example the Pi booted before Wi-Fi was up) and the server is reachable, it restarts Chromium, so the screen recovers by itself instead of staying white.
+
+**Updating the script later** (keeps your `TARGET_URL`):
+```bash
+OLD_URL=$(grep '^TARGET_URL=' /home/pi/start_dashboard.sh)
+curl -fsSL https://raw.githubusercontent.com/HostedApps/smart-display/main/raspberry-pi/start_dashboard.sh -o /tmp/start_dashboard.sh
+sed -i "s|^TARGET_URL=.*|$OLD_URL|" /tmp/start_dashboard.sh && bash -n /tmp/start_dashboard.sh && install -m 755 /tmp/start_dashboard.sh /home/pi/start_dashboard.sh
+```
 
 Make the script executable:
 ```bash
