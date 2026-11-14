@@ -59,41 +59,98 @@ wait_for_server() {
   fi
 }
 
-# What the kiosk tab is showing, via Chromium's local DevTools endpoint:
-#   ok      the dashboard loaded
-#   error   a Chromium error page (no network at launch, DNS failure, server down...) or a blank tab
-#   unknown DevTools not answering yet
-kiosk_tab_state() {
-  python3 - <<'PY' 2>/dev/null || echo unknown
-import json, urllib.request
-try:
+# Tiny DevTools client (Python standard library only: Raspberry Pi OS has no websocket module).
+#   kiosk_cdp state         prints ok | stuck | unknown
+#   kiosk_cdp navigate URL  tells the kiosk tab to load URL
+# "stuck" means the document in the tab isn't the dashboard's site: a Chromium error page, or a
+# blank page left behind when the first load never finished (seen on a Pi after Chromium's network
+# service crashed during start-up: DevTools still lists the dashboard URL, but the tab is about:blank).
+CDP_HELPER="$HOME/.cache/smart-display/kiosk_cdp.py"
+mkdir -p "$(dirname "$CDP_HELPER")"
+cat > "$CDP_HELPER" <<'PY'
+import base64, json, os, socket, struct, sys, urllib.request
+from urllib.parse import urlparse
+
+def tab():
     tabs = json.loads(urllib.request.urlopen('http://127.0.0.1:9222/json', timeout=4).read())
+    pages = [t for t in tabs if t.get('type') == 'page']
+    return pages[0] if pages else None
+
+def call(ws_url, method, params):
+    u = urlparse(ws_url)
+    s = socket.create_connection((u.hostname, u.port), timeout=10)
+    key = base64.b64encode(os.urandom(16)).decode()
+    s.sendall(('GET %s HTTP/1.1\r\nHost: %s:%s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+               'Sec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n' % (u.path, u.hostname, u.port, key)).encode())
+    buf = b''
+    while b'\r\n\r\n' not in buf:
+        chunk = s.recv(4096)
+        if not chunk: raise IOError('handshake failed')
+        buf += chunk
+    buf = buf.split(b'\r\n\r\n', 1)[1]
+    data = json.dumps({'id': 1, 'method': method, 'params': params}).encode()
+    mask = os.urandom(4)
+    n = len(data)
+    hdr = bytes([0x81]) + (bytes([0x80 | n]) if n < 126 else bytes([0x80 | 126]) + struct.pack('>H', n))
+    s.sendall(hdr + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
+    def take(k):
+        nonlocal buf
+        while len(buf) < k:
+            chunk = s.recv(65536)
+            if not chunk: raise IOError('closed')
+            buf += chunk
+        out, buf = buf[:k], buf[k:]
+        return out
+    while True:
+        b1, b2 = take(2)
+        k = b2 & 0x7f
+        if k == 126: k = struct.unpack('>H', take(2))[0]
+        elif k == 127: k = struct.unpack('>Q', take(8))[0]
+        msg = json.loads(take(k))
+        if msg.get('id') == 1:
+            s.close()
+            return msg.get('result', {})
+
+try:
+    t = tab()
 except Exception:
-    print('unknown'); raise SystemExit
-pages = [t for t in tabs if t.get('type') == 'page']
-if not pages:
-    print('error'); raise SystemExit
-url = pages[0].get('url', '')
-title = pages[0].get('title', '')
-# Error pages report chrome-error://chromewebdata/ (or keep the URL with the host name as title)
-if url.startswith('chrome-error://') or url in ('', 'about:blank') or title == 'smart-kiosk.online':
-    print('error')
-else:
-    print('ok')
+    print('unknown'); sys.exit(0)
+if sys.argv[1] == 'state':
+    if not t:
+        print('stuck'); sys.exit(0)
+    want = urlparse(sys.argv[2]).netloc
+    try:
+        r = call(t['webSocketDebuggerUrl'], 'Runtime.evaluate', {'expression': 'location.host', 'returnByValue': True})
+        host = r.get('result', {}).get('value')
+    except Exception:
+        print('unknown'); sys.exit(0)
+    print('ok' if host == want else 'stuck')
+elif sys.argv[1] == 'navigate' and t:
+    try:
+        call(t['webSocketDebuggerUrl'], 'Page.navigate', {'url': sys.argv[2]})
+    except Exception:
+        pass
 PY
+
+kiosk_state() {
+  python3 "$CDP_HELPER" state "$TARGET_URL" 2>/dev/null || echo unknown
 }
 
-# Watchdog: if Chromium is stuck on an error page while the server is reachable, stop it so the
-# supervisor loop relaunches it. A screen that booted before Wi-Fi recovers by itself.
+# Watchdog: if the kiosk tab isn't showing the dashboard while the server is reachable, load it
+# again; if that doesn't help, stop Chromium so the supervisor loop relaunches it. A screen that
+# booted before Wi-Fi, or whose first load hung, recovers by itself instead of staying white.
 watch_kiosk() {
   sleep 30
   local strikes=0
   while pgrep -f -- "--remote-debugging-port=9222" > /dev/null; do
-    if [ "$(kiosk_tab_state)" = "error" ] && server_reachable; then
+    if [ "$(kiosk_state)" = "stuck" ] && server_reachable; then
       strikes=$((strikes + 1))
-      # Two checks in a row (~30 s): don't kill a page that is still loading
-      if [ $strikes -ge 2 ]; then
-        echo "[Smart Display] Kiosk is on an error page but the server is reachable. Restarting Chromium..."
+      # Two checks in a row (~30 s) so a page that is still loading isn't touched
+      if [ $strikes -eq 2 ]; then
+        echo "[Smart Display] Kiosk tab isn't showing the dashboard. Loading it again..."
+        python3 "$CDP_HELPER" navigate "$TARGET_URL" 2>/dev/null || true
+      elif [ $strikes -ge 4 ]; then
+        echo "[Smart Display] Kiosk still not showing the dashboard. Restarting Chromium..."
         pkill -TERM -f -- "--remote-debugging-port=9222"
         return
       fi
