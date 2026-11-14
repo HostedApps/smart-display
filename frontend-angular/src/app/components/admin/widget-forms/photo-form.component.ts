@@ -22,8 +22,8 @@ const DISPLAY_FIELDS: readonly ConfigField[] = [
       <div class="form-group">
         <label>Google Photos or Apple iCloud Shared Album URL</label>
         <input type="text" [(ngModel)]="config['albumUrl']" class="input-control"
-               placeholder="https://photos.app.goo.gl/... or https://www.icloud.com/sharedalbum/#..." />
-        <span class="field-hint">Paste any Google Photos or Apple iCloud public shared album link to automatically stream photos.</span>
+               placeholder="https://photos.app.goo.gl/... or https://photos.icloud.com/shared/album/..." />
+        <span class="field-hint">Paste a Google Photos shared album link, or an iCloud Shared Album link with its public link turned on (photos.icloud.com/shared/album/… or icloud.com/sharedalbum/#…).</span>
       </div>
       <div class="form-group">
         <label>Or Custom Image URLs (one per line)</label>

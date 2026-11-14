@@ -53,6 +53,16 @@ foreach (['https://www.icloud.com/sharedalbum/#B0zz9NotARealAlbum1', 'https://ww
     assertTrue(in_array($r['code'], [404, 502], true), "Album link form accepted: $form");
 }
 
+// New-style links (photos.icloud.com/shared/album/<id>) go to the CloudKit lookup: an unknown id
+// is a 404 from Apple (502 if iCloud is unreachable), never the "couldn't read the link" 400
+foreach (['https://photos.icloud.com/shared/album/01zzNotARealAlbumXXXXXXXX', 'https://www.icloud.com/photos/shared/album/01zzNotARealAlbumXXXXXXXX'] as $form) {
+    $r = ic_get('action=fetch_icloud_photos&album_url=' . rawurlencode($form));
+    assertTrue(in_array($r['code'], [404, 502], true), "Shared album link form accepted: $form");
+}
+
+$badShare = ic_get('action=icloud_image&share=' . rawurlencode('../x') . '&photo=0');
+assertTrue($badShare['code'] === 400, "icloud_image rejects a malformed share id");
+
 $badImage = ic_get('action=icloud_image&album=x&photo=-1');
 assertTrue($badImage['code'] === 400, "icloud_image rejects a malformed album or photo index");
 

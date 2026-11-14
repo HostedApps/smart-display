@@ -267,6 +267,143 @@ function icloudToken(string $input): string {
     return '';
 }
 
+/*
+ * New-style shared album links: https://photos.icloud.com/shared/album/<id> (Apple's newer
+ * public Shared Album link). These are CloudKit shares, not shared streams:
+ *   1. public/records/resolve turns the id into the album's zone, its server partition and a
+ *      short-lived anonymous token (no Apple ID needed when the link is public);
+ *   2. shared/records/query lists assets + masters, each with ready-to-use download links.
+ * Apple's links expire, so the listing (with links) is refetched when older than
+ * ICLOUD_SHARE_LINK_TTL, and screens get stable icloud_image?share=… links that redirect.
+ */
+const ICLOUD_SHARE_LINK_TTL = 1800;
+const ICLOUD_CK_BASE = 'https://ckdatabasews.icloud.com/database/1/com.apple.photos.cloud/production';
+
+/** The id from https://photos.icloud.com/shared/album/<id> (also www.icloud.com/photos/shared/album/<id>), or '' */
+function icloudShareId(string $input): string {
+    if (preg_match('#icloud\.com/(?:photos/)?shared/album/([A-Za-z0-9_\-]{10,64})#i', $input, $m)) return $m[1];
+    return '';
+}
+
+/** A browser-friendly JPEG/PNG link from a CPLMaster/CPLAsset's fields, sized for a screen, or null */
+function icloudShareRendition(array $fields): ?string {
+    $url = fn(string $key) => $fields[$key]['value']['downloadURL'] ?? null;
+    $origType = $fields['resOriginalFileType']['value'] ?? '';
+    $origOk = in_array($origType, ['public.jpeg', 'public.png'], true) ? $url('resOriginalRes') : null;   // HEIC won't show in Chromium
+    $origWidth = (int)($fields['resOriginalWidth']['value'] ?? 0);
+    // Screen-sized first (a 5712 px original is too heavy for a Pi), then larger, then anything
+    $candidates = [$origOk && $origWidth > 0 && $origWidth <= 2560 ? $origOk : null,
+        $url('resJPEGMedRes'), $url('resJPEGFullRes'), $origOk, $url('resJPEGThumbRes')];
+    foreach ($candidates as $c) {
+        if (!is_string($c)) continue;
+        $host = parse_url($c, PHP_URL_HOST) ?: '';
+        if (preg_match('/(^|\.)icloud-content\.com$/', $host) && str_starts_with($c, 'https://')) {
+            return str_replace('${f}', 'photo.jpg', $c);
+        }
+    }
+    return null;
+}
+
+/**
+ * The album as [title, photos => [[recordName, downloadUrl], …], fetchedAt], from cache when younger
+ * than $maxAge. Returns [album|null, errorStatus, errorMessage]; on a failed refresh the stale
+ * listing is returned with the error.
+ */
+function icloudShareAlbum(string $id, int $maxAge): array {
+    $file = icloudCacheDir() . '/share_' . md5($id) . '.json';
+    $cached = icloudReadJson($file);
+    if ($cached && time() - (int)($cached['fetchedAt'] ?? 0) < $maxAge) {
+        return [$cached, 0, ''];
+    }
+    @set_time_limit(120);
+
+    [$status, , $res] = icloudPost(ICLOUD_CK_BASE . '/public/records/resolve?remapEnums=true&getCurrentSyncToken=true',
+        ['shortGUIDs' => [['value' => $id]]], 30);
+    $share = $res['results'][0] ?? null;
+    if ($status !== 200 || !is_array($share)) {
+        $why = $status === 0 ? "didn't answer in time" : "returned HTTP {$status}";
+        return [$cached, 502, "iCloud {$why} while opening the album. Try again later."];
+    }
+    if (($share['serverErrorCode'] ?? '') === 'NOT_FOUND') {
+        return [null, 404, "Album not found. Check the link, and that the Shared Album's public link is turned on."];
+    }
+    $access = $share['anonymousPublicAccess'] ?? null;
+    $partition = rtrim((string)($access['databasePartition'] ?? ''), '/');
+    if (!empty($share['requireAppleLogin']) || empty($access['token'])) {
+        return [null, 422, "This album needs an Apple ID to view. In Photos, open the Shared Album's settings and turn on the public link (anyone with the link can view)."];
+    }
+    if (!preg_match('#^https://p\d{1,3}-ckdatabasews\.icloud\.com(:443)?$#', $partition) || empty($share['zoneID']['zoneName'])) {
+        return [$cached, 502, "iCloud returned an unexpected album location."];
+    }
+
+    $queryUrl = $partition . '/database/1/com.apple.photos.cloud/production/shared/records/query?remapEnums=true&getCurrentSyncToken=true&publicAccessAuthToken=' . rawurlencode($access['token']);
+    $records = [];
+    $marker = null;
+    for ($page = 0; $page < 12; $page++) {   // 100 photos per page (asset + master records)
+        $body = [
+            'query' => [
+                'recordType' => 'CPLAssetAndMasterByAssetDateWithoutHiddenOrDeleted',
+                'filterBy' => [
+                    ['fieldName' => 'direction', 'comparator' => 'EQUALS', 'fieldValue' => ['value' => 'ASCENDING', 'type' => 'STRING']],
+                    ['fieldName' => 'startRank', 'comparator' => 'EQUALS', 'fieldValue' => ['value' => 0, 'type' => 'INT64']],
+                ],
+            ],
+            'zoneID' => $share['zoneID'],
+            'resultsLimit' => 200,
+        ];
+        if ($marker) $body['continuationMarker'] = $marker;
+        [$qStatus, , $q] = icloudPost($queryUrl, $body, 30);
+        if ($qStatus !== 200 || !is_array($q)) {
+            return [$cached, 502, "iCloud returned HTTP {$qStatus} while listing the album's photos."];
+        }
+        foreach ($q['records'] ?? [] as $r) $records[] = $r;
+        $marker = $q['continuationMarker'] ?? null;
+        if (!$marker || count($records) >= ICLOUD_MAX_PHOTOS * 2) break;
+    }
+
+    $masters = [];
+    foreach ($records as $r) {
+        if (($r['recordType'] ?? '') === 'CPLMaster') $masters[$r['recordName']] = $r['fields'] ?? [];
+    }
+    $photos = [];
+    foreach ($records as $r) {
+        if (($r['recordType'] ?? '') !== 'CPLAsset') continue;
+        $master = $masters[$r['fields']['masterRef']['value']['recordName'] ?? ''] ?? null;
+        if (!$master) continue;
+        if (preg_match('/movie|mpeg|quicktime|video|avi/i', (string)($master['itemType']['value'] ?? ''))) continue;   // the widget shows images
+        // An edited photo carries its own renditions on the asset; otherwise use the original's
+        $url = icloudShareRendition($r['fields'] ?? []) ?? icloudShareRendition($master);
+        if ($url) $photos[] = [$r['recordName'], $url];
+        if (count($photos) >= ICLOUD_MAX_PHOTOS) break;
+    }
+
+    $album = ['title' => $share['share']['fields']['cloudkit.title']['value'] ?? null, 'photos' => $photos, 'fetchedAt' => time()];
+    @file_put_contents($file, json_encode($album, JSON_UNESCAPED_SLASHES), LOCK_EX);
+    return [$album, 0, ''];
+}
+
+/** This script's own absolute URL, for building stable image links */
+function proxySelfUrl(): string {
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    return ($https ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/api/proxy.php'), '/') . '/proxy.php';
+}
+
+if ($action === 'icloud_image' && isset($_GET['share'])) {
+    $shareId = (string)$_GET['share'];
+    $index = filter_var($_GET['photo'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+    if (!preg_match('/^[A-Za-z0-9_\-]{10,64}$/', $shareId) || $index === false) {
+        icloudFail(400, "Bad iCloud image link.");
+    }
+    [$album, , $errMessage] = icloudShareAlbum($shareId, ICLOUD_SHARE_LINK_TTL);
+    $target = $album['photos'][$index][1] ?? null;
+    if (!$target) {
+        icloudFail(404, $errMessage ?: "Photo not found in the album.");
+    }
+    header('Cache-Control: private, max-age=' . max(0, min(600, (int)$album['fetchedAt'] + ICLOUD_SHARE_LINK_TTL - time())));
+    header('Location: ' . $target, true, 302);
+    exit();
+}
+
 if ($action === 'fetch_icloud_photos') {
     $albumUrl = trim($_GET['album_url'] ?? $_GET['url'] ?? $_GET['token'] ?? '');
     if ($albumUrl === '') {
@@ -276,9 +413,29 @@ if ($action === 'fetch_icloud_photos') {
     if (stripos($albumUrl, 'share.icloud.com') !== false) {
         icloudFail(422, "This is an iCloud photo link, not a Shared Album. In Photos, open the Shared Album, turn on Public Website, and paste that link (icloud.com/sharedalbum/#…).");
     }
+    $shareId = icloudShareId($albumUrl);
+    if ($shareId !== '') {
+        $refresh = !empty($_GET['force_refresh']) || !empty($_GET['refresh']);
+        [$album, $errStatus, $errMessage] = icloudShareAlbum($shareId, $refresh ? 0 : ICLOUD_ALBUM_TTL);
+        if (!$album) {
+            icloudFail($errStatus ?: 502, $errMessage);
+        }
+        if (!$album['photos']) {
+            icloudFail(404, "The album has no photos yet.");
+        }
+        $base = proxySelfUrl();
+        $images = [];
+        foreach ($album['photos'] as $i => $_) {
+            $images[] = $base . '?action=icloud_image&share=' . rawurlencode($shareId) . '&photo=' . $i;
+        }
+        if ($errMessage) header("X-iCloud-Warning: stale album listing");
+        echo json_encode(["success" => true, "count" => count($images), "title" => $album['title'], "images" => $images], JSON_UNESCAPED_SLASHES);
+        exit();
+    }
+
     $token = icloudToken($albumUrl);
     if ($token === '') {
-        icloudFail(400, "Couldn't read the album link. It should look like https://www.icloud.com/sharedalbum/#B0aB1cD2eF3gH4.");
+        icloudFail(400, "Couldn't read the album link. It should look like https://photos.icloud.com/shared/album/… or https://www.icloud.com/sharedalbum/#B0aB1cD2eF3gH4.");
     }
 
     [$album, $errStatus, $errMessage] = icloudAlbum($token, !empty($_GET['force_refresh']) || !empty($_GET['refresh']));

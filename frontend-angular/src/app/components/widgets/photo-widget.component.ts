@@ -322,7 +322,7 @@ export class PhotoWidgetComponent implements OnInit, OnDestroy, OnChanges {
     const albumUrl = this.getAlbumUrl();
 
     // Check iCloud Shared Album
-    if (albumUrl && (albumUrl.includes('icloud.com/sharedalbum') || albumUrl.includes('share.icloud.com'))) {
+    if (albumUrl && (albumUrl.includes('icloud.com/sharedalbum') || albumUrl.includes('icloud.com/shared/album') || albumUrl.includes('icloud.com/photos/shared/album') || albumUrl.includes('share.icloud.com'))) {
       this.isiCloudPhotos = true;
       this.isGooglePhotos = false;
 
